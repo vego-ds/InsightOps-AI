@@ -100,6 +100,13 @@ Run linting:
 ruff check .
 ```
 
+## CI and Environment
+
+- CI runs on GitHub Actions with Python 3.12.
+- CI verifies dependencies with `python3 scripts/verify_dependencies.py`.
+- CI runs `ruff check .` and `python3 -m pytest`.
+- Local development should use the same test and lint commands.
+
 ## Not Implemented Yet
 
 - LLM-generated insights.

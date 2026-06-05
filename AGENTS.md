@@ -18,12 +18,15 @@ It should ingest sales data, validate schemas, compute sales KPIs, detect anomal
 - Preserve auditability for data transformations and insight generation.
 - Do not commit generated cache files such as `__pycache__`, `.pyc`, `.pytest_cache`, or `.ruff_cache`.
 - Keep `app/main.py` thin when possible; move orchestration into domain or pipeline modules.
+- Keep CI green and use Python 3.12 for reproducibility.
+- Run `python3 scripts/verify_dependencies.py` when dependencies change.
 
 ## Commands
 
 ```bash
 ruff format . # Run code formatting (restructure style and spacing)
 ruff check . # Run code linting (find code quality bugs and dead code)
+python3 scripts/verify_dependencies.py # Verify required dependencies
 python3 -m pytest # Run automated tests
 uvicorn app.main:app --host 0.0.0.0 --port 8000 # Run the local development API
 
