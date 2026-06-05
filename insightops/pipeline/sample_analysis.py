@@ -19,11 +19,12 @@ from insightops.security.policy import scan_sales_records_for_security
 SAMPLE_SALES_CSV = Path("data/sample/sales_sample.csv")
 
 
-def analyze_sample_sales_data() -> dict[str, object]:
-    if not SAMPLE_SALES_CSV.exists():
-        raise FileNotFoundError("Sample sales CSV file is missing.")
+def analyze_sales_csv_file(path: str) -> dict[str, object]:
+    csv_path = Path(path)
+    if not csv_path.exists():
+        raise FileNotFoundError("Sales CSV file is missing.")
 
-    validation_report = load_sales_csv(str(SAMPLE_SALES_CSV))
+    validation_report = load_sales_csv(str(csv_path))
     security = scan_sales_records_for_security(validation_report.records)
     kpis = compute_sales_kpis(validation_report.records)
     anomalies = detect_sales_anomalies(validation_report.records)
@@ -68,3 +69,10 @@ def analyze_sample_sales_data() -> dict[str, object]:
         "insights": insights.model_dump(),
         "audit_events": [event.model_dump() for event in audit_events],
     }
+
+
+def analyze_sample_sales_data() -> dict[str, object]:
+    if not SAMPLE_SALES_CSV.exists():
+        raise FileNotFoundError("Sample sales CSV file is missing.")
+
+    return analyze_sales_csv_file(str(SAMPLE_SALES_CSV))

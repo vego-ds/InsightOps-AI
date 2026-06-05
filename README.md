@@ -27,6 +27,25 @@ Runs `data/sample/sales_sample.csv` through the analysis pipeline and returns:
 - `insights`
 - `audit_events`
 
+### POST /analysis/upload
+
+Accepts a user-provided `.csv` file, up to 1 MB, and returns the same analysis sections:
+
+- `validation`
+- `kpis`
+- `security`
+- `anomalies`
+- `charts`
+- `insights`
+- `audit_events`
+
+Example:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/analysis/upload" \
+  -F "file=@data/sample/sales_sample.csv"
+```
+
 ## Pipeline
 
 ```text

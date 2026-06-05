@@ -4,3 +4,4 @@ pydantic
 pytest
 ruff
 httpx2
+python-multipart
