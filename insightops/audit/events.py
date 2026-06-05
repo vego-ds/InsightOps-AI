@@ -72,3 +72,11 @@ def create_chart_data_generated_event(total_charts: int) -> AuditEvent:
         message="Sales chart data generated.",
         metadata={"total_charts": total_charts},
     )
+
+
+def create_insights_generated_event(total_insights: int) -> AuditEvent:
+    return AuditEvent(
+        event_type="insights_generated",
+        message="Executive insights generated.",
+        metadata={"total_insights": total_insights},
+    )

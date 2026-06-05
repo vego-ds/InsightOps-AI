@@ -16,6 +16,7 @@ def test_analysis_sample_returns_validation_and_kpis() -> None:
     assert "security" in payload
     assert "anomalies" in payload
     assert "charts" in payload
+    assert "insights" in payload
     assert "audit_events" in payload
 
     validation = payload["validation"]
@@ -48,4 +49,14 @@ def test_analysis_sample_returns_validation_and_kpis() -> None:
         assert "y_axis" in chart
         assert "data" in chart
 
-    assert len(payload["audit_events"]) >= 1
+    insights = payload["insights"]
+    assert "summary" in insights
+    assert isinstance(insights["insights"], list)
+    assert isinstance(insights["recommended_actions"], list)
+
+    audit_events = payload["audit_events"]
+    assert len(audit_events) >= 1
+    assert any(
+        event["event_type"] == "insights_generated"
+        for event in audit_events
+    )

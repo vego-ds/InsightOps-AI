@@ -1,0 +1,158 @@
+from pydantic import BaseModel, Field
+
+from insightops.anomalies.detector import AnomalyDetectionResult
+from insightops.metrics.kpis import SalesKPIResult
+from insightops.security.policy import SecurityScanResult
+from insightops.validation.report import ValidationReport
+
+InsightEvidenceValue = str | int | float | bool
+
+
+class ExecutiveInsight(BaseModel):
+    insight_type: str
+    severity: str
+    title: str
+    message: str
+    evidence: dict[str, InsightEvidenceValue] = Field(default_factory=dict)
+
+
+class ExecutiveInsightReport(BaseModel):
+    summary: str
+    insights: list[ExecutiveInsight] = Field(default_factory=list)
+    recommended_actions: list[str] = Field(default_factory=list)
+
+
+def generate_executive_insights(
+    validation_report: ValidationReport,
+    kpis: SalesKPIResult,
+    anomalies: AnomalyDetectionResult,
+    security: SecurityScanResult,
+) -> ExecutiveInsightReport:
+    insights: list[ExecutiveInsight] = []
+    recommended_actions: list[str] = []
+
+    if validation_report.invalid_rows > 0:
+        insights.append(
+            ExecutiveInsight(
+                insight_type="data_quality",
+                severity="medium",
+                title="Invalid sales rows detected",
+                message=(
+                    f"{validation_report.invalid_rows} invalid sales rows "
+                    "were found."
+                ),
+                evidence={
+                    "total_rows": validation_report.total_rows,
+                    "valid_rows": validation_report.valid_rows,
+                    "invalid_rows": validation_report.invalid_rows,
+                },
+            )
+        )
+        recommended_actions.append(
+            "Review and correct invalid sales records before executive "
+            "reporting."
+        )
+
+    if security.human_review_required:
+        insights.append(
+            ExecutiveInsight(
+                insight_type="security",
+                severity="high",
+                title="Human review required",
+                message=(
+                    "Prompt injection or suspicious text was detected in "
+                    "sales records."
+                ),
+                evidence={
+                    "prompt_injection_detected": (
+                        security.prompt_injection_detected
+                    ),
+                    "human_review_required": security.human_review_required,
+                },
+            )
+        )
+        recommended_actions.append(
+            "Escalate flagged records for human security review."
+        )
+
+    if kpis.revenue_by_region:
+        region, revenue = _top_group(kpis.revenue_by_region)
+        insights.append(
+            ExecutiveInsight(
+                insight_type="revenue",
+                severity="info",
+                title="Top revenue region identified",
+                message=f"{region} is the top revenue region at {revenue}.",
+                evidence={"region": region, "revenue": revenue},
+            )
+        )
+
+    if kpis.revenue_by_product:
+        product, revenue = _top_group(kpis.revenue_by_product)
+        insights.append(
+            ExecutiveInsight(
+                insight_type="product",
+                severity="info",
+                title="Top product identified",
+                message=f"{product} is the top product at {revenue}.",
+                evidence={"product": product, "revenue": revenue},
+            )
+        )
+
+    if kpis.revenue_by_sales_rep:
+        sales_rep, revenue = _top_group(kpis.revenue_by_sales_rep)
+        insights.append(
+            ExecutiveInsight(
+                insight_type="sales_rep",
+                severity="info",
+                title="Top sales rep identified",
+                message=f"{sales_rep} is the top sales rep at {revenue}.",
+                evidence={"sales_rep": sales_rep, "revenue": revenue},
+            )
+        )
+
+    if anomalies.total_anomalies > 0:
+        insights.append(
+            ExecutiveInsight(
+                insight_type="anomaly",
+                severity="high",
+                title="Sales anomalies detected",
+                message=(
+                    f"{anomalies.total_anomalies} sales anomalies were "
+                    "detected."
+                ),
+                evidence={"total_anomalies": anomalies.total_anomalies},
+            )
+        )
+        recommended_actions.append(
+            "Investigate high-severity sales anomalies before final "
+            "reporting."
+        )
+
+    recommended_actions.append(
+        "Use KPI and chart outputs to support executive sales review."
+    )
+
+    if insights:
+        summary = (
+            f"{len(insights)} executive insights were generated from the "
+            "sales analysis."
+        )
+    else:
+        summary = (
+            "The sales dataset passed validation, security, KPI, and anomaly "
+            "checks without notable issues."
+        )
+
+    return ExecutiveInsightReport(
+        summary=summary,
+        insights=insights,
+        recommended_actions=recommended_actions,
+    )
+
+
+def _top_group(grouped_revenue: dict[str, float]) -> tuple[str, float]:
+    return sorted(
+        grouped_revenue.items(),
+        key=lambda item: (-item[1], item[0]),
+    )[0]

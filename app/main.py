@@ -7,12 +7,14 @@ from insightops.audit.events import (
     create_anomaly_detection_completed_event,
     create_chart_data_generated_event,
     create_csv_loaded_event,
+    create_insights_generated_event,
     create_kpi_computed_event,
     create_security_scan_completed_event,
     create_validation_completed_event,
 )
 from insightops.charts.chart_data import build_sales_chart_data
 from insightops.ingestion.csv_loader import load_sales_csv
+from insightops.insights.generator import generate_executive_insights
 from insightops.metrics.kpis import compute_sales_kpis
 from insightops.security.policy import scan_sales_records_for_security
 
@@ -38,6 +40,12 @@ def analyze_sample_sales() -> dict[str, object]:
     kpis = compute_sales_kpis(validation_report.records)
     anomalies = detect_sales_anomalies(validation_report.records)
     charts = build_sales_chart_data(kpis, anomalies)
+    insights = generate_executive_insights(
+        validation_report,
+        kpis,
+        anomalies,
+        security,
+    )
     audit_events = [
         create_csv_loaded_event(validation_report.total_rows),
         create_validation_completed_event(
@@ -53,6 +61,7 @@ def analyze_sample_sales() -> dict[str, object]:
             anomalies.total_anomalies,
         ),
         create_chart_data_generated_event(len(charts.charts)),
+        create_insights_generated_event(len(insights.insights)),
     ]
 
     return {
@@ -68,5 +77,6 @@ def analyze_sample_sales() -> dict[str, object]:
         "security": security.model_dump(),
         "anomalies": anomalies.model_dump(),
         "charts": charts.model_dump(),
+        "insights": insights.model_dump(),
         "audit_events": [event.model_dump() for event in audit_events],
     }
