@@ -1,0 +1,40 @@
+{
+  "name": "InsightOps AI Dev Environment",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "GitHub.copilot-chat",
+        "openai.chatgpt",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.testing.pytestEnabled": true,
+        "python.testing.unittestEnabled": false,
+        "editor.formatOnSave": true,
+        "ruff.nativeServer": "on"
+      }
+    }
+  },
+  "postCreateCommand": "python -m pip install --upgrade pip && if [ -f requirements.txt ]; then pip install -r requirements.txt; fi && if [ -f pyproject.toml ]; then pip install -e .; fi",
+  "forwardPorts": [
+    8000,
+    8501
+  ],
+  "portsAttributes": {
+    "8000": {
+      "label": "API Server",
+      "onAutoForward": "notify"
+    },
+    "8501": {
+      "label": "Analytics Dashboard",
+      "onAutoForward": "notify"
+    }
+  }
+}
