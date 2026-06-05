@@ -1,0 +1,6 @@
+order_id,order_date,customer_id,region,product,sales_rep,quantity,unit_price,discount,revenue
+ORD-1001,2026-01-05,CUST-001,North,Analytics Pro,Ava Singh,2,1200.00,0.10,2160.00
+ORD-1002,2026-01-06,CUST-002,West,Insights Basic,Noah Chen,1,500.00,0.00,500.00
+ORD-1003,2026-01-07,CUST-003,South,Automation Suite,Mia Patel,3,800.00,0.15,2040.00
+,2026-01-08,CUST-004,East,Analytics Pro,Liam Jones,1,1200.00,0.05,1140.00
+ORD-1005,not-a-date,CUST-005,,Insights Basic,Sophia Lee,0,500.00,1.20,-25.00
