@@ -118,8 +118,13 @@ ruff check .
 
 The backend can generate deterministic PNG chart artifacts from chart-ready data. Frontend/dashboard rendering is intentionally not added yet.
 
+## Report Artifacts
+
+The backend can generate deterministic Markdown executive report artifacts from analysis outputs. PDF generation and dashboard rendering are intentionally not added yet.
+
 ## Not Implemented Yet
 
 - LLM-generated insights.
 - Visual chart rendering.
+- PDF generation.
 - Frontend or dashboard code.

@@ -88,3 +88,14 @@ def create_insights_generated_event(total_insights: int) -> AuditEvent:
         message="Executive insights generated.",
         metadata={"total_insights": total_insights},
     )
+
+
+def create_report_generated_event(
+    report_id: str,
+    file_name: str,
+) -> AuditEvent:
+    return AuditEvent(
+        event_type="report_generated",
+        message="Executive Markdown report generated.",
+        metadata={"report_id": report_id, "file_name": file_name},
+    )
