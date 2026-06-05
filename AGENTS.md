@@ -26,3 +26,33 @@ python -m pytest # Run automated tests
 uvicorn app.main:app --host 0.0.0.0 --port 8000 # Run the local development API
 
 ```
+
+Initial Project Structure
+
+Use this structure:
+
+app/
+  main.py
+
+insightops/
+  ingestion/
+  validation/
+  metrics/
+  anomalies/
+  insights/
+  charts/
+  audit/
+
+tests/
+data/
+  sample/
+docs/
+Done Means Done
+
+A task is complete only when:
+
+The code is simple.
+Tests pass.
+Ruff passes.
+Changed files are summarized.
+The work can be explained in an interview.
