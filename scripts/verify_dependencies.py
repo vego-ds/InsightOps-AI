@@ -9,6 +9,7 @@ REQUIRED_DEPENDENCIES = {
     "httpx2",
     "python-multipart",
     "matplotlib",
+    "reportlab",
 }
 
 VERSION_SPECIFIER_CHARS = "<=>!~[;"

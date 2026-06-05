@@ -99,3 +99,14 @@ def create_report_generated_event(
         message="Executive Markdown report generated.",
         metadata={"report_id": report_id, "file_name": file_name},
     )
+
+
+def create_pdf_report_generated_event(
+    report_id: str,
+    file_name: str,
+) -> AuditEvent:
+    return AuditEvent(
+        event_type="pdf_report_generated",
+        message="Executive PDF report generated.",
+        metadata={"report_id": report_id, "file_name": file_name},
+    )

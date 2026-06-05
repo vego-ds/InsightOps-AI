@@ -128,9 +128,10 @@ The backend can generate deterministic PNG chart artifacts from chart-ready data
 
 The backend can generate deterministic Markdown executive report artifacts from analysis outputs. PDF generation and dashboard rendering are intentionally not added yet.
 
+The backend can also generate deterministic PDF executive report artifacts. PDF generation is not yet exposed as an API endpoint.
+
 ## Not Implemented Yet
 
 - LLM-generated insights.
 - Visual chart rendering.
-- PDF generation.
 - Frontend or dashboard code.

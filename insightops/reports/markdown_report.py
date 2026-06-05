@@ -1,16 +1,7 @@
 from pathlib import Path
 
-from pydantic import BaseModel
-
 from insightops.api.contracts import AnalysisResponse
-
-
-class ReportArtifact(BaseModel):
-    report_id: str
-    title: str
-    file_path: str
-    file_name: str
-    format: str
+from insightops.reports.artifacts import ReportArtifact
 
 
 def generate_executive_markdown_report(

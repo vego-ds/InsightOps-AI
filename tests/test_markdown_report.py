@@ -6,8 +6,8 @@ from insightops.charts.chart_data import SalesChartData
 from insightops.insights.generator import ExecutiveInsightReport
 from insightops.metrics.kpis import SalesKPIResult
 from insightops.pipeline.sample_analysis import analyze_sample_sales_data
+from insightops.reports.artifacts import ReportArtifact
 from insightops.reports.markdown_report import (
-    ReportArtifact,
     generate_executive_markdown_report,
 )
 from insightops.security.policy import SecurityScanResult

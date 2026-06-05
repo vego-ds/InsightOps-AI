@@ -6,3 +6,4 @@ ruff
 httpx2
 python-multipart
 matplotlib
+reportlab
