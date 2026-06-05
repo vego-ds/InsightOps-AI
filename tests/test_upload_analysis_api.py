@@ -4,6 +4,16 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 
+EXPECTED_ANALYSIS_SECTIONS = {
+    "validation",
+    "kpis",
+    "security",
+    "anomalies",
+    "charts",
+    "insights",
+    "audit_events",
+}
+
 
 def test_upload_analysis_accepts_valid_csv() -> None:
     client = TestClient(app)
@@ -18,13 +28,7 @@ def test_upload_analysis_accepts_valid_csv() -> None:
     assert response.status_code == 200
 
     payload = response.json()
-    assert "validation" in payload
-    assert "kpis" in payload
-    assert "security" in payload
-    assert "anomalies" in payload
-    assert "charts" in payload
-    assert "insights" in payload
-    assert "audit_events" in payload
+    assert set(payload) == EXPECTED_ANALYSIS_SECTIONS
 
 
 def test_upload_analysis_rejects_non_csv_file() -> None:

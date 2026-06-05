@@ -27,6 +27,8 @@ Runs `data/sample/sales_sample.csv` through the analysis pipeline and returns:
 - `insights`
 - `audit_events`
 
+The analysis API uses a typed response contract for these sections so sample and upload analysis return the same schema.
+
 ### POST /analysis/upload
 
 Accepts a user-provided `.csv` file, up to 1 MB, and returns the same analysis sections:

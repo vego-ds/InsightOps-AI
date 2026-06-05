@@ -14,4 +14,4 @@ class ValidationReport(BaseModel):
     valid_rows: int
     invalid_rows: int
     errors: list[ValidationErrorDetail] = Field(default_factory=list)
-    records: list[SalesRecord] = Field(default_factory=list)
+    records: list[SalesRecord] = Field(default_factory=list, exclude=True)

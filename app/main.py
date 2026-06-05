@@ -3,6 +3,7 @@ from tempfile import NamedTemporaryFile
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 
+from insightops.api.contracts import AnalysisResponse
 from insightops.pipeline.sample_analysis import (
     analyze_sales_csv_file,
     analyze_sample_sales_data,
@@ -17,8 +18,8 @@ def health() -> dict[str, str]:
     return {"status": "ok", "service": "insightops-ai"}
 
 
-@app.get("/analysis/sample")
-def analyze_sample_sales() -> dict[str, object]:
+@app.get("/analysis/sample", response_model=AnalysisResponse)
+def analyze_sample_sales() -> AnalysisResponse:
     try:
         return analyze_sample_sales_data()
     except FileNotFoundError as error:
@@ -28,10 +29,10 @@ def analyze_sample_sales() -> dict[str, object]:
         ) from error
 
 
-@app.post("/analysis/upload")
+@app.post("/analysis/upload", response_model=AnalysisResponse)
 async def analyze_uploaded_sales(
     file: UploadFile | None = File(default=None),
-) -> dict[str, object]:
+) -> AnalysisResponse:
     if file is None:
         raise HTTPException(
             status_code=400,
