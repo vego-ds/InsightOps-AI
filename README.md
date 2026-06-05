@@ -107,6 +107,12 @@ Run linting:
 ruff check .
 ```
 
+Verify dependencies:
+
+```bash
+python3 scripts/verify_dependencies.py
+```
+
 ## CI and Environment
 
 - CI runs on GitHub Actions with Python 3.12.
