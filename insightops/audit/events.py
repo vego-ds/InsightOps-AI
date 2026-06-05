@@ -54,3 +54,13 @@ def create_security_scan_completed_event(
             "human_review_required": human_review_required,
         },
     )
+
+
+def create_anomaly_detection_completed_event(
+    total_anomalies: int,
+) -> AuditEvent:
+    return AuditEvent(
+        event_type="anomaly_detection_completed",
+        message="Sales anomaly detection completed.",
+        metadata={"total_anomalies": total_anomalies},
+    )

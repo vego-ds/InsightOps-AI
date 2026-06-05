@@ -14,6 +14,7 @@ def test_analysis_sample_returns_validation_and_kpis() -> None:
     assert "validation" in payload
     assert "kpis" in payload
     assert "security" in payload
+    assert "anomalies" in payload
     assert "audit_events" in payload
 
     validation = payload["validation"]
@@ -27,5 +28,10 @@ def test_analysis_sample_returns_validation_and_kpis() -> None:
 
     security = payload["security"]
     assert security["prompt_injection_detected"] is False
+
+    anomalies = payload["anomalies"]
+    assert "total_anomalies" in anomalies
+    assert "anomalies" in anomalies
+    assert isinstance(anomalies["anomalies"], list)
 
     assert len(payload["audit_events"]) >= 1

@@ -2,7 +2,9 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 
+from insightops.anomalies.detector import detect_sales_anomalies
 from insightops.audit.events import (
+    create_anomaly_detection_completed_event,
     create_csv_loaded_event,
     create_kpi_computed_event,
     create_security_scan_completed_event,
@@ -30,8 +32,9 @@ def analyze_sample_sales() -> dict[str, object]:
         )
 
     validation_report = load_sales_csv(str(SAMPLE_SALES_CSV))
-    kpis = compute_sales_kpis(validation_report.records)
     security = scan_sales_records_for_security(validation_report.records)
+    kpis = compute_sales_kpis(validation_report.records)
+    anomalies = detect_sales_anomalies(validation_report.records)
     audit_events = [
         create_csv_loaded_event(validation_report.total_rows),
         create_validation_completed_event(
@@ -42,6 +45,9 @@ def analyze_sample_sales() -> dict[str, object]:
         create_security_scan_completed_event(
             security.prompt_injection_detected,
             security.human_review_required,
+        ),
+        create_anomaly_detection_completed_event(
+            anomalies.total_anomalies,
         ),
     ]
 
@@ -56,5 +62,6 @@ def analyze_sample_sales() -> dict[str, object]:
         },
         "kpis": kpis.model_dump(),
         "security": security.model_dump(),
+        "anomalies": anomalies.model_dump(),
         "audit_events": [event.model_dump() for event in audit_events],
     }
