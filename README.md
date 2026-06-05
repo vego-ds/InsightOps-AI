@@ -4,6 +4,8 @@ InsightOps-AI is a production-style sales analytics automation API. It loads sam
 
 ## API Endpoints
 
+Interactive API docs are available at `/docs` when the API is running. OpenAPI JSON is available at `/openapi.json`.
+
 ### GET /health
 
 Returns:
@@ -47,6 +49,11 @@ Example:
 curl -X POST "http://127.0.0.1:8000/analysis/upload" \
   -F "file=@data/sample/sales_sample.csv"
 ```
+
+Upload errors:
+
+- `400` for invalid or empty files.
+- `413` for oversized files.
 
 ## Pipeline
 

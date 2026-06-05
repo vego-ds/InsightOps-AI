@@ -3,22 +3,46 @@ from tempfile import NamedTemporaryFile
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 
-from insightops.api.contracts import AnalysisResponse
+from insightops.api.contracts import AnalysisResponse, ErrorResponse, HealthResponse
 from insightops.pipeline.sample_analysis import (
     analyze_sales_csv_file,
     analyze_sample_sales_data,
 )
 
-app = FastAPI(title="InsightOps-AI")
+app = FastAPI(
+    title="InsightOps-AI",
+    description=(
+        "Governed sales analytics API for deterministic validation, KPI "
+        "computation, security scanning, anomaly detection, chart data, "
+        "executive insights, and audit events."
+    ),
+    version="0.13.0",
+)
 MAX_UPLOAD_BYTES = 1_000_000
 
 
-@app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok", "service": "insightops-ai"}
+@app.get(
+    "/health",
+    response_model=HealthResponse,
+    summary="Check service health",
+    description="Returns a deterministic health response for InsightOps-AI.",
+    tags=["health"],
+)
+def health() -> HealthResponse:
+    return HealthResponse(status="ok", service="insightops-ai")
 
 
-@app.get("/analysis/sample", response_model=AnalysisResponse)
+@app.get(
+    "/analysis/sample",
+    response_model=AnalysisResponse,
+    summary="Analyze sample sales CSV",
+    description=(
+        "Runs the bundled sample sales CSV through validation, security, "
+        "KPI, anomaly, chart data, insight, and audit stages."
+    ),
+    tags=["analysis"],
+    responses={500: {"model": ErrorResponse}},
+)
 def analyze_sample_sales() -> AnalysisResponse:
     try:
         return analyze_sample_sales_data()
@@ -29,7 +53,21 @@ def analyze_sample_sales() -> AnalysisResponse:
         ) from error
 
 
-@app.post("/analysis/upload", response_model=AnalysisResponse)
+@app.post(
+    "/analysis/upload",
+    response_model=AnalysisResponse,
+    summary="Analyze uploaded sales CSV",
+    description=(
+        "Accepts a CSV upload up to 1 MB and returns the same typed "
+        "analysis response contract as sample analysis."
+    ),
+    tags=["analysis"],
+    responses={
+        400: {"model": ErrorResponse},
+        413: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
 async def analyze_uploaded_sales(
     file: UploadFile | None = File(default=None),
 ) -> AnalysisResponse:
@@ -47,7 +85,10 @@ async def analyze_uploaded_sales(
         )
 
     if not filename.casefold().endswith(".csv"):
-        raise HTTPException(status_code=400, detail="Uploaded file must be a CSV file.")
+        raise HTTPException(
+            status_code=400,
+            detail="Uploaded file must be a CSV file.",
+        )
 
     content = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(content) > MAX_UPLOAD_BYTES:

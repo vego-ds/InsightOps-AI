@@ -21,3 +21,9 @@ class AnalysisResponse(BaseModel):
 
 class ErrorResponse(BaseModel):
     detail: str
+    error_code: str | None = None
+
+
+class HealthResponse(BaseModel):
+    status: str
+    service: str

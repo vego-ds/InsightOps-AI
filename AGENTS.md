@@ -20,6 +20,7 @@ It should ingest sales data, validate schemas, compute sales KPIs, detect anomal
 - Keep `app/main.py` thin when possible; move orchestration into domain or pipeline modules.
 - Keep CI green and use Python 3.12 for reproducibility.
 - Run `python3 scripts/verify_dependencies.py` when dependencies change.
+- API endpoints should use typed response models and documented error responses.
 
 ## Commands
 
