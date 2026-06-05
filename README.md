@@ -138,8 +138,12 @@ The backend can generate deterministic Markdown executive report artifacts from 
 
 The backend can also generate deterministic PDF executive report artifacts. PDF generation is not yet exposed as an API endpoint.
 
+## Narrative Writer
+
+InsightOps-AI includes an optional guarded narrative writer foundation. The default mode requires no LLM provider, deterministic fallback remains available, and real external LLM integration is intentionally not added yet. Any future LLM can only rewrite deterministic facts; it must not control pipeline decisions.
+
 ## Not Implemented Yet
 
-- LLM-generated insights.
+- External LLM provider integration.
 - Visual chart rendering.
 - Production frontend or dashboard code.

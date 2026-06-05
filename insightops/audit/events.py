@@ -110,3 +110,11 @@ def create_pdf_report_generated_event(
         message="Executive PDF report generated.",
         metadata={"report_id": report_id, "file_name": file_name},
     )
+
+
+def create_narrative_generated_event(mode: str) -> AuditEvent:
+    return AuditEvent(
+        event_type="narrative_generated",
+        message="Executive narrative generated.",
+        metadata={"mode": mode},
+    )
