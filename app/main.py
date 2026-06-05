@@ -5,11 +5,13 @@ from fastapi import FastAPI, HTTPException
 from insightops.anomalies.detector import detect_sales_anomalies
 from insightops.audit.events import (
     create_anomaly_detection_completed_event,
+    create_chart_data_generated_event,
     create_csv_loaded_event,
     create_kpi_computed_event,
     create_security_scan_completed_event,
     create_validation_completed_event,
 )
+from insightops.charts.chart_data import build_sales_chart_data
 from insightops.ingestion.csv_loader import load_sales_csv
 from insightops.metrics.kpis import compute_sales_kpis
 from insightops.security.policy import scan_sales_records_for_security
@@ -35,6 +37,7 @@ def analyze_sample_sales() -> dict[str, object]:
     security = scan_sales_records_for_security(validation_report.records)
     kpis = compute_sales_kpis(validation_report.records)
     anomalies = detect_sales_anomalies(validation_report.records)
+    charts = build_sales_chart_data(kpis, anomalies)
     audit_events = [
         create_csv_loaded_event(validation_report.total_rows),
         create_validation_completed_event(
@@ -49,6 +52,7 @@ def analyze_sample_sales() -> dict[str, object]:
         create_anomaly_detection_completed_event(
             anomalies.total_anomalies,
         ),
+        create_chart_data_generated_event(len(charts.charts)),
     ]
 
     return {
@@ -63,5 +67,6 @@ def analyze_sample_sales() -> dict[str, object]:
         "kpis": kpis.model_dump(),
         "security": security.model_dump(),
         "anomalies": anomalies.model_dump(),
+        "charts": charts.model_dump(),
         "audit_events": [event.model_dump() for event in audit_events],
     }

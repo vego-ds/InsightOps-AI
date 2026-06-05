@@ -15,6 +15,7 @@ def test_analysis_sample_returns_validation_and_kpis() -> None:
     assert "kpis" in payload
     assert "security" in payload
     assert "anomalies" in payload
+    assert "charts" in payload
     assert "audit_events" in payload
 
     validation = payload["validation"]
@@ -33,5 +34,18 @@ def test_analysis_sample_returns_validation_and_kpis() -> None:
     assert "total_anomalies" in anomalies
     assert "anomalies" in anomalies
     assert isinstance(anomalies["anomalies"], list)
+
+    charts = payload["charts"]
+    assert isinstance(charts["charts"], list)
+    assert len(charts["charts"]) >= 4
+
+    for chart in charts["charts"]:
+        assert "chart_id" in chart
+        assert "title" in chart
+        assert "chart_type" in chart
+        assert "metric" in chart
+        assert "x_axis" in chart
+        assert "y_axis" in chart
+        assert "data" in chart
 
     assert len(payload["audit_events"]) >= 1

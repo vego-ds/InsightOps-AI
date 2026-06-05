@@ -64,3 +64,11 @@ def create_anomaly_detection_completed_event(
         message="Sales anomaly detection completed.",
         metadata={"total_anomalies": total_anomalies},
     )
+
+
+def create_chart_data_generated_event(total_charts: int) -> AuditEvent:
+    return AuditEvent(
+        event_type="chart_data_generated",
+        message="Sales chart data generated.",
+        metadata={"total_charts": total_charts},
+    )
