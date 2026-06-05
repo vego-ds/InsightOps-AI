@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>InsightOps-AI Dashboard</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Governed sales analytics</p>
+          <h1>InsightOps-AI</h1>
+          <p class="lede">
+            Validate sales CSVs, compute KPIs, scan security risks, detect
+            anomalies, prepare chart data, generate deterministic insights, and
+            preserve audit evidence.
+          </p>
+        </div>
+        <div class="actions">
+          <button id="sample-button" type="button">Analyze Sample Data</button>
+          <form id="upload-form">
+            <label for="csv-file">Upload sales CSV</label>
+            <input id="csv-file" name="file" type="file" accept=".csv" />
+            <button type="submit">Analyze Upload</button>
+          </form>
+        </div>
+      </section>
+
+      <p id="status" class="status" role="status"></p>
+      <section id="error" class="error" hidden></section>
+      <section id="results" class="results" hidden></section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

@@ -95,6 +95,14 @@ Run the API:
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
+Open the lightweight static demo dashboard:
+
+```text
+http://127.0.0.1:8000/
+```
+
+Use the dashboard to run bundled sample analysis or upload a CSV. It is a static demo UI, not a production frontend.
+
 Run tests:
 
 ```bash
@@ -122,7 +130,7 @@ python3 scripts/verify_dependencies.py
 
 ## Chart Artifacts
 
-The backend can generate deterministic PNG chart artifacts from chart-ready data. Frontend/dashboard rendering is intentionally not added yet.
+The backend can generate deterministic PNG chart artifacts from chart-ready data. The static demo dashboard renders chart data as tables, not visual charts.
 
 ## Report Artifacts
 
@@ -134,4 +142,4 @@ The backend can also generate deterministic PDF executive report artifacts. PDF 
 
 - LLM-generated insights.
 - Visual chart rendering.
-- Frontend or dashboard code.
+- Production frontend or dashboard code.
