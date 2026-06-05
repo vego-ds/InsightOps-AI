@@ -22,6 +22,7 @@ def test_missing_required_dependencies_are_reported() -> None:
 
     assert "uvicorn" in missing
     assert "python-multipart" in missing
+    assert "matplotlib" in missing
 
 
 def test_real_requirements_pass_dependency_verification() -> None:

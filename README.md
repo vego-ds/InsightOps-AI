@@ -114,6 +114,10 @@ ruff check .
 - CI runs `ruff check .` and `python3 -m pytest`.
 - Local development should use the same test and lint commands.
 
+## Chart Artifacts
+
+The backend can generate deterministic PNG chart artifacts from chart-ready data. Frontend/dashboard rendering is intentionally not added yet.
+
 ## Not Implemented Yet
 
 - LLM-generated insights.

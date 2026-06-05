@@ -8,6 +8,7 @@ REQUIRED_DEPENDENCIES = {
     "ruff",
     "httpx2",
     "python-multipart",
+    "matplotlib",
 }
 
 VERSION_SPECIFIER_CHARS = "<=>!~[;"

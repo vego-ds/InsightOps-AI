@@ -74,6 +74,14 @@ def create_chart_data_generated_event(total_charts: int) -> AuditEvent:
     )
 
 
+def create_chart_artifacts_generated_event(total_artifacts: int) -> AuditEvent:
+    return AuditEvent(
+        event_type="chart_artifacts_generated",
+        message="Sales chart artifacts generated.",
+        metadata={"total_artifacts": total_artifacts},
+    )
+
+
 def create_insights_generated_event(total_insights: int) -> AuditEvent:
     return AuditEvent(
         event_type="insights_generated",
