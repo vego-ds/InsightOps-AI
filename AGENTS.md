@@ -16,13 +16,15 @@ It should ingest sales data, validate schemas, compute sales KPIs, detect anomal
 - Use Pydantic models for input and output contracts.
 - Keep AI generation behind clear interfaces.
 - Preserve auditability for data transformations and insight generation.
+- Do not commit generated cache files such as `__pycache__`, `.pyc`, `.pytest_cache`, or `.ruff_cache`.
+- Keep `app/main.py` thin when possible; move orchestration into domain or pipeline modules.
 
 ## Commands
 
 ```bash
 ruff format . # Run code formatting (restructure style and spacing)
 ruff check . # Run code linting (find code quality bugs and dead code)
-python -m pytest # Run automated tests
+python3 -m pytest # Run automated tests
 uvicorn app.main:app --host 0.0.0.0 --port 8000 # Run the local development API
 
 ```
@@ -41,6 +43,8 @@ insightops/
   anomalies/
   insights/
   charts/
+  security/
+  pipeline/
   audit/
 
 tests/
