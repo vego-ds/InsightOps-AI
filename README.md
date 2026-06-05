@@ -1,165 +1,106 @@
 # InsightOps-AI
 
-InsightOps-AI is a production-style sales analytics automation API. It loads sample sales data, validates rows, computes KPIs, scans for security risks, detects anomalies, prepares chart-ready data, generates deterministic executive insights, and returns an auditable analysis payload.
+InsightOps-AI is a production-style sales analytics automation platform. It validates sales CSV data, computes KPIs, scans for security risks, detects anomalies, prepares chart/report artifacts, and returns typed audit-ready analysis responses.
+
+## Key Capabilities
+
+- CSV ingestion with row-level validation.
+- KPI computation from valid records.
+- Prompt-injection guardrails and human-review flags.
+- Deterministic anomaly detection.
+- Chart-ready data plus backend PNG chart artifacts.
+- Deterministic executive insights.
+- Markdown and PDF report artifact generation.
+- Optional guarded narrative writer foundation, disabled by default.
+- Lightweight static dashboard demo.
+- CI, Dockerfile, runtime config, and deployment guide.
+
+## Architecture Overview
+
+```text
+FastAPI routes
+  -> analysis pipeline
+  -> validation / security / KPIs / anomalies
+  -> chart data / insights / audit events
+  -> typed API response
+```
+
+`app/main.py` stays thin. Business logic lives in `insightops/` modules, and detailed design notes live in [docs/system-design.md](docs/system-design.md).
 
 ## API Endpoints
 
-Interactive API docs are available at `/docs` when the API is running. OpenAPI JSON is available at `/openapi.json`.
+- `GET /`: lightweight static dashboard.
+- `GET /health`: service health.
+- `GET /analysis/sample`: analyze bundled sample CSV.
+- `POST /analysis/upload`: analyze uploaded `.csv` files up to 1 MB.
+- `GET /docs`: interactive API docs.
+- `GET /openapi.json`: OpenAPI schema.
 
-### GET /health
+Both analysis endpoints return:
 
-Returns:
+- `validation`
+- `kpis`
+- `security`
+- `anomalies`
+- `charts`
+- `insights`
+- `audit_events`
 
-```json
-{
-  "status": "ok",
-  "service": "insightops-ai"
-}
+## Quickstart
+
+```bash
+python3 -m pip install -r requirements.txt
+python3 scripts/verify_dependencies.py
+python3 -m pytest
+ruff check .
+uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-### GET /analysis/sample
+Open the dashboard:
 
-Runs `data/sample/sales_sample.csv` through the analysis pipeline and returns:
+```text
+http://127.0.0.1:8000/
+```
 
-- `validation`
-- `kpis`
-- `security`
-- `anomalies`
-- `charts`
-- `insights`
-- `audit_events`
-
-The analysis API uses a typed response contract for these sections so sample and upload analysis return the same schema.
-
-### POST /analysis/upload
-
-Accepts a user-provided `.csv` file, up to 1 MB, and returns the same analysis sections:
-
-- `validation`
-- `kpis`
-- `security`
-- `anomalies`
-- `charts`
-- `insights`
-- `audit_events`
-
-Example:
+Upload example:
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/analysis/upload" \
   -F "file=@data/sample/sales_sample.csv"
 ```
 
-Upload errors:
+## Security And Guardrails
 
-- `400` for invalid or empty files.
-- `413` for oversized files.
+InsightOps-AI keeps deterministic logic as the source of truth. Uploaded files are CSV-only, size-limited, validated row by row, scanned for prompt-injection style text, and routed through typed response contracts. The optional narrative layer has deterministic fallback and does not call external LLM providers.
 
-## Pipeline
+## Artifacts
 
-```text
-CSV load
-  -> row validation
-  -> security scan
-  -> KPI computation
-  -> anomaly detection
-  -> chart data generation
-  -> executive insight generation
-  -> audit event generation
-```
+- PNG chart artifacts can be generated from chart-ready data.
+- Markdown executive reports can be generated from analysis outputs.
+- PDF executive reports can be generated from analysis outputs.
+- Artifact generation is currently module-level and not exposed through API download endpoints.
 
-The project keeps business logic deterministic before adding any LLM behavior.
+## Dashboard
 
-## Project Structure
+The dashboard is a lightweight static demo UI built with HTML, CSS, and vanilla JavaScript. It can run sample analysis, upload CSV files, and render response sections as readable summaries and tables. It is not a production frontend.
 
-```text
-app/                         FastAPI entrypoint
-data/sample/                 Sample sales CSV
-insightops/ingestion/        CSV loading
-insightops/validation/       Sales record validation and reports
-insightops/metrics/          KPI computation
-insightops/security/         Prompt-injection guardrails
-insightops/anomalies/        Deterministic anomaly detection
-insightops/charts/           Chart-ready data structures
-insightops/insights/         Deterministic executive insights
-insightops/audit/            Audit event models
-insightops/pipeline/         Analysis orchestration
-tests/                       Pytest suite
-```
+## CI And Deployment
 
-## Local Development
+GitHub Actions runs dependency verification, Ruff, and pytest on Python 3.12. The project includes a Dockerfile, runtime config, and [deployment guide](docs/deployment.md).
 
-Run the API:
+## Screenshots
 
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
+- Dashboard home: placeholder.
+- Sample analysis result: placeholder.
+- CSV upload flow: placeholder.
+- OpenAPI docs: placeholder.
+- Generated report artifact: placeholder.
 
-Open the lightweight static demo dashboard:
+## Documentation
 
-```text
-http://127.0.0.1:8000/
-```
-
-Use the dashboard to run bundled sample analysis or upload a CSV. It is a static demo UI, not a production frontend.
-
-Run tests:
-
-```bash
-python3 -m pytest
-```
-
-Run linting:
-
-```bash
-ruff check .
-```
-
-Verify dependencies:
-
-```bash
-python3 scripts/verify_dependencies.py
-```
-
-## CI and Environment
-
-- CI runs on GitHub Actions with Python 3.12.
-- CI verifies dependencies with `python3 scripts/verify_dependencies.py`.
-- CI runs `ruff check .` and `python3 -m pytest`.
-- Local development should use the same test and lint commands.
-
-## Deployment
-
-Production-style run command:
-
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
-```
-
-Health check: `GET /health`
-
-Dashboard: `GET /`
-
-API docs: `GET /docs` and `GET /openapi.json`
-
-See [docs/deployment.md](docs/deployment.md) for environment variables, Docker notes, and hosted platform commands.
-
-## Chart Artifacts
-
-The backend can generate deterministic PNG chart artifacts from chart-ready data. The static demo dashboard renders chart data as tables, not visual charts.
-
-## Report Artifacts
-
-The backend can generate deterministic Markdown executive report artifacts from analysis outputs. PDF generation and dashboard rendering are intentionally not added yet.
-
-The backend can also generate deterministic PDF executive report artifacts. PDF generation is not yet exposed as an API endpoint.
-
-## Narrative Writer
-
-InsightOps-AI includes an optional guarded narrative writer foundation. The default mode requires no LLM provider, deterministic fallback remains available, and real external LLM integration is intentionally not added yet. Any future LLM can only rewrite deterministic facts; it must not control pipeline decisions.
-
-## Not Implemented Yet
-
-- External LLM provider integration.
-- Visual chart rendering.
-- Production frontend or dashboard code.
+- [System design](docs/system-design.md)
+- [Demo script](docs/demo-script.md)
+- [Interview talking points](docs/interview-talking-points.md)
+- [Threat model](docs/threat-model.md)
+- [Deployment guide](docs/deployment.md)
+- [Portfolio summary](docs/portfolio-summary.md)
