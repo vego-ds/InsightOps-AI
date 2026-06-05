@@ -23,6 +23,16 @@ def test_dashboard_static_files_exist() -> None:
     assert (static_dir / "app.js").exists()
 
 
+def test_dashboard_static_assets_are_served() -> None:
+    client = TestClient(app)
+
+    script_response = client.get("/static/app.js")
+    style_response = client.get("/static/styles.css")
+
+    assert script_response.status_code == 200
+    assert style_response.status_code == 200
+
+
 def test_sample_analysis_still_works() -> None:
     client = TestClient(app)
 

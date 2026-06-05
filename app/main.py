@@ -6,13 +6,15 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from insightops.api.contracts import AnalysisResponse, ErrorResponse, HealthResponse
+from insightops.config import load_app_settings
 from insightops.pipeline.sample_analysis import (
     analyze_sales_csv_file,
     analyze_sample_sales_data,
 )
 
+settings = load_app_settings()
 app = FastAPI(
-    title="InsightOps-AI",
+    title=settings.app_name,
     description=(
         "Governed sales analytics API for deterministic validation, KPI "
         "computation, security scanning, anomaly detection, chart data, "
@@ -20,7 +22,6 @@ app = FastAPI(
     ),
     version="0.13.0",
 )
-MAX_UPLOAD_BYTES = 1_000_000
 STATIC_DIR = Path(__file__).parent / "static"
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -100,8 +101,8 @@ async def analyze_uploaded_sales(
             detail="Uploaded file must be a CSV file.",
         )
 
-    content = await file.read(MAX_UPLOAD_BYTES + 1)
-    if len(content) > MAX_UPLOAD_BYTES:
+    content = await file.read(settings.max_upload_bytes + 1)
+    if len(content) > settings.max_upload_bytes:
         raise HTTPException(
             status_code=413,
             detail="Uploaded CSV file exceeds the 1 MB size limit.",

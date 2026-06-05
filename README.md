@@ -128,6 +128,22 @@ python3 scripts/verify_dependencies.py
 - CI runs `ruff check .` and `python3 -m pytest`.
 - Local development should use the same test and lint commands.
 
+## Deployment
+
+Production-style run command:
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+```
+
+Health check: `GET /health`
+
+Dashboard: `GET /`
+
+API docs: `GET /docs` and `GET /openapi.json`
+
+See [docs/deployment.md](docs/deployment.md) for environment variables, Docker notes, and hosted platform commands.
+
 ## Chart Artifacts
 
 The backend can generate deterministic PNG chart artifacts from chart-ready data. The static demo dashboard renders chart data as tables, not visual charts.
