@@ -5,6 +5,7 @@ InsightOps-AI is a production-style sales analytics automation platform. It vali
 ## Key Capabilities
 
 - CSV ingestion with row-level validation.
+- Data profiling and quality scoring foundation.
 - KPI computation from valid records.
 - Prompt-injection guardrails and human-review flags.
 - Deterministic anomaly detection.
@@ -20,7 +21,7 @@ InsightOps-AI is a production-style sales analytics automation platform. It vali
 ```text
 FastAPI routes
   -> analysis pipeline
-  -> validation / security / KPIs / anomalies
+  -> validation / profiling / security / KPIs / anomalies
   -> chart data / insights / audit events
   -> typed API response
 ```
@@ -71,7 +72,9 @@ curl -X POST "http://127.0.0.1:8000/analysis/upload" \
 
 ## Security And Guardrails
 
-InsightOps-AI keeps deterministic logic as the source of truth. Uploaded files are CSV-only, size-limited, validated row by row, scanned for prompt-injection style text, and routed through typed response contracts. The optional narrative layer has deterministic fallback and does not call external LLM providers.
+InsightOps-AI keeps deterministic logic as the source of truth. Uploaded files are CSV-only, size-limited, validated row by row, scanned for prompt-injection style text, and routed through typed response contracts.
+
+The optional narrative layer defaults to disabled mode and requires no API key. OpenRouter can be enabled explicitly with `INSIGHTOPS_NARRATIVE_PROVIDER=openrouter` and `INSIGHTOPS_OPENROUTER_API_KEY`. Optional settings are `INSIGHTOPS_OPENROUTER_MODEL=openrouter/auto` and `INSIGHTOPS_OPENROUTER_BASE_URL=https://openrouter.ai/api/v1`. OpenRouter is only used for narrative writing; it never controls pipeline decisions, and deterministic fallback remains available.
 
 ## Artifacts
 

@@ -10,6 +10,9 @@ class AppSettings(BaseModel):
     port: int = 8000
     max_upload_bytes: int = 1_000_000
     narrative_provider: str = "disabled"
+    openrouter_api_key: str | None = None
+    openrouter_model: str = "openrouter/auto"
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
 
 
 def load_app_settings() -> AppSettings:
@@ -24,6 +27,15 @@ def load_app_settings() -> AppSettings:
         narrative_provider=os.getenv(
             "INSIGHTOPS_NARRATIVE_PROVIDER",
             "disabled",
+        ),
+        openrouter_api_key=os.getenv("INSIGHTOPS_OPENROUTER_API_KEY"),
+        openrouter_model=os.getenv(
+            "INSIGHTOPS_OPENROUTER_MODEL",
+            "openrouter/auto",
+        ),
+        openrouter_base_url=os.getenv(
+            "INSIGHTOPS_OPENROUTER_BASE_URL",
+            "https://openrouter.ai/api/v1",
         ),
     )
 

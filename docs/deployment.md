@@ -43,10 +43,15 @@ Health check: `/health`
 - `INSIGHTOPS_PORT`
 - `INSIGHTOPS_MAX_UPLOAD_BYTES`
 - `INSIGHTOPS_NARRATIVE_PROVIDER`
+- `INSIGHTOPS_OPENROUTER_API_KEY`
+- `INSIGHTOPS_OPENROUTER_MODEL`
+- `INSIGHTOPS_OPENROUTER_BASE_URL`
 
 Uploads are CSV-only with a default maximum size of 1 MB.
 
 The static dashboard is served from `GET /`.
+
+OpenRouter is optional for narrative writing. Configure credentials as platform secrets, not committed files. The default narrative provider remains disabled.
 
 ## Hosted Platforms
 

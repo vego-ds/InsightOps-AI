@@ -27,6 +27,8 @@
 - Dependency drift.
 - Report artifact leakage.
 - LLM hallucination if future providers are added.
+- OpenRouter API key exposure.
+- External provider outage or malformed response.
 
 ## Mitigations Implemented
 
@@ -36,6 +38,9 @@
 - Prompt-injection phrase detection.
 - Human-review flags.
 - Deterministic fallback for narrative generation.
+- OpenRouter credentials are environment-only and optional.
+- Provider errors and malformed responses fall back deterministically.
+- Prompt-injection and human-review cases block LLM provider calls.
 - Typed API contracts.
 - Audit events.
 - `.gitignore` and `.dockerignore` for cache, env, and generated files.
@@ -49,7 +54,7 @@
 - No artifact access control.
 - Prompt-injection detection is phrase-based and conservative.
 - Dependency versions are not pinned.
-- No real LLM provider is integrated yet, so future provider work will need additional security review.
+- OpenRouter narrative output can still be stylistically wrong or overconfident, so deterministic evidence remains the source of truth.
 
 ## Future Mitigations
 
@@ -58,4 +63,4 @@
 - Add artifact retention and access policies.
 - Pin dependencies or add lockfile workflow.
 - Add file content scanning beyond extension checks.
-- Add provider-specific LLM safety tests before enabling real LLM calls.
+- Add provider-specific monitoring and evaluation before relying on LLM narratives in production.
