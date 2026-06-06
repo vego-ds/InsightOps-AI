@@ -60,8 +60,9 @@ def test_markdown_report_contains_expected_sections(tmp_path: Path) -> None:
     report_text = Path(artifact.file_path).read_text()
 
     assert "Executive Sales Report" in report_text
-    assert "Data Source" in report_text
-    assert "Data Quality" in report_text
+    assert "Executive Summary" in report_text
+    assert "Source Metadata" in report_text
+    assert "Validation" in report_text
     assert "Data Profile" in report_text
     assert "Quality Score" in report_text
     assert "Quality Gate and Analysis Confidence" in report_text

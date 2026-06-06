@@ -29,9 +29,9 @@ InsightOps-AI is a production-style sales analytics automation platform. It coll
 ```text
 FastAPI routes
   -> analysis pipeline
-  -> collection / validation / profiling / preparation / manipulation
-  -> security / KPIs / anomalies
-  -> chart data / insights / audit events
+  -> collection / validation / profiling / quality gate
+  -> preparation / manipulation / KPIs / anomalies
+  -> insights / visual analytics / recommendations / audit events
   -> typed API response
 ```
 
@@ -133,7 +133,7 @@ GitHub Actions runs dependency verification, Ruff, and pytest on Python 3.12. Th
 
 - [System design](docs/system-design.md)
 - [Demo script](docs/demo-script.md)
-- [Interview talking points](docs/interview-talking-points.md)
+- [Application overview](docs/application-overview.md)
 - [Threat model](docs/threat-model.md)
 - [Deployment guide](docs/deployment.md)
 - [Portfolio summary](docs/portfolio-summary.md)

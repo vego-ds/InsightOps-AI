@@ -36,10 +36,10 @@ def _build_report_story(analysis: AnalysisResponse) -> list:
     story: list = []
 
     _add_heading(story, styles, "Executive Sales Report", level=1)
-    _add_heading(story, styles, "Summary")
+    _add_heading(story, styles, "Executive Summary")
     _add_paragraph(story, styles, analysis.insights.summary)
 
-    _add_heading(story, styles, "Data Source")
+    _add_heading(story, styles, "Source Metadata")
     _add_bullets(
         story,
         styles,
@@ -53,7 +53,7 @@ def _build_report_story(analysis: AnalysisResponse) -> list:
         ],
     )
 
-    _add_heading(story, styles, "Data Quality")
+    _add_heading(story, styles, "Validation")
     _add_bullets(
         story,
         styles,
@@ -132,6 +132,21 @@ def _build_report_story(analysis: AnalysisResponse) -> list:
         ],
     )
 
+    _add_heading(story, styles, "KPI Summary")
+    _add_bullets(
+        story,
+        styles,
+        [
+            f"Total revenue: ${analysis.kpis.total_revenue:.2f}",
+            f"Total orders: {analysis.kpis.total_orders}",
+            f"Total units sold: {analysis.kpis.total_units_sold}",
+            (
+                "Average order value: "
+                f"${analysis.kpis.average_order_value:.2f}"
+            ),
+        ],
+    )
+
     _add_heading(story, styles, "Data Preparation")
     _add_bullets(
         story,
@@ -191,21 +206,6 @@ def _build_report_story(analysis: AnalysisResponse) -> list:
             "flagged fields: " + ", ".join(analysis.security.flagged_fields)
         )
     _add_bullets(story, styles, security_items)
-
-    _add_heading(story, styles, "KPI Summary")
-    _add_bullets(
-        story,
-        styles,
-        [
-            f"Total revenue: ${analysis.kpis.total_revenue:.2f}",
-            f"Total orders: {analysis.kpis.total_orders}",
-            f"Total units sold: {analysis.kpis.total_units_sold}",
-            (
-                "Average order value: "
-                f"${analysis.kpis.average_order_value:.2f}"
-            ),
-        ],
-    )
 
     _add_heading(story, styles, "Anomalies")
     anomaly_items = [f"Total anomalies: {analysis.anomalies.total_anomalies}"]

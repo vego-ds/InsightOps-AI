@@ -27,11 +27,10 @@ CSV upload or sample data
   -> quality gate and confidence assignment
   -> data preparation and transformation lineage
   -> manipulation summaries
-  -> visual analytics
   -> KPI computation
   -> anomaly detection
-  -> chart data generation
   -> executive insights
+  -> visual analytics
   -> recommendations and workflow improvements
   -> audit events
   -> API response
@@ -42,7 +41,8 @@ scoring, governance, preparation, manipulation, visual analytics, insights,
 reporting, and audit evidence. Data profiling, quality scoring, and the security
 scan feed the quality gate, which assigns confidence and controls LLM narrative
 eligibility. Preparation and manipulation then create analysis-ready records and
-summaries before downstream KPI, anomaly, chart, and insight generation.
+summaries before downstream KPI, anomaly, insight, chart, and recommendation
+generation.
 
 Visual analytics sits between manipulation summaries and executive
 insights/reporting. Charts are evidence objects, not just display objects: each

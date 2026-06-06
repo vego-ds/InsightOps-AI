@@ -29,11 +29,11 @@ def _build_report_markdown(analysis: AnalysisResponse) -> str:
     lines = [
         "# Executive Sales Report",
         "",
-        "## Summary",
+        "## Executive Summary",
         "",
         analysis.insights.summary,
         "",
-        "## Data Source",
+        "## Source Metadata",
         "",
         f"- Source type: {analysis.source_metadata.source_type}",
         f"- File name: {analysis.source_metadata.file_name}",
@@ -42,7 +42,7 @@ def _build_report_markdown(analysis: AnalysisResponse) -> str:
         f"- Record count: {analysis.source_metadata.record_count}",
         f"- Notes: {analysis.source_metadata.notes or 'none'}",
         "",
-        "## Data Quality",
+        "## Validation",
         "",
         f"- Total rows: {analysis.validation.total_rows}",
         f"- Valid rows: {analysis.validation.valid_rows}",
@@ -101,6 +101,16 @@ def _build_report_markdown(analysis: AnalysisResponse) -> str:
             f"{_format_list(analysis.quality_gate.required_actions)}"
         ),
         "",
+        "## KPI Summary",
+        "",
+        f"- Total revenue: ${analysis.kpis.total_revenue:.2f}",
+        f"- Total orders: {analysis.kpis.total_orders}",
+        f"- Total units sold: {analysis.kpis.total_units_sold}",
+        (
+            "- Average order value: "
+            f"${analysis.kpis.average_order_value:.2f}"
+        ),
+        "",
         "## Data Preparation",
         "",
         f"- Prepared records: {analysis.preparation.total_records}",
@@ -147,16 +157,6 @@ def _build_report_markdown(analysis: AnalysisResponse) -> str:
 
     lines.extend(
         [
-            "",
-            "## KPI Summary",
-            "",
-            f"- Total revenue: ${analysis.kpis.total_revenue:.2f}",
-            f"- Total orders: {analysis.kpis.total_orders}",
-            f"- Total units sold: {analysis.kpis.total_units_sold}",
-            (
-                "- Average order value: "
-                f"${analysis.kpis.average_order_value:.2f}"
-            ),
             "",
             "## Anomalies",
             "",

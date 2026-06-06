@@ -73,10 +73,10 @@ function renderResults(data) {
     renderDataProfile(data.data_profile),
     renderQualityScore(data.quality_score),
     renderQualityGate(data.quality_gate),
+    renderKpis(data.kpis),
     renderPreparation(data.preparation),
     renderTransformationLog(data.transformation_log),
     renderManipulationSummary(data.manipulation_summary),
-    renderKpis(data.kpis),
     renderSecurity(data.security),
     renderAnomalies(data.anomalies),
     renderCharts(data.charts),
@@ -90,7 +90,7 @@ function renderResults(data) {
 
 function renderSourceMetadata(sourceMetadata) {
   return panel(
-    "Data Source",
+    "Source Metadata",
     metricGrid([
       ["Source Type", sourceMetadata.source_type],
       ["File Name", sourceMetadata.file_name],
@@ -104,7 +104,7 @@ function renderSourceMetadata(sourceMetadata) {
 
 function renderValidation(validation) {
   return panel(
-    "Validation Summary",
+    "Validation",
     metricGrid([
       ["Total Rows", validation.total_rows],
       ["Valid Rows", validation.valid_rows],
@@ -281,7 +281,7 @@ function renderSecurity(security) {
     : "None";
 
   return panel(
-    "Security Summary",
+    "Security",
     metricGrid([
       ["Prompt Injection", security.prompt_injection_detected],
       ["Human Review", security.human_review_required],
@@ -304,7 +304,7 @@ function renderAnomalies(anomalies) {
   ]);
 
   return panel(
-    "Anomaly Summary",
+    "Anomalies",
     `${metricGrid([["Total Anomalies", anomalies.total_anomalies]])}${table(
       [
         "Type",
