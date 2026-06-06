@@ -5,6 +5,12 @@ const statusEl = document.querySelector("#status");
 const errorEl = document.querySelector("#error");
 const resultsEl = document.querySelector("#results");
 
+const priorityOrder = {
+  high: 0,
+  medium: 1,
+  low: 2,
+};
+
 sampleButton.addEventListener("click", async () => {
   await runAnalysis(() => fetch("/analysis/sample"));
 });
@@ -35,10 +41,10 @@ async function runAnalysis(requestFactory) {
 
   try {
     const response = await requestFactory();
-    const payload = await response.json();
+    const payload = await parseResponsePayload(response);
 
     if (!response.ok) {
-      showError(payload.detail || "Analysis request failed.");
+      showError(formatErrorMessage(response.status, payload));
       return;
     }
 
@@ -48,6 +54,20 @@ async function runAnalysis(requestFactory) {
   } finally {
     setLoading(false);
   }
+}
+
+async function parseResponsePayload(response) {
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    return response.json();
+  }
+
+  return { detail: await response.text() };
+}
+
+function formatErrorMessage(statusCode, payload) {
+  const detail = payload.detail || payload.message || "Analysis request failed.";
+  return `Request failed with status ${statusCode}: ${detail}`;
 }
 
 function setLoading(isLoading) {
@@ -66,124 +86,334 @@ function hideError() {
   errorEl.textContent = "";
 }
 
-function renderResults(data) {
+function renderResults(analysis) {
   resultsEl.innerHTML = [
-    renderSourceMetadata(data.source_metadata),
-    renderValidation(data.validation),
-    renderDataProfile(data.data_profile),
-    renderQualityScore(data.quality_score),
-    renderQualityGate(data.quality_gate),
-    renderPreparation(data.preparation),
-    renderTransformationLog(data.transformation_log),
-    renderManipulationSummary(data.manipulation_summary),
-    renderTrendAnalysis(data.trend_analysis),
-    renderForecastAnalysis(data.forecast_analysis),
-    renderKpis(data.kpis),
-    renderSecurity(data.security),
-    renderAnomalies(data.anomalies),
-    renderCharts(data.charts),
-    renderInsights(data.insights),
-    renderRecommendations(data.recommendation_plan),
-    renderWorkflowImprovements(data.workflow_improvement_plan),
-    renderAuditEvents(data.audit_events),
+    renderExecutiveSummary(analysis),
+    renderStatusCards(analysis),
+    renderTopRecommendations(analysis),
+    renderForecastTrendSnapshot(analysis),
+    renderCharts(analysis.charts),
+    renderReportArtifactGuidance(),
+    renderTechnicalEvidence(analysis),
   ].join("");
   resultsEl.hidden = false;
 }
 
-function renderSourceMetadata(sourceMetadata) {
+function renderExecutiveSummary(analysis) {
   return panel(
-    "Source Metadata",
-    metricGrid([
-      ["Source Type", sourceMetadata.source_type],
-      ["File Name", sourceMetadata.file_name],
-      ["File Size", `${sourceMetadata.file_size_bytes} bytes`],
-      ["Collection Method", sourceMetadata.collection_method],
-      ["Record Count", sourceMetadata.record_count],
-      ["Notes", sourceMetadata.notes || "None"],
-    ]),
+    "Executive Summary",
+    `
+      <p class="summary-copy">${escapeHtml(safeGet(analysis, "insights.summary", "No executive summary available."))}</p>
+      ${metricGrid([
+        ["Total Revenue", formatMoney(safeGet(analysis, "kpis.total_revenue", 0))],
+        ["Total Orders", safeGet(analysis, "kpis.total_orders", 0)],
+        ["Total Anomalies", safeGet(analysis, "anomalies.total_anomalies", 0)],
+        ["Quality Gate", safeGet(analysis, "quality_gate.status", "unknown")],
+        ["Quality Confidence", safeGet(analysis, "quality_gate.confidence_level", "unknown")],
+        ["Forecast Readiness", safeGet(analysis, "forecast_analysis.readiness_status", "unknown")],
+        ["Forecast Confidence", safeGet(analysis, "forecast_analysis.confidence_level", "unknown")],
+        ["Recommendations", safeGet(analysis, "recommendation_plan.total_recommendations", 0)],
+        ["Workflow Improvements", safeGet(analysis, "workflow_improvement_plan.total_workflows", 0)],
+      ])}
+    `,
+    "executive-summary",
   );
+}
+
+function renderStatusCards(analysis) {
+  const highSeverityCount = safeArray(safeGet(analysis, "anomalies.anomalies", []))
+    .filter((anomaly) => anomaly.severity === "high").length;
+  const highPriorityCount = safeArray(
+    safeGet(analysis, "recommendation_plan.recommendations", []),
+  ).filter((recommendation) => recommendation.priority === "high").length;
+
+  return panel(
+    "Decision Status Cards",
+    `
+      <div class="status-card-grid">
+        ${statusCard(
+          "Quality Gate",
+          safeGet(analysis, "quality_gate.status", "unknown"),
+          [
+            ["Confidence", safeGet(analysis, "quality_gate.confidence_level", "unknown")],
+            ["Human Review", safeGet(analysis, "quality_gate.human_review_required", false)],
+          ],
+        )}
+        ${statusCard(
+          "Forecast Readiness",
+          safeGet(analysis, "forecast_analysis.readiness_status", "unknown"),
+          [
+            ["Confidence", safeGet(analysis, "forecast_analysis.confidence_level", "unknown")],
+            ["Next Period", safeGet(analysis, "forecast_analysis.next_period", "None") || "None"],
+          ],
+        )}
+        ${statusCard(
+          "Security Review",
+          safeGet(analysis, "security.human_review_required", false) ? "review" : "pass",
+          [
+            ["Prompt Injection", safeGet(analysis, "security.prompt_injection_detected", false)],
+            ["Human Review", safeGet(analysis, "security.human_review_required", false)],
+          ],
+        )}
+        ${statusCard(
+          "Anomaly Risk",
+          highSeverityCount > 0 ? "high" : safeGet(analysis, "anomalies.total_anomalies", 0) > 0 ? "medium" : "low",
+          [
+            ["Total Anomalies", safeGet(analysis, "anomalies.total_anomalies", 0)],
+            ["High Severity", highSeverityCount],
+          ],
+        )}
+        ${statusCard(
+          "Recommendations",
+          highPriorityCount > 0 ? "high" : "medium",
+          [
+            ["Total", safeGet(analysis, "recommendation_plan.total_recommendations", 0)],
+            ["High Priority", highPriorityCount],
+          ],
+        )}
+      </div>
+    `,
+    "decision-status",
+  );
+}
+
+function statusCard(title, status, rows) {
+  return `
+    <article class="status-card status-${statusClass(status)}">
+      <div class="status-card-header">
+        <h3>${escapeHtml(title)}</h3>
+        ${badge(status, "status-badge")}
+      </div>
+      ${rows
+        .map(
+          ([label, value]) => `
+            <p><span>${escapeHtml(label)}</span><strong>${escapeHtml(formatValue(value))}</strong></p>
+          `,
+        )
+        .join("")}
+    </article>
+  `;
+}
+
+function renderTopRecommendations(analysis) {
+  const recommendations = safeArray(
+    safeGet(analysis, "recommendation_plan.recommendations", []),
+  )
+    .slice()
+    .sort((left, right) => {
+      const leftPriority = priorityOrder[left.priority] ?? 99;
+      const rightPriority = priorityOrder[right.priority] ?? 99;
+      return leftPriority - rightPriority || left.recommendation_id.localeCompare(right.recommendation_id);
+    })
+    .slice(0, 5);
+
+  if (!recommendations.length) {
+    return panel(
+      "Business Actions",
+      '<p class="empty-state">No business recommendations were generated.</p>',
+      "business-actions",
+    );
+  }
+
+  return panel(
+    "Business Actions",
+    recommendations
+      .map(
+        (recommendation) => `
+          <article class="action-card priority-${statusClass(recommendation.priority)}">
+            <div class="action-card-header">
+              ${badge(recommendation.priority, "priority-badge")}
+              <h3>${escapeHtml(recommendation.title)}</h3>
+            </div>
+            ${metricGrid([
+              ["Business Area", recommendation.business_area],
+              ["Owner", recommendation.owner_role],
+              ["Follow-up Metric", recommendation.follow_up_metric],
+            ])}
+            <p><strong>Recommended action:</strong> ${escapeHtml(recommendation.recommended_action)}</p>
+            <p><strong>Expected impact:</strong> ${escapeHtml(recommendation.expected_impact)}</p>
+            <p><strong>Related insight IDs:</strong> ${escapeHtml(formatInlineList(recommendation.related_insight_ids))}</p>
+            <p><strong>Related chart IDs:</strong> ${escapeHtml(formatInlineList(recommendation.related_chart_ids))}</p>
+          </article>
+        `,
+      )
+      .join(""),
+    "business-actions",
+  );
+}
+
+function renderForecastTrendSnapshot(analysis) {
+  const revenueForecast = safeGet(analysis, "forecast_analysis.revenue_forecast", null);
+  const orderCountForecast = safeGet(analysis, "forecast_analysis.order_count_forecast", null);
+
+  return panel(
+    "Forecast and Trend Snapshot",
+    `
+      ${metricGrid([
+        ["Next Forecast Period", safeGet(analysis, "forecast_analysis.next_period", "None") || "None"],
+        ["Revenue Forecast", formatForecastValue(revenueForecast, true)],
+        ["Order Count Forecast", formatForecastValue(orderCountForecast, false)],
+        ["Forecast Confidence", safeGet(analysis, "forecast_analysis.confidence_level", "unknown")],
+        ["Revenue Trend", safeGet(analysis, "trend_analysis.revenue_trend.direction", "unknown")],
+        ["Order Count Trend", safeGet(analysis, "trend_analysis.order_count_trend.direction", "unknown")],
+        ["Discount Trend", safeGet(analysis, "trend_analysis.average_discount_trend.direction", "unknown")],
+      ])}
+      <h3>Major Forecast Warnings</h3>
+      ${list(safeArray(safeGet(analysis, "forecast_analysis.warnings", [])), "No forecast warnings.")}
+    `,
+    "forecast-trend-snapshot",
+  );
+}
+
+function renderCharts(charts) {
+  const chartSections = safeArray(safeGet(charts, "charts", []))
+    .map(
+      (chart) => `
+        <article class="chart-card">
+          <h3>${escapeHtml(chart.title)}</h3>
+          <p><strong>Business question:</strong> ${escapeHtml(chart.business_question || "None")}</p>
+          <p><strong>Interpretation:</strong> ${escapeHtml(chart.interpretation || "None")}</p>
+          <h4>Recommended Actions</h4>
+          ${list(chart.recommended_actions || [], "No chart-specific recommended actions.")}
+          <p><strong>Related insight IDs:</strong> ${escapeHtml(formatInlineList(chart.related_insight_ids || []))}</p>
+          ${renderBarPreview(chart)}
+          <h4>${chart.chart_type === "line" ? "Period Data" : "Chart Data"}</h4>
+          ${table(
+            [chart.x_axis, chart.y_axis, "secondary_value"],
+            safeArray(chart.data).map((point) => [
+              point.label,
+              point.value,
+              point.secondary_value ?? "None",
+            ]),
+            "No chart data available.",
+          )}
+        </article>
+      `,
+    )
+    .join("");
+
+  return panel("Visual Analytics", chartSections || '<p class="empty-state">No charts available.</p>', "visual-analytics");
+}
+
+function renderReportArtifactGuidance() {
+  return panel(
+    "Report Artifact Guidance",
+    `
+      <p>
+        Markdown and PDF report generation are available as backend artifact modules.
+        This dashboard does not yet expose direct report download buttons. Generated
+        artifacts can be produced through the report modules, and future API endpoints
+        can expose authenticated downloads.
+      </p>
+    `,
+    "report-guidance",
+  );
+}
+
+function renderTechnicalEvidence(analysis) {
+  return panel(
+    "Technical Evidence",
+    [
+      technicalPanel("Source Metadata", renderSourceMetadata(analysis.source_metadata)),
+      technicalPanel("Validation", renderValidation(analysis.validation)),
+      technicalPanel("Data Profile", renderDataProfile(analysis.data_profile)),
+      technicalPanel("Quality Score", renderQualityScore(analysis.quality_score)),
+      technicalPanel("Data Preparation", renderPreparation(analysis.preparation)),
+      technicalPanel("Transformation Lineage", renderTransformationLog(analysis.transformation_log)),
+      technicalPanel("Manipulation Summary", renderManipulationSummary(analysis.manipulation_summary)),
+      technicalPanel("Trend Analysis", renderTrendAnalysis(analysis.trend_analysis)),
+      technicalPanel("Forecast Analysis", renderForecastAnalysis(analysis.forecast_analysis)),
+      technicalPanel("KPI Summary", renderKpis(analysis.kpis)),
+      technicalPanel("Security", renderSecurity(analysis.security)),
+      technicalPanel("Anomalies", renderAnomalies(analysis.anomalies)),
+      technicalPanel("Executive Insights", renderInsights(analysis.insights)),
+      technicalPanel("Workflow Improvements", renderWorkflowImprovements(analysis.workflow_improvement_plan)),
+      technicalPanel("Audit Events", renderAuditEvents(analysis.audit_events)),
+      technicalPanel("Raw JSON", `<pre class="raw-json">${escapeHtml(JSON.stringify(analysis, null, 2))}</pre>`),
+    ].join(""),
+    "technical-evidence",
+  );
+}
+
+function renderSourceMetadata(sourceMetadata) {
+  return metricGrid([
+    ["Source Type", safeGet(sourceMetadata, "source_type", "unknown")],
+    ["File Name", safeGet(sourceMetadata, "file_name", "unknown")],
+    ["File Size", `${safeGet(sourceMetadata, "file_size_bytes", 0)} bytes`],
+    ["Collection Method", safeGet(sourceMetadata, "collection_method", "unknown")],
+    ["Record Count", safeGet(sourceMetadata, "record_count", 0)],
+    ["Notes", safeGet(sourceMetadata, "notes", "None") || "None"],
+  ]);
 }
 
 function renderValidation(validation) {
-  return panel(
-    "Validation",
-    metricGrid([
-      ["Total Rows", validation.total_rows],
-      ["Valid Rows", validation.valid_rows],
-      ["Invalid Rows", validation.invalid_rows],
-      ["Errors", validation.errors.length],
-    ]),
-  );
+  return metricGrid([
+    ["Total Rows", safeGet(validation, "total_rows", 0)],
+    ["Valid Rows", safeGet(validation, "valid_rows", 0)],
+    ["Invalid Rows", safeGet(validation, "invalid_rows", 0)],
+    ["Errors", safeArray(safeGet(validation, "errors", [])).length],
+  ]);
 }
 
 function renderDataProfile(profile) {
-  return panel(
-    "Data Profile",
-    `
-      ${metricGrid([
-        ["Date Range", formatDateRange(profile)],
-        ["Unique Customers", profile.unique_customers],
-        ["Unique Regions", profile.unique_regions],
-        ["Unique Products", profile.unique_products],
-        ["Unique Sales Reps", profile.unique_sales_reps],
-        ["Duplicate Order IDs", profile.duplicate_order_ids],
-      ])}
-      <h3>Missing Field Counts</h3>
-      ${objectTable(profile.missing_field_counts, "Field", "Count", "No missing fields detected.")}
-      <h3>Numeric Summaries</h3>
-      ${table(
-        ["Metric", "Minimum", "Maximum", "Mean", "Median", "Std Dev"],
-        [
-          ["Revenue", ...numericSummaryCells(profile.revenue_summary)],
-          ["Quantity", ...numericSummaryCells(profile.quantity_summary)],
-          ["Discount", ...numericSummaryCells(profile.discount_summary)],
-          ["Unit Price", ...numericSummaryCells(profile.unit_price_summary)],
-        ],
-        "No numeric summaries available.",
-      )}
-    `,
-  );
+  return `
+    ${metricGrid([
+      ["Date Range", formatDateRange(profile)],
+      ["Unique Customers", safeGet(profile, "unique_customers", 0)],
+      ["Unique Regions", safeGet(profile, "unique_regions", 0)],
+      ["Unique Products", safeGet(profile, "unique_products", 0)],
+      ["Unique Sales Reps", safeGet(profile, "unique_sales_reps", 0)],
+      ["Duplicate Order IDs", safeGet(profile, "duplicate_order_ids", 0)],
+    ])}
+    <h3>Missing Field Counts</h3>
+    ${objectTable(safeGet(profile, "missing_field_counts", {}), "Field", "Count", "No missing fields detected.")}
+    <h3>Numeric Summaries</h3>
+    ${table(
+      ["Metric", "Minimum", "Maximum", "Mean", "Median", "Std Dev"],
+      [
+        ["Revenue", ...numericSummaryCells(safeGet(profile, "revenue_summary", {}))],
+        ["Quantity", ...numericSummaryCells(safeGet(profile, "quantity_summary", {}))],
+        ["Discount", ...numericSummaryCells(safeGet(profile, "discount_summary", {}))],
+        ["Unit Price", ...numericSummaryCells(safeGet(profile, "unit_price_summary", {}))],
+      ],
+      "No numeric summaries available.",
+    )}
+  `;
 }
 
 function renderQualityScore(qualityScore) {
-  return panel(
-    "Quality Score",
-    `
-      ${metricGrid([
-        ["Score", qualityScore.score],
-        ["Grade", qualityScore.grade],
-      ])}
-      <h3>Issues</h3>
-      ${list(qualityScore.issues, "No quality issues detected.")}
-      <h3>Recommendations</h3>
-      ${list(qualityScore.recommendations, "No quality recommendations.")}
-    `,
-  );
+  return `
+    ${metricGrid([
+      ["Score", safeGet(qualityScore, "score", 0)],
+      ["Grade", safeGet(qualityScore, "grade", "unknown")],
+    ])}
+    <h3>Issues</h3>
+    ${list(safeArray(safeGet(qualityScore, "issues", [])), "No quality issues detected.")}
+    <h3>Recommendations</h3>
+    ${list(safeArray(safeGet(qualityScore, "recommendations", [])), "No quality recommendations.")}
+  `;
 }
 
 function renderQualityGate(qualityGate) {
-  return panel(
-    "Quality Gate",
-    `
-      ${metricGrid([
-        ["Status", qualityGate.status],
-        ["Confidence", qualityGate.confidence_level],
-        ["Can Generate KPIs", qualityGate.can_generate_kpis],
-        ["Can Generate Charts", qualityGate.can_generate_charts],
-        ["Can Generate Reports", qualityGate.can_generate_reports],
-        ["Can Generate LLM Narrative", qualityGate.can_generate_llm_narrative],
-        ["Human Review Required", qualityGate.human_review_required],
-      ])}
-      <h3>Reasons</h3>
-      ${list(qualityGate.reasons, "No quality gate reasons available.")}
-      <h3>Required Actions</h3>
-      ${list(qualityGate.required_actions, "No required actions.")}
-    `,
-  );
+  return `
+    ${metricGrid([
+      ["Status", safeGet(qualityGate, "status", "unknown")],
+      ["Confidence", safeGet(qualityGate, "confidence_level", "unknown")],
+      ["Can Generate KPIs", safeGet(qualityGate, "can_generate_kpis", false)],
+      ["Can Generate Charts", safeGet(qualityGate, "can_generate_charts", false)],
+      ["Can Generate Reports", safeGet(qualityGate, "can_generate_reports", false)],
+      ["Can Generate LLM Narrative", safeGet(qualityGate, "can_generate_llm_narrative", false)],
+      ["Human Review Required", safeGet(qualityGate, "human_review_required", false)],
+    ])}
+    <h3>Reasons</h3>
+    ${list(safeArray(safeGet(qualityGate, "reasons", [])), "No quality gate reasons available.")}
+    <h3>Required Actions</h3>
+    ${list(safeArray(safeGet(qualityGate, "required_actions", [])), "No required actions.")}
+  `;
 }
 
 function renderPreparation(preparation) {
-  const rows = preparation.records.map((record) => [
+  const rows = safeArray(safeGet(preparation, "records", [])).map((record) => [
     record.order_id,
     record.region,
     record.product,
@@ -197,91 +427,67 @@ function renderPreparation(preparation) {
     formatMoney(record.revenue_reconciliation_difference),
   ]);
 
-  return panel(
-    "Data Preparation",
-    `${metricGrid([["Prepared Records", preparation.total_records]])}${table(
-      [
-        "Order ID",
-        "Region",
-        "Product",
-        "Gross Revenue",
-        "Discount Amount",
-        "Net Revenue",
-        "Year",
-        "Quarter",
-        "Discounted",
-        "High Value",
-        "Reconciliation Diff",
-      ],
-      rows,
-      "No prepared records available.",
-    )}`,
-  );
+  return `${metricGrid([["Prepared Records", safeGet(preparation, "total_records", 0)]])}${table(
+    [
+      "Order ID",
+      "Region",
+      "Product",
+      "Gross Revenue",
+      "Discount Amount",
+      "Net Revenue",
+      "Year",
+      "Quarter",
+      "Discounted",
+      "High Value",
+      "Reconciliation Diff",
+    ],
+    rows,
+    "No prepared records available.",
+  )}`;
 }
 
 function renderTransformationLog(transformationLog) {
-  const rows = transformationLog.entries.map((entry) => [
+  const rows = safeArray(safeGet(transformationLog, "entries", [])).map((entry) => [
     entry.step_name,
     entry.description,
     entry.records_affected,
-    entry.fields_created.join(", ") || "None",
-    entry.fields_modified.join(", ") || "None",
+    safeArray(entry.fields_created).join(", ") || "None",
+    safeArray(entry.fields_modified).join(", ") || "None",
   ]);
 
-  return panel(
-    "Transformation Lineage",
-    table(
-      ["Step", "Description", "Records", "Fields Created", "Fields Modified"],
-      rows,
-      "No transformation steps available.",
-    ),
+  return table(
+    ["Step", "Description", "Records", "Fields Created", "Fields Modified"],
+    rows,
+    "No transformation steps available.",
   );
 }
 
 function renderManipulationSummary(summary) {
-  return panel(
-    "Manipulation Summary",
-    `
-      <h3>Monthly Revenue</h3>
-      ${dataPointTable(summary.monthly_revenue, "Month", "Net Revenue", "No monthly revenue available.")}
-      <h3>Ranked Regions</h3>
-      ${dataPointTable(summary.ranked_regions, "Region", "Net Revenue", "No region rankings available.")}
-      <h3>Ranked Products</h3>
-      ${dataPointTable(summary.ranked_products, "Product", "Net Revenue", "No product rankings available.")}
-      <h3>Ranked Sales Reps</h3>
-      ${dataPointTable(summary.ranked_sales_reps, "Sales Rep", "Net Revenue", "No sales rep rankings available.")}
-      <h3>Discount Summary By Product</h3>
-      ${table(
-        ["Product", "Average Discount", "Discounted Orders", "Total Orders"],
-        summary.discount_summary_by_product.map((item) => [
-          item.product,
-          formatPercent(item.average_discount),
-          item.discounted_order_count,
-          item.total_orders,
-        ]),
-        "No discount summaries available.",
-      )}
-    `,
-  );
-}
-
-function renderSecurity(security) {
-  const flaggedFields = security.flagged_fields.length
-    ? security.flagged_fields.join(", ")
-    : "None";
-
-  return panel(
-    "Security",
-    metricGrid([
-      ["Prompt Injection", security.prompt_injection_detected],
-      ["Human Review", security.human_review_required],
-      ["Flagged Fields", flaggedFields],
-    ]),
-  );
+  return `
+    <h3>Monthly Revenue</h3>
+    ${dataPointTable(safeArray(safeGet(summary, "monthly_revenue", [])), "Month", "Net Revenue", "No monthly revenue available.")}
+    <h3>Ranked Regions</h3>
+    ${dataPointTable(safeArray(safeGet(summary, "ranked_regions", [])), "Region", "Net Revenue", "No region rankings available.")}
+    <h3>Ranked Products</h3>
+    ${dataPointTable(safeArray(safeGet(summary, "ranked_products", [])), "Product", "Net Revenue", "No product rankings available.")}
+    <h3>Ranked Sales Reps</h3>
+    ${dataPointTable(safeArray(safeGet(summary, "ranked_sales_reps", [])), "Sales Rep", "Net Revenue", "No sales rep rankings available.")}
+    <h3>Discount Summary By Product</h3>
+    ${table(
+      ["Product", "Average Discount", "Discounted Orders", "Total Orders"],
+      safeArray(safeGet(summary, "discount_summary_by_product", [])).map((item) => [
+        item.product,
+        formatPercent(item.average_discount),
+        item.discounted_order_count,
+        item.total_orders,
+      ]),
+      "No discount summaries available.",
+    )}
+  `;
 }
 
 function renderTrendAnalysis(trendAnalysis) {
-  const monthlyRows = trendAnalysis.data.map((point) => [
+  const monthlyRows = safeArray(safeGet(trendAnalysis, "data", [])).map((point) => [
     point.period,
     formatMoney(point.revenue),
     point.order_count,
@@ -290,98 +496,65 @@ function renderTrendAnalysis(trendAnalysis) {
     formatPercent(point.average_discount),
   ]);
   const summaryRows = [
-    trendAnalysis.revenue_trend,
-    trendAnalysis.order_count_trend,
-    trendAnalysis.average_order_value_trend,
-    trendAnalysis.units_sold_trend,
-    trendAnalysis.average_discount_trend,
+    safeGet(trendAnalysis, "revenue_trend", {}),
+    safeGet(trendAnalysis, "order_count_trend", {}),
+    safeGet(trendAnalysis, "average_order_value_trend", {}),
+    safeGet(trendAnalysis, "units_sold_trend", {}),
+    safeGet(trendAnalysis, "average_discount_trend", {}),
   ].map((trend) => [
-    trend.metric,
-    trend.start_value,
-    trend.end_value,
-    trend.absolute_change,
-    formatPercentChange(trend.percent_change),
-    trend.direction,
-    trend.interpretation,
+    safeGet(trend, "metric", "unknown"),
+    safeGet(trend, "start_value", 0),
+    safeGet(trend, "end_value", 0),
+    safeGet(trend, "absolute_change", 0),
+    formatPercentChange(safeGet(trend, "percent_change", null)),
+    safeGet(trend, "direction", "unknown"),
+    safeGet(trend, "interpretation", "None"),
   ]);
 
-  return panel(
-    "Trend Analysis",
-    `
-      ${metricGrid([
-        ["Period Grain", trendAnalysis.period_grain],
-        ["Total Periods", trendAnalysis.total_periods],
-      ])}
-      <h3>Monthly Performance</h3>
-      ${table(
-        [
-          "Period",
-          "Revenue",
-          "Orders",
-          "Units Sold",
-          "Average Order Value",
-          "Average Discount",
-        ],
-        monthlyRows,
-        "No monthly trend data available.",
-      )}
-      <h3>Trend Summaries</h3>
-      ${table(
-        [
-          "Metric",
-          "Start",
-          "End",
-          "Absolute Change",
-          "Percent Change",
-          "Direction",
-          "Interpretation",
-        ],
-        summaryRows,
-        "No trend summaries available.",
-      )}
-      <h3>Warnings</h3>
-      ${list(trendAnalysis.warnings, "No trend warnings.")}
-    `,
-  );
-}
-
-function renderKpis(kpis) {
-  return panel(
-    "KPI Summary",
-    metricGrid([
-      ["Total Revenue", formatMoney(kpis.total_revenue)],
-      ["Total Orders", kpis.total_orders],
-      ["Units Sold", kpis.total_units_sold],
-      ["Average Order Value", formatMoney(kpis.average_order_value)],
-    ]),
-  );
+  return `
+    ${metricGrid([
+      ["Period Grain", safeGet(trendAnalysis, "period_grain", "month")],
+      ["Total Periods", safeGet(trendAnalysis, "total_periods", 0)],
+    ])}
+    <h3>Monthly Performance</h3>
+    ${table(
+      ["Period", "Revenue", "Orders", "Units Sold", "Average Order Value", "Average Discount"],
+      monthlyRows,
+      "No monthly trend data available.",
+    )}
+    <h3>Trend Summaries</h3>
+    ${table(
+      ["Metric", "Start", "End", "Absolute Change", "Percent Change", "Direction", "Interpretation"],
+      summaryRows,
+      "No trend summaries available.",
+    )}
+    <h3>Warnings</h3>
+    ${list(safeArray(safeGet(trendAnalysis, "warnings", [])), "No trend warnings.")}
+  `;
 }
 
 function renderForecastAnalysis(forecastAnalysis) {
-  return panel(
-    "Forecast Analysis",
-    `
-      ${metricGrid([
-        ["Readiness Status", forecastAnalysis.readiness_status],
-        ["Confidence Level", forecastAnalysis.confidence_level],
-        ["Next Period", forecastAnalysis.next_period || "None"],
-      ])}
-      <h3>Warnings</h3>
-      ${list(forecastAnalysis.warnings, "No forecast warnings.")}
-      <h3>Recommended Actions</h3>
-      ${list(forecastAnalysis.recommended_actions, "No forecast actions.")}
-      <h3>Baseline Forecasts</h3>
-      ${[
-        ["Revenue", forecastAnalysis.revenue_forecast],
-        ["Order Count", forecastAnalysis.order_count_forecast],
-        ["Average Order Value", forecastAnalysis.average_order_value_forecast],
-        ["Units Sold", forecastAnalysis.units_sold_forecast],
-        ["Average Discount", forecastAnalysis.average_discount_forecast],
-      ]
-        .map(([label, forecast]) => renderMetricForecast(label, forecast))
-        .join("")}
-    `,
-  );
+  return `
+    ${metricGrid([
+      ["Readiness Status", safeGet(forecastAnalysis, "readiness_status", "unknown")],
+      ["Confidence Level", safeGet(forecastAnalysis, "confidence_level", "unknown")],
+      ["Next Period", safeGet(forecastAnalysis, "next_period", "None") || "None"],
+    ])}
+    <h3>Warnings</h3>
+    ${list(safeArray(safeGet(forecastAnalysis, "warnings", [])), "No forecast warnings.")}
+    <h3>Recommended Actions</h3>
+    ${list(safeArray(safeGet(forecastAnalysis, "recommended_actions", [])), "No forecast actions.")}
+    <h3>Baseline Forecasts</h3>
+    ${[
+      ["Revenue", safeGet(forecastAnalysis, "revenue_forecast", null)],
+      ["Order Count", safeGet(forecastAnalysis, "order_count_forecast", null)],
+      ["Average Order Value", safeGet(forecastAnalysis, "average_order_value_forecast", null)],
+      ["Units Sold", safeGet(forecastAnalysis, "units_sold_forecast", null)],
+      ["Average Discount", safeGet(forecastAnalysis, "average_discount_forecast", null)],
+    ]
+      .map(([label, forecast]) => renderMetricForecast(label, forecast))
+      .join("")}
+  `;
 }
 
 function renderMetricForecast(label, forecast) {
@@ -418,13 +591,34 @@ function renderMetricForecast(label, forecast) {
         "No forecast methods available.",
       )}
       <h4>Metric Warnings</h4>
-      ${list(forecast.warnings, "No metric warnings.")}
+      ${list(safeArray(forecast.warnings), "No metric warnings.")}
     </article>
   `;
 }
 
+function renderKpis(kpis) {
+  return metricGrid([
+    ["Total Revenue", formatMoney(safeGet(kpis, "total_revenue", 0))],
+    ["Total Orders", safeGet(kpis, "total_orders", 0)],
+    ["Units Sold", safeGet(kpis, "total_units_sold", 0)],
+    ["Average Order Value", formatMoney(safeGet(kpis, "average_order_value", 0))],
+  ]);
+}
+
+function renderSecurity(security) {
+  const flaggedFields = safeArray(safeGet(security, "flagged_fields", [])).length
+    ? safeGet(security, "flagged_fields", []).join(", ")
+    : "None";
+
+  return metricGrid([
+    ["Prompt Injection", safeGet(security, "prompt_injection_detected", false)],
+    ["Human Review", safeGet(security, "human_review_required", false)],
+    ["Flagged Fields", flaggedFields],
+  ]);
+}
+
 function renderAnomalies(anomalies) {
-  const rows = anomalies.anomalies.map((anomaly) => [
+  const rows = safeArray(safeGet(anomalies, "anomalies", [])).map((anomaly) => [
     anomaly.anomaly_type,
     anomaly.severity,
     anomaly.method || "rule",
@@ -436,62 +630,15 @@ function renderAnomalies(anomalies) {
     anomaly.message,
   ]);
 
-  return panel(
-    "Anomalies",
-    `${metricGrid([["Total Anomalies", anomalies.total_anomalies]])}${table(
-      [
-        "Type",
-        "Severity",
-        "Method",
-        "Order ID",
-        "Field",
-        "Value",
-        "Threshold",
-        "Comparison",
-        "Message",
-      ],
-      rows,
-      "No anomalies detected.",
-    )}`,
-  );
-}
-
-function renderCharts(charts) {
-  const chartSections = charts.charts
-    .map(
-      (chart) => `
-        <article class="chart-card">
-          <h3>${escapeHtml(chart.title)}</h3>
-          <p><strong>Business question:</strong> ${escapeHtml(chart.business_question || "None")}</p>
-          <p><strong>Interpretation:</strong> ${escapeHtml(chart.interpretation || "None")}</p>
-          <p><strong>Related insight IDs:</strong> ${escapeHtml(formatInlineList(chart.related_insight_ids))}</p>
-          <h4>Recommended Actions</h4>
-          ${list(chart.recommended_actions, "No chart-specific recommended actions.")}
-          ${renderBarPreview(chart)}
-          <h4>Chart Data</h4>
-        ${table(
-          [
-            chart.x_axis,
-            chart.y_axis,
-            "secondary_value",
-          ],
-          chart.data.map((point) => [
-            point.label,
-            point.value,
-            point.secondary_value ?? "None",
-          ]),
-          "No chart data available.",
-        )}
-        </article>
-      `,
-    )
-    .join("");
-
-  return panel("Visual Analytics", chartSections || "No charts available.");
+  return `${metricGrid([["Total Anomalies", safeGet(anomalies, "total_anomalies", 0)]])}${table(
+    ["Type", "Severity", "Method", "Order ID", "Field", "Value", "Threshold", "Comparison", "Message"],
+    rows,
+    "No anomalies detected.",
+  )}`;
 }
 
 function renderInsights(insights) {
-  const insightItems = insights.insights.length
+  const insightItems = safeArray(safeGet(insights, "insights", [])).length
     ? insights.insights
         .map(
           (insight) => `
@@ -505,94 +652,64 @@ function renderInsights(insights) {
         .join("")
     : "<li>No executive insights generated.</li>";
 
-  const actions = insights.recommended_actions.length
+  const actions = safeArray(safeGet(insights, "recommended_actions", [])).length
     ? insights.recommended_actions.map((action) => `<li>${escapeHtml(action)}</li>`).join("")
     : "<li>No recommended actions.</li>";
 
-  return panel(
-    "Executive Insights",
-    `
-      <p>${escapeHtml(insights.summary)}</p>
-      <ul>${insightItems}</ul>
-      <h3>Recommended Actions</h3>
-      <ul>${actions}</ul>
-    `,
-  );
-}
-
-function renderRecommendations(plan) {
-  const items = plan.recommendations.length
-    ? plan.recommendations
-        .map(
-          (recommendation) => `
-            <article class="chart-card">
-              <h3>${escapeHtml(recommendation.title)}</h3>
-              ${metricGrid([
-                ["Priority", recommendation.priority],
-                ["Business Area", recommendation.business_area],
-                ["Workflow Stage", recommendation.workflow_stage],
-                ["Owner Role", recommendation.owner_role],
-                ["Difficulty", recommendation.implementation_difficulty],
-                ["Follow-up Metric", recommendation.follow_up_metric],
-              ])}
-              <p><strong>Problem:</strong> ${escapeHtml(recommendation.problem)}</p>
-              <p><strong>Recommended Action:</strong> ${escapeHtml(recommendation.recommended_action)}</p>
-              <p><strong>Expected Impact:</strong> ${escapeHtml(recommendation.expected_impact)}</p>
-              <p><strong>Evidence:</strong> ${escapeHtml(formatObject(recommendation.evidence))}</p>
-              <p><strong>Related insight IDs:</strong> ${escapeHtml(formatInlineList(recommendation.related_insight_ids))}</p>
-              <p><strong>Related chart IDs:</strong> ${escapeHtml(formatInlineList(recommendation.related_chart_ids))}</p>
-            </article>
-          `,
-        )
-        .join("")
-    : "<p>No business recommendations generated.</p>";
-
-  return panel("Business Recommendations", items);
+  return `
+    <p>${escapeHtml(safeGet(insights, "summary", "No executive summary available."))}</p>
+    <ul>${insightItems}</ul>
+    <h3>Recommended Actions</h3>
+    <ul>${actions}</ul>
+  `;
 }
 
 function renderWorkflowImprovements(plan) {
-  const rows = plan.workflows.map((workflow) => [
+  const rows = safeArray(safeGet(plan, "workflows", [])).map((workflow) => [
     workflow.workflow_name,
     workflow.current_issue,
     workflow.proposed_change,
     workflow.expected_benefit,
     workflow.owner_role,
     workflow.follow_up_metric,
-    workflow.related_recommendation_ids.join(", ") || "None",
+    safeArray(workflow.related_recommendation_ids).join(", ") || "None",
   ]);
 
-  return panel(
-    "Workflow Improvements",
-    table(
-      [
-        "Workflow",
-        "Current Issue",
-        "Proposed Change",
-        "Expected Benefit",
-        "Owner Role",
-        "Follow-up Metric",
-        "Related Recommendations",
-      ],
-      rows,
-      "No workflow improvements generated.",
-    ),
+  return table(
+    [
+      "Workflow",
+      "Current Issue",
+      "Proposed Change",
+      "Expected Benefit",
+      "Owner Role",
+      "Follow-up Metric",
+      "Related Recommendations",
+    ],
+    rows,
+    "No workflow improvements generated.",
   );
 }
 
 function renderAuditEvents(events) {
-  const rows = events.map((event) => [event.event_type, event.message]);
-  return panel(
-    "Audit Events",
-    table(["Event Type", "Message"], rows, "No audit events available."),
-  );
+  const rows = safeArray(events).map((event) => [event.event_type, event.message]);
+  return table(["Event Type", "Message"], rows, "No audit events available.");
 }
 
-function panel(title, body) {
+function panel(title, body, className = "") {
   return `
-    <section class="panel">
+    <section class="panel ${escapeHtml(className)}">
       <h2>${escapeHtml(title)}</h2>
       ${body}
     </section>
+  `;
+}
+
+function technicalPanel(title, body) {
+  return `
+    <details class="technical-section">
+      <summary>${escapeHtml(title)}</summary>
+      <div class="technical-section-body">${body}</div>
+    </details>
   `;
 }
 
@@ -604,7 +721,7 @@ function metricGrid(items) {
           ([label, value]) => `
             <div class="metric">
               <span>${escapeHtml(label)}</span>
-              <strong>${escapeHtml(String(value))}</strong>
+              <strong>${escapeHtml(formatValue(value))}</strong>
             </div>
           `,
         )
@@ -615,29 +732,31 @@ function metricGrid(items) {
 
 function table(headers, rows, emptyMessage) {
   if (!rows.length) {
-    return `<p>${escapeHtml(emptyMessage)}</p>`;
+    return `<p class="empty-state">${escapeHtml(emptyMessage)}</p>`;
   }
 
   return `
-    <table>
-      <thead>
-        <tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr>
-      </thead>
-      <tbody>
-        ${rows
-          .map(
-            (row) => `
-              <tr>${row.map((cell) => `<td>${escapeHtml(String(cell))}</td>`).join("")}</tr>
-            `,
-          )
-          .join("")}
-      </tbody>
-    </table>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr>
+        </thead>
+        <tbody>
+          ${rows
+            .map(
+              (row) => `
+                <tr>${row.map((cell) => `<td>${escapeHtml(formatValue(cell))}</td>`).join("")}</tr>
+              `,
+            )
+            .join("")}
+        </tbody>
+      </table>
+    </div>
   `;
 }
 
 function objectTable(values, keyLabel, valueLabel, emptyMessage) {
-  const rows = Object.entries(values).sort(([left], [right]) =>
+  const rows = Object.entries(values || {}).sort(([left], [right]) =>
     left.localeCompare(right),
   );
   return table([keyLabel, valueLabel], rows, emptyMessage);
@@ -646,13 +765,13 @@ function objectTable(values, keyLabel, valueLabel, emptyMessage) {
 function dataPointTable(points, labelHeader, valueHeader, emptyMessage) {
   return table(
     [labelHeader, valueHeader],
-    points.map((point) => [point.label, point.value]),
+    safeArray(points).map((point) => [point.label, point.value]),
     emptyMessage,
   );
 }
 
 function renderBarPreview(chart) {
-  if (!chart.data.length || chart.chart_type === "line") {
+  if (!safeArray(chart.data).length || chart.chart_type === "line") {
     return "";
   }
 
@@ -672,7 +791,7 @@ function renderBarPreview(chart) {
               <div class="bar-track">
                 <div class="bar-fill" style="width: ${width.toFixed(2)}%"></div>
               </div>
-              <strong>${escapeHtml(String(point.value))}</strong>
+              <strong>${escapeHtml(formatValue(point.value))}</strong>
             </div>
           `;
         })
@@ -681,43 +800,61 @@ function renderBarPreview(chart) {
   `;
 }
 
-function formatInlineList(items) {
-  return items.length ? items.join(", ") : "None";
+function badge(value, className) {
+  return `<span class="${escapeHtml(className)} badge-${statusClass(value)}">${escapeHtml(formatValue(value))}</span>`;
 }
 
-function formatObject(value) {
-  const entries = Object.entries(value);
-  if (!entries.length) {
+function statusClass(value) {
+  const normalized = String(value).toLowerCase().replaceAll("_", "-");
+  if (["pass", "ready", "low", "info", "excellent"].includes(normalized)) {
+    return "pass";
+  }
+  if (["warning", "limited", "medium", "review", "fair"].includes(normalized)) {
+    return "warning";
+  }
+  if (["blocked", "not-ready", "high", "poor"].includes(normalized)) {
+    return "blocked";
+  }
+  return "neutral";
+}
+
+function formatForecastValue(forecast, isMoney) {
+  if (!forecast) {
     return "None";
   }
 
-  return entries.map(([key, item]) => `${key}=${item}`).join(", ");
+  const value = forecast.selected_forecast_value;
+  return isMoney ? formatMoney(value) : formatNumber(value);
+}
+
+function formatInlineList(items) {
+  return safeArray(items).length ? items.join(", ") : "None";
 }
 
 function list(items, emptyMessage) {
-  if (!items.length) {
-    return `<p>${escapeHtml(emptyMessage)}</p>`;
+  if (!safeArray(items).length) {
+    return `<p class="empty-state">${escapeHtml(emptyMessage)}</p>`;
   }
 
   return `
     <ul>
-      ${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+      ${items.map((item) => `<li>${escapeHtml(formatValue(item))}</li>`).join("")}
     </ul>
   `;
 }
 
 function numericSummaryCells(summary) {
   return [
-    formatNumber(summary.minimum),
-    formatNumber(summary.maximum),
-    formatNumber(summary.mean),
-    formatNumber(summary.median),
-    formatNumber(summary.standard_deviation),
+    formatNumber(safeGet(summary, "minimum", 0)),
+    formatNumber(safeGet(summary, "maximum", 0)),
+    formatNumber(safeGet(summary, "mean", 0)),
+    formatNumber(safeGet(summary, "median", 0)),
+    formatNumber(safeGet(summary, "standard_deviation", 0)),
   ];
 }
 
 function formatDateRange(profile) {
-  if (!profile.date_start || !profile.date_end) {
+  if (!safeGet(profile, "date_start", null) || !safeGet(profile, "date_end", null)) {
     return "None";
   }
 
@@ -725,11 +862,11 @@ function formatDateRange(profile) {
 }
 
 function formatMoney(value) {
-  return `$${Number(value).toFixed(2)}`;
+  return `$${Number(value || 0).toFixed(2)}`;
 }
 
 function formatPercent(value) {
-  return `${(Number(value) * 100).toFixed(1)}%`;
+  return `${(Number(value || 0) * 100).toFixed(1)}%`;
 }
 
 function formatPercentChange(value) {
@@ -741,11 +878,36 @@ function formatPercentChange(value) {
 }
 
 function formatNumber(value) {
-  return Number(value).toFixed(2);
+  return Number(value || 0).toFixed(2);
+}
+
+function formatValue(value) {
+  if (value === null || value === undefined || value === "") {
+    return "None";
+  }
+
+  return String(value);
+}
+
+function safeArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function safeGet(source, path, fallback) {
+  if (source === null || source === undefined) {
+    return fallback;
+  }
+
+  return path.split(".").reduce((current, key) => {
+    if (current === null || current === undefined) {
+      return undefined;
+    }
+    return current[key];
+  }, source) ?? fallback;
 }
 
 function escapeHtml(value) {
-  return value
+  return formatValue(value)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")

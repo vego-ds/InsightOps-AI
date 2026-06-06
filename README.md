@@ -128,7 +128,7 @@ regression, or advanced forecasting models.
 
 ## Dashboard
 
-The dashboard is a lightweight static demo UI built with HTML, CSS, and vanilla JavaScript. It can run sample analysis, upload CSV files, and render response sections as readable summaries, visual analytics cards, CSS bar previews, and tables. It is not a production frontend.
+The dashboard is a lightweight static demo UI built with HTML, CSS, and vanilla JavaScript. It now presents an executive summary, decision status cards, top business actions, forecast and trend snapshot, and visual analytics before collapsible technical evidence. It is not a production frontend and does not use a frontend framework or chart library.
 
 ## CI And Deployment
 

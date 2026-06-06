@@ -98,7 +98,7 @@ Workflow improvements translate recommendations into process changes, such as im
 ## Stakeholder-Facing Outputs
 
 - Typed JSON analysis responses from the FastAPI API.
-- Lightweight static dashboard summaries and tables.
+- Lightweight static dashboard with executive summary, business actions, visual evidence, and collapsible technical sections.
 - Backend PNG chart artifacts from chart-ready data.
 - Markdown executive report artifacts.
 - PDF executive report artifacts.

@@ -29,7 +29,7 @@ Sales leaders need trustworthy analysis from messy CSV data. This project demons
 - Chart-ready data and PNG artifact generation.
 - Markdown and PDF executive report artifacts.
 - Optional guarded narrative writer foundation.
-- Static dashboard demo.
+- Stakeholder-oriented static dashboard demo with collapsible technical evidence.
 
 ## Architecture Highlights
 

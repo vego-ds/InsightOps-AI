@@ -52,32 +52,14 @@ http://127.0.0.1:8000/docs
 
 1. Open `http://127.0.0.1:8000/`.
 2. Click `Analyze Sample Data`.
-3. Explain source metadata: source type, file name, file size, collection method, and raw record count.
-4. Explain validation results: total, valid, invalid rows, and row-level errors.
-5. Explain data profile: date range, unique entities, duplicate order IDs, missing fields, and numeric summaries.
-6. Explain quality score: deterministic 0-100 score, grade, issues, and recommendations.
-7. Explain the quality gate: pass, warning, or blocked status; confidence level; allowed outputs; and LLM narrative eligibility.
-8. Explain how missing data, duplicates, invalid rows, and security flags lower confidence or require human review.
-9. Explain preparation: cleaned text and derived analytical fields such as net revenue, quarters, discount flags, and reconciliation differences.
-10. Explain transformation lineage: each deterministic preparation step records affected records and created or modified fields.
-11. Explain manipulation summaries: monthly revenue, ranked regions/products/sales reps, and discount behavior by product.
-12. Explain trend analysis: monthly revenue, order count, units sold, average order value, average discount, direction, and warnings.
-13. Explain forecast readiness: ready, limited, or not ready, with confidence and limitations.
-14. Explain baseline forecasts: last-period, moving average, and simple trend projection are deterministic planning aids, not ML predictions.
-15. Explain KPI results: revenue, order count, units sold, average order value.
-16. Explain security guardrails: prompt-injection detection and human-review flags.
-17. Explain anomaly detection: fixed business rules still catch high revenue, high quantity, high discount, and zero revenue.
-18. Explain IQR statistical outliers: thresholds are calculated from the data, are auditable, and flag unusual values without automatically removing them.
-19. Explain product-relative outliers: revenue can be unusual within a product segment even when it is not globally unusual.
-20. Explain visual analytics: each chart answers a business question, includes a deterministic interpretation, links to insight IDs, and carries recommended actions.
-21. Explain trend and forecast charts: monthly movement and next-period baselines support planning workflows without external forecasting libraries.
-22. Explain Pareto revenue concentration: show whether product revenue is concentrated in a few products.
-23. Explain discount concentration and data quality charts: show discount reliance and whether the dataset is reliable enough for executive reporting.
-24. Explain how visual evidence supports stakeholder recommendations.
-25. Explain business recommendations: each has evidence, owner role, expected impact, and a follow-up metric.
-26. Explain workflow improvements: recommendations become operational process changes.
-27. Explain executive insights and recommended actions.
-28. Upload `data/sample/sales_sample.csv` and show the same response contract.
+3. Start with the Executive Summary panel: revenue, orders, anomalies, confidence, forecast readiness, recommendations, and workflow counts.
+4. Explain the Quality Gate status card: whether the analysis is pass, warning, or blocked and whether human review is needed.
+5. Explain the Forecast Readiness card: readiness status, confidence level, and next forecast period.
+6. Review the top Business Actions: high-priority recommendations first, with owner roles, expected impact, and follow-up metrics.
+7. Explain the Forecast and Trend Snapshot: revenue/order baselines, forecast warnings, and trend directions.
+8. Explain Visual Analytics as evidence: each chart has a business question, interpretation, related insights, and recommended actions.
+9. Expand Technical Evidence only when needed for reviewers: validation, profile, quality score, preparation, lineage, KPIs, anomalies, workflows, audit events, and raw JSON.
+10. Upload `data/sample/sales_sample.csv` and show the same response contract with the same stakeholder-first layout.
 
 ## 5. Artifact And Operations Talking Points
 
