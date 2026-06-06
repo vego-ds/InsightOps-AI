@@ -49,6 +49,12 @@ Health check: `/health`
 
 Uploads are CSV-only with a default maximum size of 1 MB.
 
+Report export endpoints generate Markdown and PDF artifacts in temporary
+per-request directories. No persistent report storage is configured, and
+uploaded files are removed after request processing. Deployment platforms should
+treat report outputs as response artifacts rather than stored application data.
+Upload limits still apply to report generation from uploaded CSV files.
+
 The static dashboard is served from `GET /`.
 
 OpenRouter is optional for narrative writing. Configure credentials as platform secrets, not committed files. The default narrative provider remains disabled.

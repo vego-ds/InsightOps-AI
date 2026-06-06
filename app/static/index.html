@@ -25,6 +25,19 @@
             <input id="csv-file" name="file" type="file" accept=".csv" />
             <button type="submit">Analyze Upload</button>
           </form>
+          <div class="report-actions">
+            <label for="report-format">Report format</label>
+            <select id="report-format" name="format">
+              <option value="pdf">PDF</option>
+              <option value="markdown">Markdown</option>
+            </select>
+            <button id="sample-report-button" type="button">
+              Download Sample Report
+            </button>
+            <button id="upload-report-button" type="button">
+              Download Upload Report
+            </button>
+          </div>
         </div>
       </section>
 

@@ -96,6 +96,13 @@ form {
   gap: 10px;
 }
 
+.report-actions {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
 label {
   color: var(--muted);
   font-size: 0.92rem;
@@ -103,7 +110,8 @@ label {
 }
 
 button,
-input[type="file"] {
+input[type="file"],
+select {
   width: 100%;
 }
 
@@ -127,6 +135,13 @@ input[type="file"] {
   border-radius: 6px;
   background: #ffffff;
   padding: 9px;
+}
+
+select {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 10px;
 }
 
 .status {

@@ -18,10 +18,19 @@ def test_openapi_schema_documents_expected_api_contracts() -> None:
     assert "/health" in paths
     assert "/analysis/sample" in paths
     assert "/analysis/upload" in paths
+    assert "/analysis/sample/report" in paths
+    assert "/analysis/upload/report" in paths
 
     assert "200" in paths["/analysis/sample"]["get"]["responses"]
     assert "400" in paths["/analysis/upload"]["post"]["responses"]
     assert "413" in paths["/analysis/upload"]["post"]["responses"]
+    assert "200" in paths["/analysis/sample/report"]["post"]["responses"]
+    assert "400" in paths["/analysis/sample/report"]["post"]["responses"]
+    assert "422" in paths["/analysis/sample/report"]["post"]["responses"]
+    assert "200" in paths["/analysis/upload/report"]["post"]["responses"]
+    assert "400" in paths["/analysis/upload/report"]["post"]["responses"]
+    assert "413" in paths["/analysis/upload/report"]["post"]["responses"]
+    assert "422" in paths["/analysis/upload/report"]["post"]["responses"]
 
     components = schema["components"]["schemas"]
     assert "AnalysisResponse" in components

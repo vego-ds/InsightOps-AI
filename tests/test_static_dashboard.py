@@ -18,6 +18,9 @@ def test_dashboard_root_returns_html() -> None:
     assert "Forecast and Trend Snapshot" in response.text
     assert "Visual Analytics" in response.text
     assert "Technical Evidence" in response.text
+    assert "report-format" in response.text
+    assert "Download Sample Report" in response.text
+    assert "Download Upload Report" in response.text
 
 
 def test_dashboard_static_files_exist() -> None:
@@ -40,6 +43,10 @@ def test_dashboard_static_assets_are_served() -> None:
     assert "renderStatusCards" in script_response.text
     assert "renderTopRecommendations" in script_response.text
     assert "renderForecastTrendSnapshot" in script_response.text
+    assert "runReportDownload" in script_response.text
+    assert "URL.createObjectURL" in script_response.text
+    assert "/analysis/sample/report" in script_response.text
+    assert "/analysis/upload/report" in script_response.text
     assert "Source Metadata" in script_response.text
     assert "Data Preparation" in script_response.text
     assert "Transformation Lineage" in script_response.text
@@ -61,6 +68,7 @@ def test_dashboard_static_assets_are_served() -> None:
     assert "status-card" in style_response.text
     assert "priority-badge" in style_response.text
     assert "technical-section" in style_response.text
+    assert "report-actions" in style_response.text
 
 
 def test_sample_analysis_still_works() -> None:

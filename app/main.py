@@ -1,7 +1,7 @@
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, Response, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -10,6 +10,12 @@ from insightops.config import load_app_settings
 from insightops.pipeline.sample_analysis import (
     analyze_sales_csv_file,
     analyze_sample_sales_data,
+)
+from insightops.reports.export_service import (
+    ReportGenerationBlockedError,
+    UnsupportedReportFormatError,
+    export_analysis_report,
+    normalize_report_format,
 )
 
 settings = load_app_settings()
@@ -83,6 +89,77 @@ def analyze_sample_sales() -> AnalysisResponse:
 async def analyze_uploaded_sales(
     file: UploadFile | None = File(default=None),
 ) -> AnalysisResponse:
+    upload = await _read_upload(file)
+    return _analyze_uploaded_csv(upload)
+
+
+@app.post(
+    "/analysis/sample/report",
+    summary="Generate sample analysis report",
+    description=(
+        "Generates a Markdown or PDF executive report from the bundled sample "
+        "sales CSV and returns it as a downloadable file."
+    ),
+    tags=["analysis"],
+    responses={
+        200: {
+            "content": {
+                "application/pdf": {},
+                "text/markdown": {},
+            },
+            "description": "Generated report file.",
+        },
+        400: {"model": ErrorResponse},
+        422: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+def export_sample_report(
+    report_format: str = Query(default="pdf", alias="format"),
+) -> Response:
+    normalized_format = _normalize_report_format_for_request(report_format)
+    try:
+        analysis = analyze_sample_sales_data()
+        return _report_response(analysis, normalized_format)
+    except FileNotFoundError as error:
+        raise HTTPException(status_code=500, detail=str(error)) from error
+
+
+@app.post(
+    "/analysis/upload/report",
+    summary="Generate uploaded CSV analysis report",
+    description=(
+        "Accepts a CSV upload up to 1 MB, runs the analysis pipeline, and "
+        "returns a Markdown or PDF executive report as a downloadable file."
+    ),
+    tags=["analysis"],
+    responses={
+        200: {
+            "content": {
+                "application/pdf": {},
+                "text/markdown": {},
+            },
+            "description": "Generated report file.",
+        },
+        400: {"model": ErrorResponse},
+        413: {"model": ErrorResponse},
+        422: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def export_uploaded_report(
+    file: UploadFile | None = File(default=None),
+    report_format: str = Query(default="pdf", alias="format"),
+) -> Response:
+    normalized_format = _normalize_report_format_for_request(report_format)
+    upload = await _read_upload(file)
+    analysis = _analyze_uploaded_csv(upload)
+    return _report_response(analysis, normalized_format)
+
+
+async def _read_upload(
+    file: UploadFile | None,
+) -> tuple[str, bytes]:
     if file is None:
         raise HTTPException(
             status_code=400,
@@ -112,6 +189,11 @@ async def analyze_uploaded_sales(
     if not content:
         raise HTTPException(status_code=400, detail="Uploaded CSV file is empty.")
 
+    return filename, content
+
+
+def _analyze_uploaded_csv(upload: tuple[str, bytes]) -> AnalysisResponse:
+    filename, content = upload
     temp_path: Path | None = None
     try:
         with NamedTemporaryFile(delete=False, suffix=".csv") as temp_file:
@@ -128,3 +210,33 @@ async def analyze_uploaded_sales(
     finally:
         if temp_path is not None:
             temp_path.unlink(missing_ok=True)
+
+
+def _report_response(
+    analysis: AnalysisResponse,
+    report_format: str,
+) -> Response:
+    try:
+        report = export_analysis_report(analysis, report_format)
+    except UnsupportedReportFormatError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except ReportGenerationBlockedError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+    return Response(
+        content=report.content,
+        media_type=report.media_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{report.file_name}"',
+            "X-Report-Id": report.report_id,
+            "X-Report-Format": report.format,
+            "X-Report-Size-Bytes": str(report.size_bytes),
+        },
+    )
+
+
+def _normalize_report_format_for_request(report_format: str) -> str:
+    try:
+        return normalize_report_format(report_format)
+    except UnsupportedReportFormatError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error

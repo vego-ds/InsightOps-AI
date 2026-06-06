@@ -1,6 +1,9 @@
 const sampleButton = document.querySelector("#sample-button");
+const sampleReportButton = document.querySelector("#sample-report-button");
 const uploadForm = document.querySelector("#upload-form");
+const uploadReportButton = document.querySelector("#upload-report-button");
 const fileInput = document.querySelector("#csv-file");
+const reportFormatInput = document.querySelector("#report-format");
 const statusEl = document.querySelector("#status");
 const errorEl = document.querySelector("#error");
 const resultsEl = document.querySelector("#results");
@@ -13,6 +16,14 @@ const priorityOrder = {
 
 sampleButton.addEventListener("click", async () => {
   await runAnalysis(() => fetch("/analysis/sample"));
+});
+
+sampleReportButton.addEventListener("click", async () => {
+  await runReportDownload(() =>
+    fetch(`/analysis/sample/report?format=${encodeURIComponent(selectedReportFormat())}`, {
+      method: "POST",
+    }),
+  );
 });
 
 uploadForm.addEventListener("submit", async (event) => {
@@ -28,6 +39,23 @@ uploadForm.addEventListener("submit", async (event) => {
 
   await runAnalysis(() =>
     fetch("/analysis/upload", {
+      method: "POST",
+      body: formData,
+    }),
+  );
+});
+
+uploadReportButton.addEventListener("click", async () => {
+  if (!fileInput.files.length) {
+    showError("Choose a CSV file before downloading an upload report.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", fileInput.files[0]);
+
+  await runReportDownload(() =>
+    fetch(`/analysis/upload/report?format=${encodeURIComponent(selectedReportFormat())}`, {
       method: "POST",
       body: formData,
     }),
@@ -56,6 +84,32 @@ async function runAnalysis(requestFactory) {
   }
 }
 
+async function runReportDownload(requestFactory) {
+  setLoading(true, "Generating report artifact...");
+  hideError();
+
+  try {
+    const response = await requestFactory();
+    if (!response.ok) {
+      const payload = await parseResponsePayload(response);
+      showError(formatErrorMessage(response.status, payload));
+      return;
+    }
+
+    const blob = await response.blob();
+    const fileName = filenameFromDisposition(
+      response.headers.get("content-disposition"),
+      fallbackReportFileName(),
+    );
+    downloadBlob(blob, fileName);
+    statusEl.textContent = `Downloaded ${fileName}.`;
+  } catch (error) {
+    showError(`Report download failed: ${error.message}`);
+  } finally {
+    setLoading(false);
+  }
+}
+
 async function parseResponsePayload(response) {
   const contentType = response.headers.get("content-type") || "";
   if (contentType.includes("application/json")) {
@@ -70,10 +124,13 @@ function formatErrorMessage(statusCode, payload) {
   return `Request failed with status ${statusCode}: ${detail}`;
 }
 
-function setLoading(isLoading) {
+function setLoading(isLoading, message = "Running deterministic analysis...") {
   sampleButton.disabled = isLoading;
   uploadForm.querySelector("button").disabled = isLoading;
-  statusEl.textContent = isLoading ? "Running deterministic analysis..." : "";
+  sampleReportButton.disabled = isLoading;
+  uploadReportButton.disabled = isLoading;
+  reportFormatInput.disabled = isLoading;
+  statusEl.textContent = isLoading ? message : "";
 }
 
 function showError(message) {
@@ -84,6 +141,36 @@ function showError(message) {
 function hideError() {
   errorEl.hidden = true;
   errorEl.textContent = "";
+}
+
+function selectedReportFormat() {
+  return reportFormatInput.value || "pdf";
+}
+
+function fallbackReportFileName() {
+  return selectedReportFormat() === "markdown"
+    ? "executive_sales_report.md"
+    : "executive_sales_report.pdf";
+}
+
+function filenameFromDisposition(contentDisposition, fallback) {
+  if (!contentDisposition) {
+    return fallback;
+  }
+
+  const match = contentDisposition.match(/filename="?([^"]+)"?/i);
+  return match ? match[1] : fallback;
+}
+
+function downloadBlob(blob, fileName) {
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(objectUrl);
 }
 
 function renderResults(analysis) {
@@ -300,10 +387,10 @@ function renderReportArtifactGuidance() {
     "Report Artifact Guidance",
     `
       <p>
-        Markdown and PDF report generation are available as backend artifact modules.
-        This dashboard does not yet expose direct report download buttons. Generated
-        artifacts can be produced through the report modules, and future API endpoints
-        can expose authenticated downloads.
+        Markdown and PDF report generation is available through safe export
+        endpoints. Reports are generated per request in temporary storage and
+        returned as downloads; uploaded user files and generated reports are not
+        persisted by the dashboard workflow.
       </p>
     `,
     "report-guidance",

@@ -32,6 +32,9 @@ It should ingest sales data, validate schemas, compute sales KPIs, detect anomal
 - Dockerfile changes must preserve tests and static dashboard behavior.
 - Portfolio docs must stay accurate and must not overstate implemented capabilities.
 - Prioritize statistical analytics depth before additional presentation features.
+- Do not persist uploaded files or generated report artifacts unless explicitly designing storage.
+- Report export endpoints must respect the quality gate.
+- Do not overclaim persistent report management.
 
 ## Commands
 

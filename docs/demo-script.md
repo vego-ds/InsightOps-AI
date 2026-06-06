@@ -59,11 +59,17 @@ http://127.0.0.1:8000/docs
 7. Explain the Forecast and Trend Snapshot: revenue/order baselines, forecast warnings, and trend directions.
 8. Explain Visual Analytics as evidence: each chart has a business question, interpretation, related insights, and recommended actions.
 9. Expand Technical Evidence only when needed for reviewers: validation, profile, quality score, preparation, lineage, KPIs, anomalies, workflows, audit events, and raw JSON.
-10. Upload `data/sample/sales_sample.csv` and show the same response contract with the same stakeholder-first layout.
+10. Generate a sample PDF report from the dashboard.
+11. Switch the report format selector to Markdown and generate a sample Markdown report.
+12. Upload `data/sample/sales_sample.csv` and show the same response contract with the same stakeholder-first layout.
+13. Generate a PDF report from the uploaded CSV.
+14. Explain that report generation respects the quality gate; blocked datasets return a report-generation error instead of a low-confidence report.
+15. Explain that uploaded files and generated reports are temporary per-request artifacts, not persistent user storage.
 
 ## 5. Artifact And Operations Talking Points
 
 - Markdown and PDF reports can be generated from `AnalysisResponse`.
+- Report export endpoints can download generated Markdown and PDF reports.
 - PNG chart artifacts can be generated from chart-ready data.
 - Visual analytics connect charts to business questions, interpretations, insight IDs, and stakeholder actions.
 - Trend analysis summarizes historical monthly movement without forecasting.

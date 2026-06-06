@@ -45,6 +45,8 @@ FastAPI routes
 - `GET /health`: service health.
 - `GET /analysis/sample`: analyze bundled sample CSV.
 - `POST /analysis/upload`: analyze uploaded `.csv` files up to 1 MB.
+- `POST /analysis/sample/report`: download sample analysis report.
+- `POST /analysis/upload/report`: download uploaded CSV analysis report.
 - `GET /docs`: interactive API docs.
 - `GET /openapi.json`: OpenAPI schema.
 
@@ -115,9 +117,9 @@ The optional narrative layer defaults to disabled mode and requires no API key. 
 ## Artifacts
 
 - PNG chart artifacts can be generated from chart-ready data.
-- Markdown executive reports can be generated from analysis outputs.
-- PDF executive reports can be generated from analysis outputs.
-- Artifact generation is currently module-level and not exposed through API download endpoints.
+- Markdown and PDF executive reports can be exported through report endpoints.
+- Supported report export formats are `pdf`, `markdown`, and `md`.
+- Report exports use temporary per-request files and do not persist uploaded user data or generated reports in the repository.
 
 ## Forecasting
 
@@ -128,7 +130,7 @@ regression, or advanced forecasting models.
 
 ## Dashboard
 
-The dashboard is a lightweight static demo UI built with HTML, CSS, and vanilla JavaScript. It now presents an executive summary, decision status cards, top business actions, forecast and trend snapshot, and visual analytics before collapsible technical evidence. It is not a production frontend and does not use a frontend framework or chart library.
+The dashboard is a lightweight static demo UI built with HTML, CSS, and vanilla JavaScript. It now presents an executive summary, decision status cards, top business actions, forecast and trend snapshot, visual analytics, and report downloads before collapsible technical evidence. It is not a production frontend and does not use a frontend framework or chart library.
 
 ## CI And Deployment
 

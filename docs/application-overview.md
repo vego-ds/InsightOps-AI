@@ -45,7 +45,7 @@ InsightOps-AI helps convert raw sales CSVs into structured, audit-ready analytic
 - Deterministic executive insights.
 - Business recommendation and workflow improvement plans.
 - Audit events for major pipeline stages.
-- Markdown, PDF, and PNG artifact generation as module-level capabilities.
+- Markdown and PDF report export endpoints, plus PNG artifact generation as a backend module-level capability.
 
 ## Analytics Workflow
 
@@ -100,11 +100,11 @@ Workflow improvements translate recommendations into process changes, such as im
 - Typed JSON analysis responses from the FastAPI API.
 - Lightweight static dashboard with executive summary, business actions, visual evidence, and collapsible technical sections.
 - Backend PNG chart artifacts from chart-ready data.
-- Markdown executive report artifacts.
-- PDF executive report artifacts.
+- Markdown executive report downloads.
+- PDF executive report downloads.
 - Deterministic narrative fallback output.
 
-Artifact generation currently exists as module-level backend functionality. The application does not yet expose authenticated artifact download endpoints.
+Report exports are generated as per-request temporary artifacts. The application does not yet provide authenticated artifact management or persistent report storage.
 
 ## Current Limitations
 
@@ -112,12 +112,12 @@ Artifact generation currently exists as module-level backend functionality. The 
 - No database persistence for analysis runs or audit events.
 - No forecasting, regression, or real ML models.
 - No production frontend framework or interactive charting library.
-- No authenticated report or chart download API.
+- No authenticated report or chart artifact management.
 - Optional OpenRouter narrative writing is guarded and does not control analytics decisions.
 
 ## Future Roadmap
 
-- Add authenticated artifact download endpoints.
+- Add authenticated artifact management and retention controls.
 - Persist analysis runs and audit events.
 - Add user/project scoping and access control.
 - Add production frontend chart rendering if dashboard scope expands.

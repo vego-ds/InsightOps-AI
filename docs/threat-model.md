@@ -27,6 +27,9 @@
 - Accidental secrets.
 - Dependency drift.
 - Report artifact leakage.
+- Temporary report file cleanup failure.
+- Uploaded data persistence risk.
+- Oversized report generation requests.
 - LLM hallucination if future providers are added.
 - OpenRouter API key exposure.
 - External provider outage or malformed response.
@@ -46,6 +49,9 @@
 - Prompt-injection and human-review cases block LLM provider calls.
 - Data quality gate assigns pass, warning, or blocked governance status.
 - Low-confidence or blocked gate outcomes restrict executive reporting and LLM narrative eligibility.
+- Report generation respects the quality gate and blocks reports when report generation is not allowed.
+- Report exports use temporary directories and return bytes instead of persistent repository files.
+- Uploaded files are removed after request processing.
 - Typed API contracts.
 - Audit events.
 - `.gitignore` and `.dockerignore` for cache, env, and generated files.
@@ -57,6 +63,7 @@
 - No authentication or authorization.
 - No database-backed audit persistence.
 - No artifact access control.
+- No persistent report storage or artifact retention policy.
 - Prompt-injection detection is phrase-based and conservative.
 - Dependency versions are not pinned.
 - OpenRouter narrative output can still be stylistically wrong or overconfident, so deterministic evidence remains the source of truth.
@@ -67,6 +74,7 @@
 - Add authentication and authorization.
 - Store audit events in a durable system.
 - Add artifact retention and access policies.
+- Add authenticated report export access controls before production use.
 - Pin dependencies or add lockfile workflow.
 - Add file content scanning beyond extension checks.
 - Add provider-specific monitoring and evaluation before relying on LLM narratives in production.
