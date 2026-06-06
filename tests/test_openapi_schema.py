@@ -36,6 +36,7 @@ def test_openapi_schema_documents_expected_api_contracts() -> None:
     assert "preparation" in analysis_properties
     assert "transformation_log" in analysis_properties
     assert "manipulation_summary" in analysis_properties
+    assert "trend_analysis" in analysis_properties
     assert "recommendation_plan" in analysis_properties
     assert "workflow_improvement_plan" in analysis_properties
 

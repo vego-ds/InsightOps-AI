@@ -2,7 +2,7 @@
 
 ## What InsightOps-AI Is
 
-InsightOps-AI is a deterministic sales analytics automation application. It accepts sales CSV data, validates and profiles the dataset, computes sales KPIs, detects anomalies, generates visual analytics context, and turns analytical findings into business recommendations and workflow improvement plans.
+InsightOps-AI is a deterministic sales analytics automation application. It accepts sales CSV data, validates and profiles the dataset, computes sales KPIs, summarizes historical monthly trends, detects anomalies, generates visual analytics context, and turns analytical findings into business recommendations and workflow improvement plans.
 
 The application is designed as a governed analytics API with a lightweight static dashboard and module-level report artifact generation. It emphasizes explainability, auditability, and deterministic decision-support before any optional narrative generation.
 
@@ -37,6 +37,7 @@ InsightOps-AI helps convert raw sales CSVs into structured, audit-ready analytic
 - Data preparation with derived analytical fields.
 - Transformation lineage for preparation steps.
 - Sales KPI computation.
+- Monthly trend analysis for revenue, order count, units sold, average order value, and average discount.
 - Rule-based and IQR-based statistical anomaly detection.
 - Prompt-injection style text detection and human-review flags.
 - Visual analytics objects with business questions, interpretations, related insight IDs, and recommended actions.
@@ -57,6 +58,7 @@ CSV sample or upload
   -> quality gate
   -> preparation and transformation lineage
   -> manipulation summaries
+  -> monthly trend analysis
   -> KPIs
   -> anomaly detection
   -> executive insights
@@ -75,11 +77,11 @@ InsightOps-AI treats data quality as part of the analytics result, not as an aft
 
 The quality gate also controls whether LLM narrative generation is eligible. Security findings, prompt-injection indicators, human-review flags, and low-confidence data can block optional narrative generation while deterministic fallback remains available.
 
-Audit events record major pipeline stages so outputs can be traced back to validation, profiling, quality scoring, security scanning, KPI computation, anomaly detection, visual analytics, recommendations, and workflow improvements.
+Audit events record major pipeline stages so outputs can be traced back to validation, profiling, quality scoring, security scanning, trend analysis, KPI computation, anomaly detection, visual analytics, recommendations, and workflow improvements.
 
 ## Visual Analytics And Recommendations
 
-Visual analytics are treated as evidence objects rather than simple chart data. Each chart includes:
+Visual analytics are treated as evidence objects rather than simple chart data. Trend charts show historical monthly movement for revenue, order count, average order value, and average discount. They do not perform forecasting. Each chart includes:
 
 - a business question
 - a deterministic interpretation

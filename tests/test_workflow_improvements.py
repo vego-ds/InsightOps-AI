@@ -45,3 +45,33 @@ def test_empty_recommendation_plan_returns_empty_workflow_plan() -> None:
 
     assert plan.total_workflows == 0
     assert plan.workflows == []
+
+
+def test_trend_recommendations_generate_workflow_improvements() -> None:
+    recommendation = BusinessRecommendation(
+        recommendation_id="revenue_trend_review_001",
+        priority="high",
+        business_area="revenue_performance",
+        title="Review declining revenue trend",
+        problem="Monthly revenue is declining.",
+        evidence={"percent_change": -20.0},
+        recommended_action="Review pipeline conversion.",
+        expected_impact="Improves revenue performance visibility.",
+        workflow_stage="sales_performance_review",
+        owner_role="Sales Director",
+        implementation_difficulty="medium",
+        follow_up_metric="monthly_revenue",
+    )
+
+    plan = generate_workflow_improvement_plan(
+        RecommendationPlan(
+            total_recommendations=1,
+            recommendations=[recommendation],
+        )
+    )
+
+    assert plan.total_workflows == 1
+    assert plan.workflows[0].workflow_name == "Sales Performance Review"
+    assert plan.workflows[0].related_recommendation_ids == [
+        "revenue_trend_review_001"
+    ]

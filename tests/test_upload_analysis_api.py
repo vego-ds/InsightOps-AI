@@ -13,6 +13,7 @@ EXPECTED_ANALYSIS_SECTIONS = {
     "preparation",
     "transformation_log",
     "manipulation_summary",
+    "trend_analysis",
     "kpis",
     "security",
     "anomalies",
@@ -47,6 +48,8 @@ def test_upload_analysis_accepts_valid_csv() -> None:
     assert payload["preparation"]["total_records"] == 3
     assert payload["transformation_log"]["entries"]
     assert payload["manipulation_summary"]["ranked_products"]
+    assert payload["trend_analysis"]["period_grain"] == "month"
+    assert payload["trend_analysis"]["total_periods"] >= 1
     first_chart = payload["charts"]["charts"][0]
     assert first_chart["business_question"]
     assert first_chart["interpretation"]

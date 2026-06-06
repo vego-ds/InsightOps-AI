@@ -16,6 +16,7 @@ from insightops.insights.generator import ExecutiveInsightReport
 from insightops.metrics.kpis import SalesKPIResult
 from insightops.preparation.manipulations import ManipulationSummary
 from insightops.profiling.quality_score import DataQualityScore
+from insightops.trends.time_series import TimeSeriesTrendAnalysis
 
 
 class ChartDataPoint(BaseModel):
@@ -48,6 +49,7 @@ def build_sales_chart_data(
     quality_score: DataQualityScore | None = None,
     manipulation_summary: ManipulationSummary | None = None,
     insights: ExecutiveInsightReport | None = None,
+    trend_analysis: TimeSeriesTrendAnalysis | None = None,
 ) -> SalesChartData:
     insight_ids = _insight_ids_by_type(insights)
     recommended_actions = insights.recommended_actions if insights else []
@@ -100,8 +102,39 @@ def build_sales_chart_data(
                 recommended_actions=recommended_actions,
             ),
             _build_monthly_net_revenue_chart(
-                manipulation_summary,
+                trend_analysis,
+                insight_ids.get("trend_revenue", []),
                 recommended_actions,
+            ),
+            _build_trend_chart(
+                trend_analysis=trend_analysis,
+                chart_id="monthly_order_count_trend",
+                title="Monthly Order Count Trend",
+                metric="order_count",
+                y_axis="order_count",
+                business_question="Is order volume increasing, decreasing, or flat?",
+                related_insight_ids=insight_ids.get("trend_order_volume", []),
+                recommended_actions=recommended_actions,
+            ),
+            _build_trend_chart(
+                trend_analysis=trend_analysis,
+                chart_id="average_order_value_trend",
+                title="Average Order Value Trend",
+                metric="average_order_value",
+                y_axis="average_order_value",
+                business_question="Is average order value changing over time?",
+                related_insight_ids=[],
+                recommended_actions=recommended_actions,
+            ),
+            _build_trend_chart(
+                trend_analysis=trend_analysis,
+                chart_id="average_discount_trend",
+                title="Average Discount Trend",
+                metric="average_discount",
+                y_axis="average_discount",
+                business_question="Is discount pressure increasing over time?",
+                related_insight_ids=insight_ids.get("trend_discount", []),
+                recommended_actions=recommended_actions,
             ),
             _build_discount_summary_chart(
                 manipulation_summary,
@@ -191,18 +224,12 @@ def _build_anomalies_by_severity_chart(
 
 
 def _build_monthly_net_revenue_chart(
-    manipulation_summary: ManipulationSummary | None,
+    trend_analysis: TimeSeriesTrendAnalysis | None,
+    related_insight_ids: list[str],
     recommended_actions: list[str],
 ) -> ChartSeries:
-    points = (
-        manipulation_summary.monthly_revenue
-        if manipulation_summary is not None
-        else []
-    )
-    ordered_points = sorted(points, key=lambda point: point.label)
-    trend_points = [
-        (point.label, float(point.value)) for point in ordered_points
-    ]
+    points = trend_analysis.data if trend_analysis is not None else []
+    ordered_points = sorted(points, key=lambda point: point.period)
 
     return ChartSeries(
         chart_id="monthly_net_revenue_trend",
@@ -212,11 +239,52 @@ def _build_monthly_net_revenue_chart(
         x_axis="month",
         y_axis="net_revenue",
         business_question="Is revenue trending up, down, or flat over time?",
-        interpretation=trend_direction_interpretation(trend_points),
-        related_insight_ids=[],
+        interpretation=(
+            trend_analysis.revenue_trend.interpretation
+            if trend_analysis is not None
+            else trend_direction_interpretation([])
+        ),
+        related_insight_ids=related_insight_ids,
         recommended_actions=recommended_actions,
         data=[
-            ChartDataPoint(label=point.label, value=point.value)
+            ChartDataPoint(label=point.period, value=point.revenue)
+            for point in ordered_points
+        ],
+    )
+
+
+def _build_trend_chart(
+    *,
+    trend_analysis: TimeSeriesTrendAnalysis | None,
+    chart_id: str,
+    title: str,
+    metric: str,
+    y_axis: str,
+    business_question: str,
+    related_insight_ids: list[str],
+    recommended_actions: list[str],
+) -> ChartSeries:
+    points = trend_analysis.data if trend_analysis is not None else []
+    ordered_points = sorted(points, key=lambda point: point.period)
+    trend_summary = getattr(trend_analysis, f"{metric}_trend", None) if trend_analysis else None
+
+    return ChartSeries(
+        chart_id=chart_id,
+        title=title,
+        chart_type="line",
+        metric=metric,
+        x_axis="month",
+        y_axis=y_axis,
+        business_question=business_question,
+        interpretation=(
+            trend_summary.interpretation
+            if trend_summary is not None
+            else trend_direction_interpretation([])
+        ),
+        related_insight_ids=related_insight_ids,
+        recommended_actions=recommended_actions,
+        data=[
+            ChartDataPoint(label=point.period, value=getattr(point, metric))
             for point in ordered_points
         ],
     )

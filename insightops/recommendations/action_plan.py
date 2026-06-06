@@ -48,6 +48,9 @@ def generate_recommendation_plan(
             _anomaly_review_recommendation(analysis),
             _security_review_recommendation(analysis),
             _portfolio_focus_recommendation(analysis),
+            _revenue_trend_recommendation(analysis),
+            _order_volume_trend_recommendation(analysis),
+            _discount_trend_recommendation(analysis),
         ]
         if recommendation is not None
     ]
@@ -340,6 +343,107 @@ def _portfolio_focus_recommendation(
         follow_up_metric="product_revenue_concentration",
         related_insight_ids=_insight_ids(analysis, "product"),
         related_chart_ids=["pareto_revenue_by_product"],
+    )
+
+
+def _revenue_trend_recommendation(
+    analysis: AnalysisResponse,
+) -> BusinessRecommendation | None:
+    trend = analysis.trend_analysis.revenue_trend
+    if trend.direction != "decreasing":
+        return None
+
+    return BusinessRecommendation(
+        recommendation_id="revenue_trend_review_001",
+        priority="high",
+        business_area="revenue_performance",
+        title="Review declining revenue trend",
+        problem="Monthly revenue is declining across the observed period range.",
+        evidence={
+            "start_value": trend.start_value,
+            "end_value": trend.end_value,
+            "absolute_change": trend.absolute_change,
+            "percent_change": trend.percent_change or 0.0,
+        },
+        recommended_action=(
+            "Review pipeline conversion, recent account losses, and pricing "
+            "changes behind the revenue decline."
+        ),
+        expected_impact="Helps isolate the cause of revenue deterioration.",
+        workflow_stage="sales_performance_review",
+        owner_role="Sales Director",
+        implementation_difficulty="medium",
+        follow_up_metric="monthly_revenue",
+        related_insight_ids=_insight_ids(analysis, "trend_revenue"),
+        related_chart_ids=["monthly_net_revenue_trend"],
+    )
+
+
+def _order_volume_trend_recommendation(
+    analysis: AnalysisResponse,
+) -> BusinessRecommendation | None:
+    trend = analysis.trend_analysis.order_count_trend
+    if trend.direction != "decreasing":
+        return None
+
+    return BusinessRecommendation(
+        recommendation_id="order_volume_review_001",
+        priority="medium",
+        business_area="demand_generation",
+        title="Investigate declining order volume",
+        problem="Monthly order count is declining across the observed period range.",
+        evidence={
+            "start_value": trend.start_value,
+            "end_value": trend.end_value,
+            "absolute_change": trend.absolute_change,
+            "percent_change": trend.percent_change or 0.0,
+        },
+        recommended_action=(
+            "Review lead flow, conversion rates, and sales activity for the "
+            "periods where order volume fell."
+        ),
+        expected_impact="Supports earlier detection of demand or pipeline issues.",
+        workflow_stage="pipeline_generation",
+        owner_role="Revenue Operations Manager",
+        implementation_difficulty="medium",
+        follow_up_metric="monthly_order_count",
+        related_insight_ids=_insight_ids(analysis, "trend_order_volume"),
+        related_chart_ids=["monthly_order_count_trend"],
+    )
+
+
+def _discount_trend_recommendation(
+    analysis: AnalysisResponse,
+) -> BusinessRecommendation | None:
+    trend = analysis.trend_analysis.average_discount_trend
+    if trend.direction != "increasing":
+        return None
+    if trend.percent_change is None or trend.percent_change < 10:
+        return None
+
+    return BusinessRecommendation(
+        recommendation_id="discount_trend_review_001",
+        priority="medium",
+        business_area="pricing_discipline",
+        title="Review increasing discount trend",
+        problem="Average discounting is increasing materially over time.",
+        evidence={
+            "start_value": trend.start_value,
+            "end_value": trend.end_value,
+            "absolute_change": trend.absolute_change,
+            "percent_change": trend.percent_change,
+        },
+        recommended_action=(
+            "Review discount approval thresholds and identify products or reps "
+            "driving higher discount rates."
+        ),
+        expected_impact="Improves margin discipline and forecast confidence.",
+        workflow_stage="discount_approval",
+        owner_role="Sales Operations Manager",
+        implementation_difficulty="medium",
+        follow_up_metric="average_discount",
+        related_insight_ids=_insight_ids(analysis, "trend_discount"),
+        related_chart_ids=["average_discount_trend"],
     )
 
 

@@ -93,6 +93,14 @@ def create_manipulation_summary_generated_event() -> AuditEvent:
     )
 
 
+def create_trend_analysis_completed_event(total_periods: int) -> AuditEvent:
+    return AuditEvent(
+        event_type="trend_analysis_completed",
+        message="Sales trend analysis completed.",
+        metadata={"total_periods": total_periods},
+    )
+
+
 def create_kpi_computed_event(
     total_orders: int,
     total_revenue: float,

@@ -10,6 +10,7 @@ InsightOps-AI is a production-style sales analytics automation platform. It coll
 - Data profiling and quality scoring foundation.
 - Data quality gate with pass, warning, and blocked governance status.
 - Manipulation summaries for monthly revenue, rankings, and discount behavior.
+- Monthly trend analysis for revenue, order volume, units sold, average order value, and discount behavior.
 - KPI computation from valid records.
 - Prompt-injection guardrails and human-review flags.
 - Deterministic anomaly detection.
@@ -30,7 +31,7 @@ InsightOps-AI is a production-style sales analytics automation platform. It coll
 FastAPI routes
   -> analysis pipeline
   -> collection / validation / profiling / quality gate
-  -> preparation / manipulation / KPIs / anomalies
+  -> preparation / manipulation / trends / KPIs / anomalies
   -> insights / visual analytics / recommendations / audit events
   -> typed API response
 ```
@@ -56,6 +57,7 @@ Both analysis endpoints return:
 - `preparation`
 - `transformation_log`
 - `manipulation_summary`
+- `trend_analysis`
 - `kpis`
 - `security`
 - `anomalies`
@@ -68,7 +70,8 @@ Both analysis endpoints return:
 Phase 2 analytics depth now makes the data lifecycle explicit. Source metadata
 captures collection context, preparation creates deterministic derived fields,
 transformation lineage explains what changed, manipulation summaries expose
-monthly revenue, ranked entities, and discount behavior, and quality scoring
+monthly revenue, ranked entities, and discount behavior, trend analysis summarizes
+time-based business performance, and quality scoring
 returns a deterministic 0-100 score with issues and recommendations.
 Visual analytics now make charts evidence objects: outputs explain the business
 question, interpretation, and recommendation linkage behind each chart.

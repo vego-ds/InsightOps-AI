@@ -12,6 +12,7 @@ from insightops.preparation.prepared_dataset import (
 from insightops.profiling.data_profile import SalesDataProfile
 from insightops.profiling.quality_score import DataQualityScore
 from insightops.security.policy import SecurityScanResult
+from insightops.trends.time_series import TimeSeriesTrendAnalysis
 from insightops.validation.report import ValidationReport
 
 InsightEvidenceValue = str | int | float | bool
@@ -42,6 +43,7 @@ def generate_executive_insights(
     quality_gate: QualityGateResult | None = None,
     preparation: PreparedSalesDataset | None = None,
     manipulation_summary: ManipulationSummary | None = None,
+    trend_analysis: TimeSeriesTrendAnalysis | None = None,
 ) -> ExecutiveInsightReport:
     insights: list[ExecutiveInsight] = []
     recommended_actions: list[str] = []
@@ -347,6 +349,90 @@ def generate_executive_insights(
             "Investigate high-severity sales anomalies before final "
             "reporting."
         )
+
+    if trend_analysis:
+        if trend_analysis.revenue_trend.direction == "increasing":
+            insights.append(
+                ExecutiveInsight(
+                    insight_id="trend_revenue_001",
+                    insight_type="trend_revenue",
+                    severity="info",
+                    title="Revenue trend is improving",
+                    message="Monthly revenue increased across the observed period range.",
+                    evidence={
+                        "percent_change": trend_analysis.revenue_trend.percent_change
+                        or 0.0,
+                        "direction": trend_analysis.revenue_trend.direction,
+                    },
+                )
+            )
+        elif trend_analysis.revenue_trend.direction == "decreasing":
+            insights.append(
+                ExecutiveInsight(
+                    insight_id="trend_revenue_001",
+                    insight_type="trend_revenue",
+                    severity="high",
+                    title="Revenue trend is declining",
+                    message="Monthly revenue decreased across the observed period range.",
+                    evidence={
+                        "percent_change": trend_analysis.revenue_trend.percent_change
+                        or 0.0,
+                        "direction": trend_analysis.revenue_trend.direction,
+                    },
+                )
+            )
+            recommended_actions.append(
+                "Review revenue drivers behind the declining monthly trend."
+            )
+
+        if trend_analysis.order_count_trend.direction == "decreasing":
+            insights.append(
+                ExecutiveInsight(
+                    insight_id="trend_order_volume_001",
+                    insight_type="trend_order_volume",
+                    severity="medium",
+                    title="Order volume trend is declining",
+                    message="Monthly order count decreased across the observed period range.",
+                    evidence={
+                        "percent_change": trend_analysis.order_count_trend.percent_change
+                        or 0.0,
+                        "direction": trend_analysis.order_count_trend.direction,
+                    },
+                )
+            )
+
+        if (
+            trend_analysis.average_discount_trend.direction == "increasing"
+            and trend_analysis.average_discount_trend.percent_change is not None
+            and trend_analysis.average_discount_trend.percent_change >= 10
+        ):
+            insights.append(
+                ExecutiveInsight(
+                    insight_id="trend_discount_001",
+                    insight_type="trend_discount",
+                    severity="medium",
+                    title="Average discount trend is increasing",
+                    message="Average discount increased materially across the observed period range.",
+                    evidence={
+                        "percent_change": (
+                            trend_analysis.average_discount_trend.percent_change
+                        ),
+                        "direction": trend_analysis.average_discount_trend.direction,
+                    },
+                )
+            )
+
+        if trend_analysis.total_periods < 2:
+            insights.append(
+                ExecutiveInsight(
+                    insight_id="trend_insufficient_data_001",
+                    insight_type="trend_insufficient_data",
+                    severity="low",
+                    title="Trend analysis needs more monthly periods",
+                    message="At least two monthly periods are needed for trend analysis.",
+                    evidence={"total_periods": trend_analysis.total_periods},
+                )
+            )
 
     anomaly_method_summary = summarize_anomaly_methods(anomalies)
     total_statistical_anomalies = int(

@@ -15,6 +15,7 @@ from insightops.recommendations.action_plan import RecommendationPlan
 from insightops.recommendations.workflow_improvements import WorkflowImprovementPlan
 from insightops.security.policy import SecurityScanResult
 from insightops.sources.source_metadata import DatasetSourceMetadata
+from insightops.trends.time_series import TimeSeriesTrendAnalysis
 from insightops.validation.report import ValidationReport
 
 
@@ -27,6 +28,7 @@ class AnalysisResponse(BaseModel):
     preparation: PreparedSalesDataset
     transformation_log: TransformationLog
     manipulation_summary: ManipulationSummary
+    trend_analysis: TimeSeriesTrendAnalysis
     kpis: SalesKPIResult
     security: SecurityScanResult
     anomalies: AnomalyDetectionResult

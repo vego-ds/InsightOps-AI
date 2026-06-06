@@ -193,6 +193,38 @@ def _build_report_story(analysis: AnalysisResponse) -> list:
         ],
     )
 
+    _add_heading(story, styles, "Trend Analysis")
+    _add_bullets(
+        story,
+        styles,
+        [
+            f"Period grain: {analysis.trend_analysis.period_grain}",
+            f"Total periods: {analysis.trend_analysis.total_periods}",
+            f"Monthly performance: {_format_trend_points(analysis)}",
+            (
+                "Revenue trend: "
+                f"{_format_trend_summary(analysis.trend_analysis.revenue_trend)}"
+            ),
+            (
+                "Order count trend: "
+                f"{_format_trend_summary(analysis.trend_analysis.order_count_trend)}"
+            ),
+            (
+                "Average order value trend: "
+                f"{_format_trend_summary(analysis.trend_analysis.average_order_value_trend)}"
+            ),
+            (
+                "Units sold trend: "
+                f"{_format_trend_summary(analysis.trend_analysis.units_sold_trend)}"
+            ),
+            (
+                "Average discount trend: "
+                f"{_format_trend_summary(analysis.trend_analysis.average_discount_trend)}"
+            ),
+            f"Warnings: {_format_list(analysis.trend_analysis.warnings)}",
+        ],
+    )
+
     _add_heading(story, styles, "Security")
     security_items = [
         (
@@ -384,6 +416,12 @@ def _format_optional_float(value: float | None) -> str:
     return f"{value:.2f}"
 
 
+def _format_optional_percent(value: float | None) -> str:
+    if value is None:
+        return "none"
+    return f"{value:.2f}%"
+
+
 def _format_date_range(analysis: AnalysisResponse) -> str:
     if not analysis.data_profile.date_start or not analysis.data_profile.date_end:
         return "none"
@@ -437,6 +475,31 @@ def _format_points(points) -> str:
     return ", ".join(
         f"{point.label}={_format_evidence_value(point.value)}"
         for point in points
+    )
+
+
+def _format_trend_points(analysis: AnalysisResponse) -> str:
+    if not analysis.trend_analysis.data:
+        return "none"
+
+    return "; ".join(
+        (
+            f"{point.period}: revenue=${point.revenue:.2f}, "
+            f"orders={point.order_count}, units={point.units_sold}, "
+            f"aov=${point.average_order_value:.2f}, "
+            f"avg_discount={point.average_discount:.2f}"
+        )
+        for point in analysis.trend_analysis.data
+    )
+
+
+def _format_trend_summary(summary) -> str:
+    return (
+        f"start={summary.start_value:.2f}, end={summary.end_value:.2f}, "
+        f"change={summary.absolute_change:.2f}, "
+        f"percent_change={_format_optional_percent(summary.percent_change)}, "
+        f"direction={summary.direction}, "
+        f"interpretation={summary.interpretation}"
     )
 
 

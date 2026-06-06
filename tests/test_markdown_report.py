@@ -22,6 +22,7 @@ from insightops.recommendations.workflow_improvements import (
 )
 from insightops.security.policy import SecurityScanResult
 from insightops.sources.source_metadata import DatasetSourceMetadata
+from insightops.trends.time_series import analyze_time_series_trends
 from insightops.validation.report import ValidationReport
 
 
@@ -69,6 +70,7 @@ def test_markdown_report_contains_expected_sections(tmp_path: Path) -> None:
     assert "Data Preparation" in report_text
     assert "Transformation Lineage" in report_text
     assert "Manipulation Summary" in report_text
+    assert "Trend Analysis" in report_text
     assert "Visual Analytics" in report_text
     assert "Business question" in report_text
     assert "KPI Summary" in report_text
@@ -133,6 +135,9 @@ def _minimal_analysis_response() -> AnalysisResponse:
         preparation=PreparedSalesDataset(records=[], total_records=0),
         transformation_log=TransformationLog(entries=[]),
         manipulation_summary=ManipulationSummary(),
+        trend_analysis=analyze_time_series_trends(
+            PreparedSalesDataset(records=[], total_records=0)
+        ),
         kpis=SalesKPIResult(
             total_revenue=0.0,
             total_orders=0,

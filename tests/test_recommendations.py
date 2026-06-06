@@ -84,6 +84,51 @@ def test_security_review_produces_security_recommendation() -> None:
     assert recommendation.owner_role == "Security Reviewer"
 
 
+def test_decreasing_revenue_trend_produces_revenue_review() -> None:
+    analysis = _minimal_analysis_response()
+    analysis.trend_analysis.revenue_trend.direction = "decreasing"
+    analysis.trend_analysis.revenue_trend.start_value = 200.0
+    analysis.trend_analysis.revenue_trend.end_value = 100.0
+    analysis.trend_analysis.revenue_trend.absolute_change = -100.0
+    analysis.trend_analysis.revenue_trend.percent_change = -50.0
+
+    plan = generate_recommendation_plan(analysis)
+
+    recommendation = _recommendation_by_id(plan, "revenue_trend_review_001")
+    assert recommendation.business_area == "revenue_performance"
+    assert "monthly_net_revenue_trend" in recommendation.related_chart_ids
+
+
+def test_decreasing_order_count_trend_produces_volume_review() -> None:
+    analysis = _minimal_analysis_response()
+    analysis.trend_analysis.order_count_trend.direction = "decreasing"
+    analysis.trend_analysis.order_count_trend.start_value = 5.0
+    analysis.trend_analysis.order_count_trend.end_value = 3.0
+    analysis.trend_analysis.order_count_trend.absolute_change = -2.0
+    analysis.trend_analysis.order_count_trend.percent_change = -40.0
+
+    plan = generate_recommendation_plan(analysis)
+
+    recommendation = _recommendation_by_id(plan, "order_volume_review_001")
+    assert recommendation.business_area == "demand_generation"
+    assert "monthly_order_count_trend" in recommendation.related_chart_ids
+
+
+def test_increasing_discount_trend_produces_discount_review() -> None:
+    analysis = _minimal_analysis_response()
+    analysis.trend_analysis.average_discount_trend.direction = "increasing"
+    analysis.trend_analysis.average_discount_trend.start_value = 0.1
+    analysis.trend_analysis.average_discount_trend.end_value = 0.2
+    analysis.trend_analysis.average_discount_trend.absolute_change = 0.1
+    analysis.trend_analysis.average_discount_trend.percent_change = 100.0
+
+    plan = generate_recommendation_plan(analysis)
+
+    recommendation = _recommendation_by_id(plan, "discount_trend_review_001")
+    assert recommendation.business_area == "pricing_discipline"
+    assert "average_discount_trend" in recommendation.related_chart_ids
+
+
 def test_clean_analysis_returns_empty_recommendation_plan() -> None:
     analysis = _minimal_analysis_response()
     analysis.quality_gate.status = "pass"

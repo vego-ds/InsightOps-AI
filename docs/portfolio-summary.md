@@ -6,7 +6,7 @@ InsightOps-AI
 
 ## Summary
 
-InsightOps-AI is a production-style sales analytics automation platform that collects source metadata, validates uploaded sales CSVs, prepares analysis-ready records, computes KPIs, detects security risks and anomalies, generates deterministic executive insights, and produces audit-ready API responses and report artifacts.
+InsightOps-AI is a production-style sales analytics automation platform that collects source metadata, validates uploaded sales CSVs, prepares analysis-ready records, computes KPIs, summarizes historical monthly trends, detects security risks and anomalies, generates deterministic executive insights, and produces audit-ready API responses and report artifacts.
 
 ## Business Problem
 
@@ -20,6 +20,7 @@ Sales leaders need trustworthy analysis from messy CSV data. This project demons
 - Data profiling and deterministic quality scoring.
 - Data quality gate and analysis confidence layer.
 - KPI computation.
+- Deterministic monthly trend analysis for revenue, order volume, units sold, average order value, and discount behavior.
 - Visual analytics tied to business questions, interpretations, insights, and recommended actions.
 - Business recommendation and workflow improvement engine.
 - Security guardrails for prompt-injection style text.
@@ -66,10 +67,10 @@ This project shows backend engineering judgment: deterministic business logic, t
 
 ## Resume Bullet Points
 
-- Built a FastAPI sales analytics platform that validates CSV data, tracks source metadata and lineage, gates analysis confidence, computes KPIs, ties visual analytics to recommendations, generates workflow improvements, detects anomalies, and returns typed audit-ready analysis responses.
+- Built a FastAPI sales analytics platform that validates CSV data, tracks source metadata and lineage, gates analysis confidence, computes KPIs, summarizes monthly trends, ties visual analytics to recommendations, generates workflow improvements, detects anomalies, and returns typed audit-ready analysis responses.
 - Implemented prompt-injection guardrails and deterministic fallback for optional narrative generation.
 - Added CI, Docker deployment support, static dashboard demo, and Markdown/PDF report artifact generation.
 
 ## LinkedIn/GitHub Description
 
-InsightOps-AI is a production-style sales analytics automation API with deterministic data collection metadata, validation, preparation, profiling, quality gates, KPI computation, visual analytics tied to insights, business recommendations, workflow improvements, security guardrails, anomaly detection, executive insights, report artifacts, CI, Docker support, and a lightweight static dashboard.
+InsightOps-AI is a production-style sales analytics automation API with deterministic data collection metadata, validation, preparation, profiling, quality gates, KPI computation, monthly trend analysis, visual analytics tied to insights, business recommendations, workflow improvements, security guardrails, anomaly detection, executive insights, report artifacts, CI, Docker support, and a lightweight static dashboard.

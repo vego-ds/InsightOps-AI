@@ -16,6 +16,7 @@ from insightops.audit.events import (
     create_security_scan_completed_event,
     create_source_metadata_collected_event,
     create_transformation_log_generated_event,
+    create_trend_analysis_completed_event,
     create_validation_completed_event,
     create_workflow_improvements_generated_event,
 )
@@ -39,6 +40,7 @@ from insightops.sources.source_metadata import (
     create_sample_source_metadata,
     create_uploaded_source_metadata,
 )
+from insightops.trends.time_series import analyze_time_series_trends
 
 SAMPLE_SALES_CSV = Path("data/sample/sales_sample.csv")
 
@@ -73,6 +75,7 @@ def analyze_sales_csv_file(
         validation_report.records
     )
     manipulation_summary = build_manipulation_summary(preparation)
+    trend_analysis = analyze_time_series_trends(preparation)
     kpis = compute_sales_kpis(validation_report.records)
     anomalies = detect_sales_anomalies(validation_report.records)
     insights = generate_executive_insights(
@@ -85,6 +88,7 @@ def analyze_sales_csv_file(
         quality_gate,
         preparation,
         manipulation_summary,
+        trend_analysis,
     )
     charts = build_sales_chart_data(
         kpis,
@@ -92,6 +96,7 @@ def analyze_sales_csv_file(
         quality_score,
         manipulation_summary,
         insights,
+        trend_analysis,
     )
     recommendation_plan = generate_recommendation_plan(
         _analysis_without_recommendations(
@@ -103,6 +108,7 @@ def analyze_sales_csv_file(
             preparation=preparation,
             transformation_log=transformation_log,
             manipulation_summary=manipulation_summary,
+            trend_analysis=trend_analysis,
             kpis=kpis,
             security=security,
             anomalies=anomalies,
@@ -137,6 +143,7 @@ def analyze_sales_csv_file(
             len(transformation_log.entries),
         ),
         create_manipulation_summary_generated_event(),
+        create_trend_analysis_completed_event(trend_analysis.total_periods),
         create_kpi_computed_event(kpis.total_orders, kpis.total_revenue),
         create_security_scan_completed_event(
             security.prompt_injection_detected,
@@ -164,6 +171,7 @@ def analyze_sales_csv_file(
         preparation=preparation,
         transformation_log=transformation_log,
         manipulation_summary=manipulation_summary,
+        trend_analysis=trend_analysis,
         kpis=kpis,
         security=security,
         anomalies=anomalies,
@@ -208,6 +216,7 @@ def _analysis_without_recommendations(
     preparation,
     transformation_log,
     manipulation_summary,
+    trend_analysis,
     kpis,
     security,
     anomalies,
@@ -228,6 +237,7 @@ def _analysis_without_recommendations(
         preparation=preparation,
         transformation_log=transformation_log,
         manipulation_summary=manipulation_summary,
+        trend_analysis=trend_analysis,
         kpis=kpis,
         security=security,
         anomalies=anomalies,

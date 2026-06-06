@@ -11,6 +11,7 @@ EXPECTED_ANALYSIS_SECTIONS = {
     "preparation",
     "transformation_log",
     "manipulation_summary",
+    "trend_analysis",
     "kpis",
     "security",
     "anomalies",
@@ -61,6 +62,12 @@ def test_analysis_sample_returns_validation_and_kpis() -> None:
     assert payload["preparation"]["total_records"] == 3
     assert len(payload["transformation_log"]["entries"]) >= 2
     assert "monthly_revenue" in payload["manipulation_summary"]
+
+    trends = payload["trend_analysis"]
+    assert trends["period_grain"] == "month"
+    assert trends["total_periods"] >= 1
+    assert "revenue_trend" in trends
+    assert "average_discount_trend" in trends
 
     kpis = payload["kpis"]
     assert kpis["total_orders"] == 3

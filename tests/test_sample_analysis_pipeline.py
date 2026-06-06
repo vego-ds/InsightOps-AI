@@ -12,6 +12,7 @@ def test_sample_analysis_pipeline_returns_expected_sections() -> None:
     assert result.preparation
     assert result.transformation_log
     assert result.manipulation_summary
+    assert result.trend_analysis
     assert result.kpis
     assert result.security
     assert result.anomalies
@@ -54,6 +55,9 @@ def test_sample_analysis_pipeline_returns_preparation_details() -> None:
     assert result.manipulation_summary.ranked_products[0].label == (
         "Analytics Pro"
     )
+    assert result.trend_analysis.period_grain == "month"
+    assert result.trend_analysis.total_periods >= 1
+    assert result.trend_analysis.revenue_trend.metric == "revenue"
 
 
 def test_sample_analysis_pipeline_returns_quality_score_details() -> None:
@@ -89,6 +93,10 @@ def test_sample_analysis_pipeline_returns_recommendations_and_workflows() -> Non
     )
     assert any(
         event.event_type == "recommendations_generated"
+        for event in result.audit_events
+    )
+    assert any(
+        event.event_type == "trend_analysis_completed"
         for event in result.audit_events
     )
     assert any(

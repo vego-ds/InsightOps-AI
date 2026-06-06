@@ -11,6 +11,10 @@ from insightops.preparation.transformations import prepare_sales_records
 from insightops.profiling.data_profile import build_sales_data_profile
 from insightops.profiling.quality_score import compute_data_quality_score
 from insightops.security.policy import SecurityScanResult
+from insightops.trends.time_series import (
+    MetricTrendSummary,
+    TimeSeriesTrendAnalysis,
+)
 from insightops.validation.report import ValidationReport
 
 
@@ -375,6 +379,66 @@ def test_clean_inputs_return_safe_deterministic_summary() -> None:
     ]
 
 
+def test_decreasing_revenue_trend_produces_trend_insight() -> None:
+    report = generate_executive_insights(
+        _validation_report(),
+        _empty_kpis(),
+        _empty_anomalies(),
+        _safe_security(),
+        trend_analysis=_trend_analysis(revenue_direction="decreasing"),
+    )
+
+    insight = _insight_by_type(report.insights, "trend_revenue")
+
+    assert insight.insight_id == "trend_revenue_001"
+    assert insight.severity == "high"
+
+
+def test_decreasing_order_count_trend_produces_volume_insight() -> None:
+    report = generate_executive_insights(
+        _validation_report(),
+        _empty_kpis(),
+        _empty_anomalies(),
+        _safe_security(),
+        trend_analysis=_trend_analysis(order_direction="decreasing"),
+    )
+
+    insight = _insight_by_type(report.insights, "trend_order_volume")
+
+    assert insight.insight_id == "trend_order_volume_001"
+    assert insight.severity == "medium"
+
+
+def test_material_discount_increase_produces_discount_trend_insight() -> None:
+    report = generate_executive_insights(
+        _validation_report(),
+        _empty_kpis(),
+        _empty_anomalies(),
+        _safe_security(),
+        trend_analysis=_trend_analysis(discount_direction="increasing"),
+    )
+
+    insight = _insight_by_type(report.insights, "trend_discount")
+
+    assert insight.insight_id == "trend_discount_001"
+    assert insight.severity == "medium"
+
+
+def test_insufficient_trend_data_produces_low_severity_insight() -> None:
+    report = generate_executive_insights(
+        _validation_report(),
+        _empty_kpis(),
+        _empty_anomalies(),
+        _safe_security(),
+        trend_analysis=_trend_analysis(total_periods=1),
+    )
+
+    insight = _insight_by_type(report.insights, "trend_insufficient_data")
+
+    assert insight.insight_id == "trend_insufficient_data_001"
+    assert insight.severity == "low"
+
+
 def _insight_by_type(insights: list, insight_type: str):
     return next(insight for insight in insights if insight.insight_type == insight_type)
 
@@ -444,6 +508,50 @@ def _safe_security() -> SecurityScanResult:
         prompt_injection_detected=False,
         flagged_fields=[],
         human_review_required=False,
+    )
+
+
+def _trend_analysis(
+    *,
+    revenue_direction: str = "flat",
+    order_direction: str = "flat",
+    discount_direction: str = "flat",
+    total_periods: int = 2,
+) -> TimeSeriesTrendAnalysis:
+    return TimeSeriesTrendAnalysis(
+        period_grain="month",
+        total_periods=total_periods,
+        data=[],
+        revenue_trend=_trend_summary("revenue", revenue_direction),
+        order_count_trend=_trend_summary("order_count", order_direction),
+        average_order_value_trend=_trend_summary(
+            "average_order_value",
+            "flat",
+        ),
+        units_sold_trend=_trend_summary("units_sold", "flat"),
+        average_discount_trend=_trend_summary(
+            "average_discount",
+            discount_direction,
+            percent_change=100.0 if discount_direction == "increasing" else 0.0,
+        ),
+        warnings=[],
+    )
+
+
+def _trend_summary(
+    metric: str,
+    direction: str,
+    *,
+    percent_change: float = 10.0,
+) -> MetricTrendSummary:
+    return MetricTrendSummary(
+        metric=metric,
+        start_value=100.0,
+        end_value=90.0 if direction == "decreasing" else 110.0,
+        absolute_change=-10.0 if direction == "decreasing" else 10.0,
+        percent_change=percent_change,
+        direction=direction,
+        interpretation=f"{metric} is {direction}.",
     )
 
 

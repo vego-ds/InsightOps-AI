@@ -73,10 +73,11 @@ function renderResults(data) {
     renderDataProfile(data.data_profile),
     renderQualityScore(data.quality_score),
     renderQualityGate(data.quality_gate),
-    renderKpis(data.kpis),
     renderPreparation(data.preparation),
     renderTransformationLog(data.transformation_log),
     renderManipulationSummary(data.manipulation_summary),
+    renderTrendAnalysis(data.trend_analysis),
+    renderKpis(data.kpis),
     renderSecurity(data.security),
     renderAnomalies(data.anomalies),
     renderCharts(data.charts),
@@ -263,18 +264,6 @@ function renderManipulationSummary(summary) {
   );
 }
 
-function renderKpis(kpis) {
-  return panel(
-    "KPI Summary",
-    metricGrid([
-      ["Total Revenue", formatMoney(kpis.total_revenue)],
-      ["Total Orders", kpis.total_orders],
-      ["Units Sold", kpis.total_units_sold],
-      ["Average Order Value", formatMoney(kpis.average_order_value)],
-    ]),
-  );
-}
-
 function renderSecurity(security) {
   const flaggedFields = security.flagged_fields.length
     ? security.flagged_fields.join(", ")
@@ -286,6 +275,83 @@ function renderSecurity(security) {
       ["Prompt Injection", security.prompt_injection_detected],
       ["Human Review", security.human_review_required],
       ["Flagged Fields", flaggedFields],
+    ]),
+  );
+}
+
+function renderTrendAnalysis(trendAnalysis) {
+  const monthlyRows = trendAnalysis.data.map((point) => [
+    point.period,
+    formatMoney(point.revenue),
+    point.order_count,
+    point.units_sold,
+    formatMoney(point.average_order_value),
+    formatPercent(point.average_discount),
+  ]);
+  const summaryRows = [
+    trendAnalysis.revenue_trend,
+    trendAnalysis.order_count_trend,
+    trendAnalysis.average_order_value_trend,
+    trendAnalysis.units_sold_trend,
+    trendAnalysis.average_discount_trend,
+  ].map((trend) => [
+    trend.metric,
+    trend.start_value,
+    trend.end_value,
+    trend.absolute_change,
+    formatPercentChange(trend.percent_change),
+    trend.direction,
+    trend.interpretation,
+  ]);
+
+  return panel(
+    "Trend Analysis",
+    `
+      ${metricGrid([
+        ["Period Grain", trendAnalysis.period_grain],
+        ["Total Periods", trendAnalysis.total_periods],
+      ])}
+      <h3>Monthly Performance</h3>
+      ${table(
+        [
+          "Period",
+          "Revenue",
+          "Orders",
+          "Units Sold",
+          "Average Order Value",
+          "Average Discount",
+        ],
+        monthlyRows,
+        "No monthly trend data available.",
+      )}
+      <h3>Trend Summaries</h3>
+      ${table(
+        [
+          "Metric",
+          "Start",
+          "End",
+          "Absolute Change",
+          "Percent Change",
+          "Direction",
+          "Interpretation",
+        ],
+        summaryRows,
+        "No trend summaries available.",
+      )}
+      <h3>Warnings</h3>
+      ${list(trendAnalysis.warnings, "No trend warnings.")}
+    `,
+  );
+}
+
+function renderKpis(kpis) {
+  return panel(
+    "KPI Summary",
+    metricGrid([
+      ["Total Revenue", formatMoney(kpis.total_revenue)],
+      ["Total Orders", kpis.total_orders],
+      ["Units Sold", kpis.total_units_sold],
+      ["Average Order Value", formatMoney(kpis.average_order_value)],
     ]),
   );
 }
@@ -597,6 +663,14 @@ function formatMoney(value) {
 
 function formatPercent(value) {
   return `${(Number(value) * 100).toFixed(1)}%`;
+}
+
+function formatPercentChange(value) {
+  if (value === null || value === undefined) {
+    return "None";
+  }
+
+  return `${Number(value).toFixed(2)}%`;
 }
 
 function formatNumber(value) {

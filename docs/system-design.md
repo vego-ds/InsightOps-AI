@@ -27,6 +27,7 @@ CSV upload or sample data
   -> quality gate and confidence assignment
   -> data preparation and transformation lineage
   -> manipulation summaries
+  -> monthly trend analysis
   -> KPI computation
   -> anomaly detection
   -> executive insights
@@ -41,8 +42,9 @@ scoring, governance, preparation, manipulation, visual analytics, insights,
 reporting, and audit evidence. Data profiling, quality scoring, and the security
 scan feed the quality gate, which assigns confidence and controls LLM narrative
 eligibility. Preparation and manipulation then create analysis-ready records and
-summaries before downstream KPI, anomaly, insight, chart, and recommendation
-generation.
+summaries. Trend analysis adds deterministic monthly performance movement for
+revenue, order count, units sold, average order value, and average discount
+before downstream KPI, anomaly, insight, chart, and recommendation generation.
 
 Visual analytics sits between manipulation summaries and executive
 insights/reporting. Charts are evidence objects, not just display objects: each
@@ -65,6 +67,7 @@ Report generation is available as deterministic module-level artifact generation
 - `insightops/profiling`: data profiles and quality scores.
 - `insightops/governance`: data quality gate and analysis confidence decisions.
 - `insightops/preparation`: cleaning, derived fields, and manipulation summaries.
+- `insightops/trends`: deterministic monthly trend analysis.
 - `insightops/lineage`: transformation lineage models.
 - `insightops/metrics`: deterministic KPI computation.
 - `insightops/security`: prompt-injection style phrase detection and security scan results.
@@ -81,7 +84,7 @@ Report generation is available as deterministic module-level artifact generation
 
 ## Deterministic-First Design
 
-The core platform uses deterministic rules for collection metadata, validation, profiling, quality scoring, governance gates, preparation, manipulation, metrics, security checks, anomalies, chart data, insights, reports, and audit events. Anomaly detection combines fixed business rules with transparent IQR-based statistical methods; no ML is used, and thresholds remain auditable. This makes outputs explainable and testable before any optional LLM layer is introduced.
+The core platform uses deterministic rules for collection metadata, validation, profiling, quality scoring, governance gates, preparation, manipulation, trend analysis, metrics, security checks, anomalies, chart data, insights, reports, and audit events. Trend analysis summarizes historical monthly movement only; it does not perform forecasting or regression. Anomaly detection combines fixed business rules with transparent IQR-based statistical methods; no ML is used, and thresholds remain auditable. This makes outputs explainable and testable before any optional LLM layer is introduced.
 
 ## Optional LLM Narrative
 
