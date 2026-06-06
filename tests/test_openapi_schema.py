@@ -29,5 +29,9 @@ def test_openapi_schema_documents_expected_api_contracts() -> None:
     assert "HealthResponse" in components
 
     analysis_properties = components["AnalysisResponse"]["properties"]
+    assert "source_metadata" in analysis_properties
     assert "data_profile" in analysis_properties
     assert "quality_score" in analysis_properties
+    assert "preparation" in analysis_properties
+    assert "transformation_log" in analysis_properties
+    assert "manipulation_summary" in analysis_properties

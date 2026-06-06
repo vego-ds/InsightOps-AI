@@ -5,9 +5,13 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 EXPECTED_ANALYSIS_SECTIONS = {
+    "source_metadata",
     "validation",
     "data_profile",
     "quality_score",
+    "preparation",
+    "transformation_log",
+    "manipulation_summary",
     "kpis",
     "security",
     "anomalies",
@@ -31,8 +35,13 @@ def test_upload_analysis_accepts_valid_csv() -> None:
 
     payload = response.json()
     assert set(payload) == EXPECTED_ANALYSIS_SECTIONS
+    assert payload["source_metadata"]["source_type"] == "uploaded_csv"
+    assert payload["source_metadata"]["file_name"] == "sales_sample.csv"
     assert payload["data_profile"]["total_rows"] == 5
     assert payload["quality_score"]["grade"] == "fair"
+    assert payload["preparation"]["total_records"] == 3
+    assert payload["transformation_log"]["entries"]
+    assert payload["manipulation_summary"]["ranked_products"]
 
 
 def test_upload_analysis_rejects_non_csv_file() -> None:

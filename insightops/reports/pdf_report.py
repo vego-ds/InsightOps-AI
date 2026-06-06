@@ -39,6 +39,20 @@ def _build_report_story(analysis: AnalysisResponse) -> list:
     _add_heading(story, styles, "Summary")
     _add_paragraph(story, styles, analysis.insights.summary)
 
+    _add_heading(story, styles, "Data Source")
+    _add_bullets(
+        story,
+        styles,
+        [
+            f"Source type: {analysis.source_metadata.source_type}",
+            f"File name: {analysis.source_metadata.file_name}",
+            f"File size bytes: {analysis.source_metadata.file_size_bytes}",
+            f"Collection method: {analysis.source_metadata.collection_method}",
+            f"Record count: {analysis.source_metadata.record_count}",
+            f"Notes: {analysis.source_metadata.notes or 'none'}",
+        ],
+    )
+
     _add_heading(story, styles, "Data Quality")
     _add_bullets(
         story,
@@ -95,6 +109,52 @@ def _build_report_story(analysis: AnalysisResponse) -> list:
             (
                 "Recommendations: "
                 f"{_format_list(analysis.quality_score.recommendations)}"
+            ),
+        ],
+    )
+
+    _add_heading(story, styles, "Data Preparation")
+    _add_bullets(
+        story,
+        styles,
+        [
+            f"Prepared records: {analysis.preparation.total_records}",
+            (
+                "Derived fields: gross_revenue, discount_amount, net_revenue, "
+                "average_unit_revenue, order_year, order_month, order_quarter, "
+                "is_discounted, is_high_value_order, "
+                "revenue_reconciliation_difference"
+            ),
+        ],
+    )
+
+    _add_heading(story, styles, "Transformation Lineage")
+    _add_bullets(story, styles, _format_transformation_items(analysis))
+
+    _add_heading(story, styles, "Manipulation Summary")
+    _add_bullets(
+        story,
+        styles,
+        [
+            (
+                "Monthly revenue: "
+                f"{_format_points(analysis.manipulation_summary.monthly_revenue)}"
+            ),
+            (
+                "Ranked regions: "
+                f"{_format_points(analysis.manipulation_summary.ranked_regions)}"
+            ),
+            (
+                "Ranked products: "
+                f"{_format_points(analysis.manipulation_summary.ranked_products)}"
+            ),
+            (
+                "Ranked sales reps: "
+                f"{_format_points(analysis.manipulation_summary.ranked_sales_reps)}"
+            ),
+            (
+                "Discount summary by product: "
+                f"{_format_discount_summary(analysis)}"
             ),
         ],
     )
@@ -255,4 +315,41 @@ def _format_numeric_summary(summary) -> str:
         f"min={summary.minimum:.2f}, max={summary.maximum:.2f}, "
         f"mean={summary.mean:.2f}, median={summary.median:.2f}, "
         f"std_dev={summary.standard_deviation:.2f}"
+    )
+
+
+def _format_transformation_items(analysis: AnalysisResponse) -> list[str]:
+    if not analysis.transformation_log.entries:
+        return ["No transformation steps."]
+
+    return [
+        (
+            f"{entry.step_name}: {entry.description} "
+            f"(records affected: {entry.records_affected})"
+        )
+        for entry in analysis.transformation_log.entries
+    ]
+
+
+def _format_points(points) -> str:
+    if not points:
+        return "none"
+
+    return ", ".join(
+        f"{point.label}={_format_evidence_value(point.value)}"
+        for point in points
+    )
+
+
+def _format_discount_summary(analysis: AnalysisResponse) -> str:
+    if not analysis.manipulation_summary.discount_summary_by_product:
+        return "none"
+
+    return "; ".join(
+        (
+            f"{item.product}: average_discount={item.average_discount:.2f}, "
+            f"discounted_orders={item.discounted_order_count}, "
+            f"total_orders={item.total_orders}"
+        )
+        for item in analysis.manipulation_summary.discount_summary_by_product
     )

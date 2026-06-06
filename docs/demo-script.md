@@ -52,20 +52,25 @@ http://127.0.0.1:8000/docs
 
 1. Open `http://127.0.0.1:8000/`.
 2. Click `Analyze Sample Data`.
-3. Explain validation results: total, valid, invalid rows, and row-level errors.
-4. Explain data profile: date range, unique entities, duplicate order IDs, missing fields, and numeric summaries.
-5. Explain quality score: deterministic 0-100 score, grade, issues, and recommendations.
-6. Explain KPI results: revenue, order count, units sold, average order value.
-7. Explain security guardrails: prompt-injection detection and human-review flags.
-8. Explain anomaly detection: deterministic thresholds for revenue, quantity, discount, and zero revenue.
-9. Explain chart data: dashboard shows chart-ready data as tables, not visual charts.
-10. Explain executive insights and recommended actions.
-11. Upload `data/sample/sales_sample.csv` and show the same response contract.
+3. Explain source metadata: source type, file name, file size, collection method, and raw record count.
+4. Explain validation results: total, valid, invalid rows, and row-level errors.
+5. Explain data profile: date range, unique entities, duplicate order IDs, missing fields, and numeric summaries.
+6. Explain quality score: deterministic 0-100 score, grade, issues, and recommendations.
+7. Explain preparation: cleaned text and derived analytical fields such as net revenue, quarters, discount flags, and reconciliation differences.
+8. Explain transformation lineage: each deterministic preparation step records affected records and created or modified fields.
+9. Explain manipulation summaries: monthly revenue, ranked regions/products/sales reps, and discount behavior by product.
+10. Explain KPI results: revenue, order count, units sold, average order value.
+11. Explain security guardrails: prompt-injection detection and human-review flags.
+12. Explain anomaly detection: deterministic thresholds for revenue, quantity, discount, and zero revenue.
+13. Explain chart data: dashboard shows chart-ready data as tables, not visual charts.
+14. Explain executive insights and recommended actions.
+15. Upload `data/sample/sales_sample.csv` and show the same response contract.
 
 ## 5. Artifact And Operations Talking Points
 
 - Markdown and PDF reports can be generated from `AnalysisResponse`.
 - PNG chart artifacts can be generated from chart-ready data.
 - Data profile and quality score improve analytics credibility before deeper statistical modeling.
+- Source metadata, preparation, lineage, and manipulation summaries make the pipeline end-to-end analytics rather than only KPI reporting.
 - CI runs dependency verification, Ruff, and pytest.
 - Deployment is ready with Dockerfile, runtime config, and `docs/deployment.md`.

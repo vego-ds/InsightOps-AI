@@ -52,6 +52,17 @@ def test_pdf_report_generation_handles_profile_and_quality_score(
     assert Path(artifact.file_path).exists()
 
 
+def test_pdf_report_generation_handles_lifecycle_sections(
+    tmp_path: Path,
+) -> None:
+    artifact = generate_executive_pdf_report(
+        analyze_sample_sales_data(),
+        str(tmp_path),
+    )
+
+    assert Path(artifact.file_path).exists()
+
+
 def test_generate_executive_pdf_report_can_run_twice(tmp_path: Path) -> None:
     analysis = analyze_sample_sales_data()
 

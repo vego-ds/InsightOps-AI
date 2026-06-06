@@ -3,9 +3,13 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 EXPECTED_ANALYSIS_SECTIONS = {
+    "source_metadata",
     "validation",
     "data_profile",
     "quality_score",
+    "preparation",
+    "transformation_log",
+    "manipulation_summary",
     "kpis",
     "security",
     "anomalies",
@@ -25,6 +29,10 @@ def test_analysis_sample_returns_validation_and_kpis() -> None:
     payload = response.json()
     assert set(payload) == EXPECTED_ANALYSIS_SECTIONS
 
+    source_metadata = payload["source_metadata"]
+    assert source_metadata["source_type"] == "sample_csv"
+    assert source_metadata["record_count"] == 5
+
     validation = payload["validation"]
     assert validation["total_rows"] == 5
     assert validation["valid_rows"] == 3
@@ -38,6 +46,10 @@ def test_analysis_sample_returns_validation_and_kpis() -> None:
     quality_score = payload["quality_score"]
     assert quality_score["score"] == 70
     assert quality_score["grade"] == "fair"
+
+    assert payload["preparation"]["total_records"] == 3
+    assert len(payload["transformation_log"]["entries"]) >= 2
+    assert "monthly_revenue" in payload["manipulation_summary"]
 
     kpis = payload["kpis"]
     assert kpis["total_orders"] == 3

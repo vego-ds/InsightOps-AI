@@ -17,6 +17,17 @@ def create_csv_loaded_event(total_rows: int) -> AuditEvent:
     )
 
 
+def create_source_metadata_collected_event(
+    source_type: str,
+    record_count: int,
+) -> AuditEvent:
+    return AuditEvent(
+        event_type="source_metadata_collected",
+        message="Dataset source metadata collected.",
+        metadata={"source_type": source_type, "record_count": record_count},
+    )
+
+
 def create_validation_completed_event(
     valid_rows: int,
     invalid_rows: int,
@@ -44,6 +55,30 @@ def create_quality_score_generated_event(
         event_type="quality_score_generated",
         message="Sales data quality score generated.",
         metadata={"score": score, "grade": grade},
+    )
+
+
+def create_data_preparation_completed_event(total_records: int) -> AuditEvent:
+    return AuditEvent(
+        event_type="data_preparation_completed",
+        message="Sales data preparation completed.",
+        metadata={"total_records": total_records},
+    )
+
+
+def create_transformation_log_generated_event(total_steps: int) -> AuditEvent:
+    return AuditEvent(
+        event_type="transformation_log_generated",
+        message="Sales transformation lineage generated.",
+        metadata={"total_steps": total_steps},
+    )
+
+
+def create_manipulation_summary_generated_event() -> AuditEvent:
+    return AuditEvent(
+        event_type="manipulation_summary_generated",
+        message="Sales manipulation summary generated.",
+        metadata={},
     )
 
 

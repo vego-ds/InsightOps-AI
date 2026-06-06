@@ -10,9 +10,13 @@ def test_analysis_response_can_be_created_from_sample_pipeline_result() -> None:
 
     response = AnalysisResponse.model_validate(pipeline_result)
 
+    assert response.source_metadata
     assert response.validation
     assert response.data_profile
     assert response.quality_score
+    assert response.preparation
+    assert response.transformation_log
+    assert response.manipulation_summary
     assert response.kpis
     assert response.security
     assert response.anomalies

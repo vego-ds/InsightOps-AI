@@ -5,6 +5,8 @@ from insightops.anomalies.detector import (
 from insightops.ingestion.csv_loader import load_sales_csv
 from insightops.insights.generator import generate_executive_insights
 from insightops.metrics.kpis import SalesKPIResult
+from insightops.preparation.manipulations import build_manipulation_summary
+from insightops.preparation.transformations import prepare_sales_records
 from insightops.profiling.data_profile import build_sales_data_profile
 from insightops.profiling.quality_score import compute_data_quality_score
 from insightops.security.policy import SecurityScanResult
@@ -100,6 +102,62 @@ def test_missing_fields_produce_data_completeness_insight() -> None:
     insight = _insight_by_type(report.insights, "data_completeness")
 
     assert insight.evidence["missing_field_total"] == 2
+
+
+def test_reconciliation_difference_produces_reconciliation_insight() -> None:
+    validation_report = load_sales_csv("data/sample/sales_sample.csv")
+    preparation, _ = prepare_sales_records(validation_report.records)
+    preparation.records[0].revenue_reconciliation_difference = 10.0
+
+    report = generate_executive_insights(
+        validation_report,
+        _empty_kpis(),
+        _empty_anomalies(),
+        _safe_security(),
+        preparation=preparation,
+    )
+
+    insight = _insight_by_type(report.insights, "data_reconciliation")
+
+    assert insight.evidence["affected_records"] == 1
+    assert insight.evidence["max_absolute_difference"] == 10.0
+
+
+def test_discount_concentration_produces_discount_insight() -> None:
+    validation_report = load_sales_csv("data/sample/sales_sample.csv")
+    preparation, _ = prepare_sales_records(validation_report.records)
+    manipulation_summary = build_manipulation_summary(preparation)
+
+    report = generate_executive_insights(
+        validation_report,
+        _empty_kpis(),
+        _empty_anomalies(),
+        _safe_security(),
+        manipulation_summary=manipulation_summary,
+    )
+
+    insight = _insight_by_type(report.insights, "discount_concentration")
+
+    assert insight.evidence["discounted_order_count"] == 1
+
+
+def test_high_value_concentration_produces_business_insight() -> None:
+    validation_report = load_sales_csv("data/sample/sales_sample.csv")
+    preparation, _ = prepare_sales_records(validation_report.records)
+    preparation.records[0].is_high_value_order = True
+    preparation.records[1].is_high_value_order = True
+
+    report = generate_executive_insights(
+        validation_report,
+        _empty_kpis(),
+        _empty_anomalies(),
+        _safe_security(),
+        preparation=preparation,
+    )
+
+    insight = _insight_by_type(report.insights, "business_concentration")
+
+    assert insight.evidence["high_value_order_count"] == 1
 
 
 def test_top_revenue_region_is_detected() -> None:

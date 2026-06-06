@@ -68,9 +68,13 @@ function hideError() {
 
 function renderResults(data) {
   resultsEl.innerHTML = [
+    renderSourceMetadata(data.source_metadata),
     renderValidation(data.validation),
     renderDataProfile(data.data_profile),
     renderQualityScore(data.quality_score),
+    renderPreparation(data.preparation),
+    renderTransformationLog(data.transformation_log),
+    renderManipulationSummary(data.manipulation_summary),
     renderKpis(data.kpis),
     renderSecurity(data.security),
     renderAnomalies(data.anomalies),
@@ -79,6 +83,20 @@ function renderResults(data) {
     renderAuditEvents(data.audit_events),
   ].join("");
   resultsEl.hidden = false;
+}
+
+function renderSourceMetadata(sourceMetadata) {
+  return panel(
+    "Data Source",
+    metricGrid([
+      ["Source Type", sourceMetadata.source_type],
+      ["File Name", sourceMetadata.file_name],
+      ["File Size", `${sourceMetadata.file_size_bytes} bytes`],
+      ["Collection Method", sourceMetadata.collection_method],
+      ["Record Count", sourceMetadata.record_count],
+      ["Notes", sourceMetadata.notes || "None"],
+    ]),
+  );
 }
 
 function renderValidation(validation) {
@@ -134,6 +152,89 @@ function renderQualityScore(qualityScore) {
       ${list(qualityScore.issues, "No quality issues detected.")}
       <h3>Recommendations</h3>
       ${list(qualityScore.recommendations, "No quality recommendations.")}
+    `,
+  );
+}
+
+function renderPreparation(preparation) {
+  const rows = preparation.records.map((record) => [
+    record.order_id,
+    record.region,
+    record.product,
+    formatMoney(record.gross_revenue),
+    formatMoney(record.discount_amount),
+    formatMoney(record.net_revenue),
+    record.order_year,
+    `Q${record.order_quarter}`,
+    record.is_discounted,
+    record.is_high_value_order,
+    formatMoney(record.revenue_reconciliation_difference),
+  ]);
+
+  return panel(
+    "Data Preparation",
+    `${metricGrid([["Prepared Records", preparation.total_records]])}${table(
+      [
+        "Order ID",
+        "Region",
+        "Product",
+        "Gross Revenue",
+        "Discount Amount",
+        "Net Revenue",
+        "Year",
+        "Quarter",
+        "Discounted",
+        "High Value",
+        "Reconciliation Diff",
+      ],
+      rows,
+      "No prepared records available.",
+    )}`,
+  );
+}
+
+function renderTransformationLog(transformationLog) {
+  const rows = transformationLog.entries.map((entry) => [
+    entry.step_name,
+    entry.description,
+    entry.records_affected,
+    entry.fields_created.join(", ") || "None",
+    entry.fields_modified.join(", ") || "None",
+  ]);
+
+  return panel(
+    "Transformation Lineage",
+    table(
+      ["Step", "Description", "Records", "Fields Created", "Fields Modified"],
+      rows,
+      "No transformation steps available.",
+    ),
+  );
+}
+
+function renderManipulationSummary(summary) {
+  return panel(
+    "Manipulation Summary",
+    `
+      <h3>Monthly Revenue</h3>
+      ${dataPointTable(summary.monthly_revenue, "Month", "Net Revenue", "No monthly revenue available.")}
+      <h3>Ranked Regions</h3>
+      ${dataPointTable(summary.ranked_regions, "Region", "Net Revenue", "No region rankings available.")}
+      <h3>Ranked Products</h3>
+      ${dataPointTable(summary.ranked_products, "Product", "Net Revenue", "No product rankings available.")}
+      <h3>Ranked Sales Reps</h3>
+      ${dataPointTable(summary.ranked_sales_reps, "Sales Rep", "Net Revenue", "No sales rep rankings available.")}
+      <h3>Discount Summary By Product</h3>
+      ${table(
+        ["Product", "Average Discount", "Discounted Orders", "Total Orders"],
+        summary.discount_summary_by_product.map((item) => [
+          item.product,
+          formatPercent(item.average_discount),
+          item.discounted_order_count,
+          item.total_orders,
+        ]),
+        "No discount summaries available.",
+      )}
     `,
   );
 }
@@ -296,6 +397,14 @@ function objectTable(values, keyLabel, valueLabel, emptyMessage) {
   return table([keyLabel, valueLabel], rows, emptyMessage);
 }
 
+function dataPointTable(points, labelHeader, valueHeader, emptyMessage) {
+  return table(
+    [labelHeader, valueHeader],
+    points.map((point) => [point.label, point.value]),
+    emptyMessage,
+  );
+}
+
 function list(items, emptyMessage) {
   if (!items.length) {
     return `<p>${escapeHtml(emptyMessage)}</p>`;
@@ -328,6 +437,10 @@ function formatDateRange(profile) {
 
 function formatMoney(value) {
   return `$${Number(value).toFixed(2)}`;
+}
+
+function formatPercent(value) {
+  return `${(Number(value) * 100).toFixed(1)}%`;
 }
 
 function formatNumber(value) {

@@ -1,11 +1,14 @@
 # InsightOps-AI
 
-InsightOps-AI is a production-style sales analytics automation platform. It validates sales CSV data, computes KPIs, scans for security risks, detects anomalies, prepares chart/report artifacts, and returns typed audit-ready analysis responses.
+InsightOps-AI is a production-style sales analytics automation platform. It collects source metadata, validates sales CSV data, prepares analysis-ready records, computes KPIs, scans for security risks, detects anomalies, prepares chart/report artifacts, and returns typed audit-ready analysis responses.
 
 ## Key Capabilities
 
 - CSV ingestion with row-level validation.
+- Data collection metadata and transformation lineage.
+- Data preparation with deterministic derived analytical fields.
 - Data profiling and quality scoring foundation.
+- Manipulation summaries for monthly revenue, rankings, and discount behavior.
 - KPI computation from valid records.
 - Prompt-injection guardrails and human-review flags.
 - Deterministic anomaly detection.
@@ -21,7 +24,8 @@ InsightOps-AI is a production-style sales analytics automation platform. It vali
 ```text
 FastAPI routes
   -> analysis pipeline
-  -> validation / profiling / security / KPIs / anomalies
+  -> collection / validation / profiling / preparation / manipulation
+  -> security / KPIs / anomalies
   -> chart data / insights / audit events
   -> typed API response
 ```
@@ -39,9 +43,13 @@ FastAPI routes
 
 Both analysis endpoints return:
 
+- `source_metadata`
 - `validation`
 - `data_profile`
 - `quality_score`
+- `preparation`
+- `transformation_log`
+- `manipulation_summary`
 - `kpis`
 - `security`
 - `anomalies`
@@ -49,11 +57,11 @@ Both analysis endpoints return:
 - `insights`
 - `audit_events`
 
-Phase 2 analytics depth has started with first-class data profiling and
-quality scoring. The data profile includes row counts, date range, unique
-customers/regions/products/sales reps, duplicate order ID count, missing field
-counts, and numeric summaries. The quality score returns a deterministic
-0-100 score, grade, issues, and recommendations.
+Phase 2 analytics depth now makes the data lifecycle explicit. Source metadata
+captures collection context, preparation creates deterministic derived fields,
+transformation lineage explains what changed, manipulation summaries expose
+monthly revenue, ranked entities, and discount behavior, and quality scoring
+returns a deterministic 0-100 score with issues and recommendations.
 
 ## Quickstart
 

@@ -31,6 +31,10 @@ def test_dashboard_static_assets_are_served() -> None:
 
     assert script_response.status_code == 200
     assert style_response.status_code == 200
+    assert "Data Source" in script_response.text
+    assert "Data Preparation" in script_response.text
+    assert "Transformation Lineage" in script_response.text
+    assert "Manipulation Summary" in script_response.text
     assert "Data Profile" in script_response.text
     assert "Quality Score" in script_response.text
 

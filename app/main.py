@@ -16,9 +16,9 @@ settings = load_app_settings()
 app = FastAPI(
     title=settings.app_name,
     description=(
-        "Governed sales analytics API for deterministic validation, KPI "
-        "computation, security scanning, anomaly detection, chart data, "
-        "executive insights, and audit events."
+        "Governed sales analytics API for deterministic source metadata, "
+        "validation, preparation, KPI computation, security scanning, "
+        "anomaly detection, chart data, executive insights, and audit events."
     ),
     version="0.13.0",
 )
@@ -48,8 +48,9 @@ def health() -> HealthResponse:
     response_model=AnalysisResponse,
     summary="Analyze sample sales CSV",
     description=(
-        "Runs the bundled sample sales CSV through validation, security, "
-        "KPI, anomaly, chart data, insight, and audit stages."
+        "Runs the bundled sample sales CSV through collection metadata, "
+        "validation, preparation, security, KPI, anomaly, chart data, "
+        "insight, and audit stages."
     ),
     tags=["analysis"],
     responses={500: {"model": ErrorResponse}},
@@ -117,7 +118,11 @@ async def analyze_uploaded_sales(
             temp_file.write(content)
             temp_path = Path(temp_file.name)
 
-        return analyze_sales_csv_file(str(temp_path))
+        return analyze_sales_csv_file(
+            str(temp_path),
+            uploaded_file_name=filename,
+            uploaded_file_size_bytes=len(content),
+        )
     except FileNotFoundError as error:
         raise HTTPException(status_code=500, detail=str(error)) from error
     finally:

@@ -20,8 +20,11 @@ The system is intentionally layered:
 
 ```text
 CSV upload or sample data
+  -> source metadata collection
   -> validation
   -> data profiling and quality scoring
+  -> data preparation and transformation lineage
+  -> manipulation summaries
   -> security scan
   -> KPI computation
   -> anomaly detection
@@ -31,9 +34,11 @@ CSV upload or sample data
   -> API response
 ```
 
-Data profiling and quality scoring sit immediately after validation so all
-downstream analytics can expose credibility signals alongside KPIs, anomalies,
-charts, insights, reports, and audit evidence.
+The pipeline explicitly covers collection, validation, profiling, quality
+scoring, preparation, manipulation, analytics, insights, reporting, and audit
+evidence. Data profiling and quality scoring sit immediately after validation,
+while preparation and manipulation create analysis-ready records and summaries
+before downstream KPI, anomaly, chart, and insight generation.
 
 Report generation is available as deterministic module-level artifact generation. Markdown, PDF, and PNG chart artifacts are not currently exposed through API endpoints.
 
@@ -42,7 +47,10 @@ Report generation is available as deterministic module-level artifact generation
 - `app/`: FastAPI app, health route, analysis routes, static dashboard route.
 - `insightops/ingestion`: CSV loading.
 - `insightops/validation`: `SalesRecord` validation and validation reports.
+- `insightops/sources`: dataset source metadata.
 - `insightops/profiling`: data profiles and quality scores.
+- `insightops/preparation`: cleaning, derived fields, and manipulation summaries.
+- `insightops/lineage`: transformation lineage models.
 - `insightops/metrics`: deterministic KPI computation.
 - `insightops/security`: prompt-injection style phrase detection and security scan results.
 - `insightops/anomalies`: deterministic anomaly detection.
@@ -56,7 +64,7 @@ Report generation is available as deterministic module-level artifact generation
 
 ## Deterministic-First Design
 
-The core platform uses deterministic rules for validation, metrics, security checks, anomalies, chart data, insights, reports, and audit events. This makes outputs explainable and testable before any optional LLM layer is introduced.
+The core platform uses deterministic rules for collection metadata, validation, profiling, quality scoring, preparation, manipulation, metrics, security checks, anomalies, chart data, insights, reports, and audit events. This makes outputs explainable and testable before any optional LLM layer is introduced.
 
 ## Optional LLM Narrative
 

@@ -2,6 +2,11 @@ from pydantic import BaseModel, Field
 
 from insightops.anomalies.detector import AnomalyDetectionResult
 from insightops.metrics.kpis import SalesKPIResult
+from insightops.preparation.manipulations import ManipulationSummary
+from insightops.preparation.prepared_dataset import (
+    PreparedSalesDataset,
+    PreparedSalesRecord,
+)
 from insightops.profiling.data_profile import SalesDataProfile
 from insightops.profiling.quality_score import DataQualityScore
 from insightops.security.policy import SecurityScanResult
@@ -31,6 +36,8 @@ def generate_executive_insights(
     security: SecurityScanResult,
     data_profile: SalesDataProfile | None = None,
     quality_score: DataQualityScore | None = None,
+    preparation: PreparedSalesDataset | None = None,
+    manipulation_summary: ManipulationSummary | None = None,
 ) -> ExecutiveInsightReport:
     insights: list[ExecutiveInsight] = []
     recommended_actions: list[str] = []
@@ -116,6 +123,82 @@ def generate_executive_insights(
             )
             recommended_actions.append(
                 "Fill missing required fields before advanced analytics."
+            )
+
+    if preparation:
+        reconciliation_records = [
+            record
+            for record in preparation.records
+            if round(abs(record.revenue_reconciliation_difference), 2) > 0
+        ]
+        if reconciliation_records:
+            max_difference = max(
+                abs(record.revenue_reconciliation_difference)
+                for record in reconciliation_records
+            )
+            insights.append(
+                ExecutiveInsight(
+                    insight_type="data_reconciliation",
+                    severity="medium",
+                    title="Revenue reconciliation differences detected",
+                    message=(
+                        f"{len(reconciliation_records)} prepared sales "
+                        "records have revenue reconciliation differences."
+                    ),
+                    evidence={
+                        "affected_records": len(reconciliation_records),
+                        "max_absolute_difference": round(max_difference, 2),
+                    },
+                )
+            )
+            recommended_actions.append(
+                "Review revenue, discount, and unit price calculations before "
+                "financial reporting."
+            )
+
+        high_value_records = [
+            record for record in preparation.records if record.is_high_value_order
+        ]
+        concentration = _high_value_concentration(high_value_records)
+        if concentration is not None:
+            field_name, label, count = concentration
+            insights.append(
+                ExecutiveInsight(
+                    insight_type="business_concentration",
+                    severity="info",
+                    title="High-value orders are concentrated",
+                    message=(
+                        f"High-value orders are concentrated in "
+                        f"{field_name} '{label}'."
+                    ),
+                    evidence={
+                        "field": field_name,
+                        "label": label,
+                        "high_value_order_count": count,
+                    },
+                )
+            )
+
+    if manipulation_summary:
+        discount_concentration = _discount_concentration(
+            manipulation_summary,
+        )
+        if discount_concentration is not None:
+            product, discounted_order_count = discount_concentration
+            insights.append(
+                ExecutiveInsight(
+                    insight_type="discount_concentration",
+                    severity="info",
+                    title="Discounted orders are concentrated",
+                    message=(
+                        "Discounted orders are concentrated in product "
+                        f"'{product}'."
+                    ),
+                    evidence={
+                        "product": product,
+                        "discounted_order_count": discounted_order_count,
+                    },
+                )
             )
 
     if security.human_review_required:
@@ -221,3 +304,45 @@ def _top_group(grouped_revenue: dict[str, float]) -> tuple[str, float]:
         grouped_revenue.items(),
         key=lambda item: (-item[1], item[0]),
     )[0]
+
+
+def _discount_concentration(
+    manipulation_summary: ManipulationSummary,
+) -> tuple[str, int] | None:
+    discounted_total = sum(
+        item.discounted_order_count
+        for item in manipulation_summary.discount_summary_by_product
+    )
+    if discounted_total == 0:
+        return None
+
+    top_product = sorted(
+        manipulation_summary.discount_summary_by_product,
+        key=lambda item: (-item.discounted_order_count, item.product),
+    )[0]
+    if top_product.discounted_order_count / discounted_total >= 0.5:
+        return top_product.product, top_product.discounted_order_count
+
+    return None
+
+
+def _high_value_concentration(
+    records: list[PreparedSalesRecord],
+) -> tuple[str, str, int] | None:
+    if not records:
+        return None
+
+    for field_name in ("region", "product"):
+        counts: dict[str, int] = {}
+        for record in records:
+            label = getattr(record, field_name)
+            counts[label] = counts.get(label, 0) + 1
+
+        label, count = sorted(
+            counts.items(),
+            key=lambda item: (-item[1], item[0]),
+        )[0]
+        if count / len(records) >= 0.5:
+            return field_name, label, count
+
+    return None
