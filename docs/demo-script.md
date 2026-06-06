@@ -53,16 +53,19 @@ http://127.0.0.1:8000/docs
 1. Open `http://127.0.0.1:8000/`.
 2. Click `Analyze Sample Data`.
 3. Explain validation results: total, valid, invalid rows, and row-level errors.
-4. Explain KPI results: revenue, order count, units sold, average order value.
-5. Explain security guardrails: prompt-injection detection and human-review flags.
-6. Explain anomaly detection: deterministic thresholds for revenue, quantity, discount, and zero revenue.
-7. Explain chart data: dashboard shows chart-ready data as tables, not visual charts.
-8. Explain executive insights and recommended actions.
-9. Upload `data/sample/sales_sample.csv` and show the same response contract.
+4. Explain data profile: date range, unique entities, duplicate order IDs, missing fields, and numeric summaries.
+5. Explain quality score: deterministic 0-100 score, grade, issues, and recommendations.
+6. Explain KPI results: revenue, order count, units sold, average order value.
+7. Explain security guardrails: prompt-injection detection and human-review flags.
+8. Explain anomaly detection: deterministic thresholds for revenue, quantity, discount, and zero revenue.
+9. Explain chart data: dashboard shows chart-ready data as tables, not visual charts.
+10. Explain executive insights and recommended actions.
+11. Upload `data/sample/sales_sample.csv` and show the same response contract.
 
 ## 5. Artifact And Operations Talking Points
 
 - Markdown and PDF reports can be generated from `AnalysisResponse`.
 - PNG chart artifacts can be generated from chart-ready data.
+- Data profile and quality score improve analytics credibility before deeper statistical modeling.
 - CI runs dependency verification, Ruff, and pytest.
 - Deployment is ready with Dockerfile, runtime config, and `docs/deployment.md`.

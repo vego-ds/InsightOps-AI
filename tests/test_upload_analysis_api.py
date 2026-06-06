@@ -6,6 +6,8 @@ from app.main import app
 
 EXPECTED_ANALYSIS_SECTIONS = {
     "validation",
+    "data_profile",
+    "quality_score",
     "kpis",
     "security",
     "anomalies",
@@ -29,6 +31,8 @@ def test_upload_analysis_accepts_valid_csv() -> None:
 
     payload = response.json()
     assert set(payload) == EXPECTED_ANALYSIS_SECTIONS
+    assert payload["data_profile"]["total_rows"] == 5
+    assert payload["quality_score"]["grade"] == "fair"
 
 
 def test_upload_analysis_rejects_non_csv_file() -> None:

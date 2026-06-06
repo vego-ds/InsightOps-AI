@@ -6,6 +6,8 @@ from insightops.charts.chart_data import SalesChartData
 from insightops.insights.generator import ExecutiveInsightReport
 from insightops.metrics.kpis import SalesKPIResult
 from insightops.pipeline.sample_analysis import analyze_sample_sales_data
+from insightops.profiling.data_profile import build_sales_data_profile
+from insightops.profiling.quality_score import compute_data_quality_score
 from insightops.reports.artifacts import ReportArtifact
 from insightops.reports.markdown_report import (
     generate_executive_markdown_report,
@@ -50,6 +52,8 @@ def test_markdown_report_contains_expected_sections(tmp_path: Path) -> None:
 
     assert "Executive Sales Report" in report_text
     assert "Data Quality" in report_text
+    assert "Data Profile" in report_text
+    assert "Quality Score" in report_text
     assert "KPI Summary" in report_text
     assert "Executive Insights" in report_text
     assert "Audit Events" in report_text
@@ -81,8 +85,14 @@ def test_minimal_analysis_input_does_not_crash(tmp_path: Path) -> None:
 
 
 def _minimal_analysis_response() -> AnalysisResponse:
+    validation = ValidationReport(total_rows=0, valid_rows=0, invalid_rows=0)
+    data_profile = build_sales_data_profile(validation)
+    quality_score = compute_data_quality_score(data_profile)
+
     return AnalysisResponse(
-        validation=ValidationReport(total_rows=0, valid_rows=0, invalid_rows=0),
+        validation=validation,
+        data_profile=data_profile,
+        quality_score=quality_score,
         kpis=SalesKPIResult(
             total_revenue=0.0,
             total_orders=0,

@@ -4,6 +4,8 @@ from app.main import app
 
 EXPECTED_ANALYSIS_SECTIONS = {
     "validation",
+    "data_profile",
+    "quality_score",
     "kpis",
     "security",
     "anomalies",
@@ -27,6 +29,15 @@ def test_analysis_sample_returns_validation_and_kpis() -> None:
     assert validation["total_rows"] == 5
     assert validation["valid_rows"] == 3
     assert validation["invalid_rows"] == 2
+
+    data_profile = payload["data_profile"]
+    assert data_profile["total_rows"] == 5
+    assert data_profile["unique_customers"] == 3
+    assert "revenue_summary" in data_profile
+
+    quality_score = payload["quality_score"]
+    assert quality_score["score"] == 70
+    assert quality_score["grade"] == "fair"
 
     kpis = payload["kpis"]
     assert kpis["total_orders"] == 3

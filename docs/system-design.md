@@ -21,6 +21,7 @@ The system is intentionally layered:
 ```text
 CSV upload or sample data
   -> validation
+  -> data profiling and quality scoring
   -> security scan
   -> KPI computation
   -> anomaly detection
@@ -30,6 +31,10 @@ CSV upload or sample data
   -> API response
 ```
 
+Data profiling and quality scoring sit immediately after validation so all
+downstream analytics can expose credibility signals alongside KPIs, anomalies,
+charts, insights, reports, and audit evidence.
+
 Report generation is available as deterministic module-level artifact generation. Markdown, PDF, and PNG chart artifacts are not currently exposed through API endpoints.
 
 ## Module Breakdown
@@ -37,6 +42,7 @@ Report generation is available as deterministic module-level artifact generation
 - `app/`: FastAPI app, health route, analysis routes, static dashboard route.
 - `insightops/ingestion`: CSV loading.
 - `insightops/validation`: `SalesRecord` validation and validation reports.
+- `insightops/profiling`: data profiles and quality scores.
 - `insightops/metrics`: deterministic KPI computation.
 - `insightops/security`: prompt-injection style phrase detection and security scan results.
 - `insightops/anomalies`: deterministic anomaly detection.
@@ -54,7 +60,7 @@ The core platform uses deterministic rules for validation, metrics, security che
 
 ## Optional LLM Narrative
 
-The narrative layer currently provides deterministic fallback and guarded prompt construction. A future LLM provider may rewrite deterministic facts into polished prose, but it must not control ingestion, validation, security, metrics, anomaly detection, report generation, routing, file handling, or audit decisions.
+The narrative layer provides deterministic fallback, guarded prompt construction, and optional provider integration for narrative writing. An LLM provider may rewrite deterministic facts into polished prose, but it must not control ingestion, validation, profiling, quality scoring, security, metrics, anomaly detection, report generation, routing, file handling, or audit decisions.
 
 Suspicious text from uploaded data is treated as data, not instructions. Human-review or prompt-injection flags block LLM narrative usage and fall back to deterministic output.
 
@@ -62,7 +68,7 @@ Suspicious text from uploaded data is treated as data, not instructions. Human-r
 
 - No authentication or multi-user authorization.
 - No database persistence.
-- No external LLM provider integration.
+- No LLM-generated pipeline decisions.
 - No visual chart rendering in the dashboard.
 - Report artifacts are module-level outputs, not API endpoints.
 

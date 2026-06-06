@@ -69,6 +69,8 @@ function hideError() {
 function renderResults(data) {
   resultsEl.innerHTML = [
     renderValidation(data.validation),
+    renderDataProfile(data.data_profile),
+    renderQualityScore(data.quality_score),
     renderKpis(data.kpis),
     renderSecurity(data.security),
     renderAnomalies(data.anomalies),
@@ -88,6 +90,51 @@ function renderValidation(validation) {
       ["Invalid Rows", validation.invalid_rows],
       ["Errors", validation.errors.length],
     ]),
+  );
+}
+
+function renderDataProfile(profile) {
+  return panel(
+    "Data Profile",
+    `
+      ${metricGrid([
+        ["Date Range", formatDateRange(profile)],
+        ["Unique Customers", profile.unique_customers],
+        ["Unique Regions", profile.unique_regions],
+        ["Unique Products", profile.unique_products],
+        ["Unique Sales Reps", profile.unique_sales_reps],
+        ["Duplicate Order IDs", profile.duplicate_order_ids],
+      ])}
+      <h3>Missing Field Counts</h3>
+      ${objectTable(profile.missing_field_counts, "Field", "Count", "No missing fields detected.")}
+      <h3>Numeric Summaries</h3>
+      ${table(
+        ["Metric", "Minimum", "Maximum", "Mean", "Median", "Std Dev"],
+        [
+          ["Revenue", ...numericSummaryCells(profile.revenue_summary)],
+          ["Quantity", ...numericSummaryCells(profile.quantity_summary)],
+          ["Discount", ...numericSummaryCells(profile.discount_summary)],
+          ["Unit Price", ...numericSummaryCells(profile.unit_price_summary)],
+        ],
+        "No numeric summaries available.",
+      )}
+    `,
+  );
+}
+
+function renderQualityScore(qualityScore) {
+  return panel(
+    "Quality Score",
+    `
+      ${metricGrid([
+        ["Score", qualityScore.score],
+        ["Grade", qualityScore.grade],
+      ])}
+      <h3>Issues</h3>
+      ${list(qualityScore.issues, "No quality issues detected.")}
+      <h3>Recommendations</h3>
+      ${list(qualityScore.recommendations, "No quality recommendations.")}
+    `,
   );
 }
 
@@ -242,8 +289,49 @@ function table(headers, rows, emptyMessage) {
   `;
 }
 
+function objectTable(values, keyLabel, valueLabel, emptyMessage) {
+  const rows = Object.entries(values).sort(([left], [right]) =>
+    left.localeCompare(right),
+  );
+  return table([keyLabel, valueLabel], rows, emptyMessage);
+}
+
+function list(items, emptyMessage) {
+  if (!items.length) {
+    return `<p>${escapeHtml(emptyMessage)}</p>`;
+  }
+
+  return `
+    <ul>
+      ${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+    </ul>
+  `;
+}
+
+function numericSummaryCells(summary) {
+  return [
+    formatNumber(summary.minimum),
+    formatNumber(summary.maximum),
+    formatNumber(summary.mean),
+    formatNumber(summary.median),
+    formatNumber(summary.standard_deviation),
+  ];
+}
+
+function formatDateRange(profile) {
+  if (!profile.date_start || !profile.date_end) {
+    return "None";
+  }
+
+  return `${profile.date_start} to ${profile.date_end}`;
+}
+
 function formatMoney(value) {
   return `$${Number(value).toFixed(2)}`;
+}
+
+function formatNumber(value) {
+  return Number(value).toFixed(2);
 }
 
 function escapeHtml(value) {

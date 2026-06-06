@@ -2,8 +2,11 @@ from insightops.anomalies.detector import (
     AnomalyDetectionResult,
     SalesAnomaly,
 )
+from insightops.ingestion.csv_loader import load_sales_csv
 from insightops.insights.generator import generate_executive_insights
 from insightops.metrics.kpis import SalesKPIResult
+from insightops.profiling.data_profile import build_sales_data_profile
+from insightops.profiling.quality_score import compute_data_quality_score
 from insightops.security.policy import SecurityScanResult
 from insightops.validation.report import ValidationReport
 
@@ -38,6 +41,65 @@ def test_security_human_review_produces_security_insight() -> None:
 
     assert insight.severity == "high"
     assert insight.evidence["human_review_required"] is True
+
+
+def test_fair_quality_score_produces_data_quality_risk_insight() -> None:
+    validation_report = load_sales_csv("data/sample/sales_sample.csv")
+    data_profile = build_sales_data_profile(validation_report)
+    quality_score = compute_data_quality_score(data_profile)
+
+    report = generate_executive_insights(
+        validation_report,
+        _empty_kpis(),
+        _empty_anomalies(),
+        _safe_security(),
+        data_profile,
+        quality_score,
+    )
+
+    insight = _insight_by_type(report.insights, "data_quality_risk")
+
+    assert insight.evidence["quality_score"] == 70
+    assert insight.evidence["quality_grade"] == "fair"
+
+
+def test_duplicate_order_ids_produce_data_integrity_insight() -> None:
+    validation_report = load_sales_csv("data/sample/sales_sample.csv")
+    validation_report.records[1].order_id = validation_report.records[0].order_id
+    data_profile = build_sales_data_profile(validation_report)
+    quality_score = compute_data_quality_score(data_profile)
+
+    report = generate_executive_insights(
+        validation_report,
+        _empty_kpis(),
+        _empty_anomalies(),
+        _safe_security(),
+        data_profile,
+        quality_score,
+    )
+
+    insight = _insight_by_type(report.insights, "data_integrity")
+
+    assert insight.evidence["duplicate_order_ids"] == 1
+
+
+def test_missing_fields_produce_data_completeness_insight() -> None:
+    validation_report = load_sales_csv("data/sample/sales_sample.csv")
+    data_profile = build_sales_data_profile(validation_report)
+    quality_score = compute_data_quality_score(data_profile)
+
+    report = generate_executive_insights(
+        validation_report,
+        _empty_kpis(),
+        _empty_anomalies(),
+        _safe_security(),
+        data_profile,
+        quality_score,
+    )
+
+    insight = _insight_by_type(report.insights, "data_completeness")
+
+    assert insight.evidence["missing_field_total"] == 2
 
 
 def test_top_revenue_region_is_detected() -> None:

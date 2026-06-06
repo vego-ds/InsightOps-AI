@@ -40,12 +40,20 @@ FastAPI routes
 Both analysis endpoints return:
 
 - `validation`
+- `data_profile`
+- `quality_score`
 - `kpis`
 - `security`
 - `anomalies`
 - `charts`
 - `insights`
 - `audit_events`
+
+Phase 2 analytics depth has started with first-class data profiling and
+quality scoring. The data profile includes row counts, date range, unique
+customers/regions/products/sales reps, duplicate order ID count, missing field
+counts, and numeric summaries. The quality score returns a deterministic
+0-100 score, grade, issues, and recommendations.
 
 ## Quickstart
 

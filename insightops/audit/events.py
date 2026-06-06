@@ -28,6 +28,25 @@ def create_validation_completed_event(
     )
 
 
+def create_data_profile_generated_event() -> AuditEvent:
+    return AuditEvent(
+        event_type="data_profile_generated",
+        message="Sales data profile generated.",
+        metadata={},
+    )
+
+
+def create_quality_score_generated_event(
+    score: int,
+    grade: str,
+) -> AuditEvent:
+    return AuditEvent(
+        event_type="quality_score_generated",
+        message="Sales data quality score generated.",
+        metadata={"score": score, "grade": grade},
+    )
+
+
 def create_kpi_computed_event(
     total_orders: int,
     total_revenue: float,

@@ -39,6 +39,45 @@ def _build_report_markdown(analysis: AnalysisResponse) -> str:
         f"- Valid rows: {analysis.validation.valid_rows}",
         f"- Invalid rows: {analysis.validation.invalid_rows}",
         "",
+        "## Data Profile",
+        "",
+        f"- Date range: {_format_date_range(analysis)}",
+        f"- Unique customers: {analysis.data_profile.unique_customers}",
+        f"- Unique regions: {analysis.data_profile.unique_regions}",
+        f"- Unique products: {analysis.data_profile.unique_products}",
+        f"- Unique sales reps: {analysis.data_profile.unique_sales_reps}",
+        f"- Duplicate order IDs: {analysis.data_profile.duplicate_order_ids}",
+        (
+            "- Missing fields: "
+            f"{_format_mapping(analysis.data_profile.missing_field_counts)}"
+        ),
+        (
+            "- Revenue summary: "
+            f"{_format_numeric_summary(analysis.data_profile.revenue_summary)}"
+        ),
+        (
+            "- Quantity summary: "
+            f"{_format_numeric_summary(analysis.data_profile.quantity_summary)}"
+        ),
+        (
+            "- Discount summary: "
+            f"{_format_numeric_summary(analysis.data_profile.discount_summary)}"
+        ),
+        (
+            "- Unit price summary: "
+            f"{_format_numeric_summary(analysis.data_profile.unit_price_summary)}"
+        ),
+        "",
+        "## Quality Score",
+        "",
+        f"- Score: {analysis.quality_score.score}",
+        f"- Grade: {analysis.quality_score.grade}",
+        f"- Issues: {_format_list(analysis.quality_score.issues)}",
+        (
+            "- Recommendations: "
+            f"{_format_list(analysis.quality_score.recommendations)}"
+        ),
+        "",
         "## Security",
         "",
         (
@@ -131,3 +170,36 @@ def _format_evidence_value(value: str | int | float | bool) -> str:
     if isinstance(value, float):
         return f"{value:.2f}"
     return str(value)
+
+
+def _format_date_range(analysis: AnalysisResponse) -> str:
+    if not analysis.data_profile.date_start or not analysis.data_profile.date_end:
+        return "none"
+    return (
+        f"{analysis.data_profile.date_start.isoformat()} to "
+        f"{analysis.data_profile.date_end.isoformat()}"
+    )
+
+
+def _format_mapping(values: dict[str, int]) -> str:
+    if not values:
+        return "none"
+
+    return ", ".join(
+        f"{key}={value}" for key, value in sorted(values.items())
+    )
+
+
+def _format_list(values: list[str]) -> str:
+    if not values:
+        return "none"
+
+    return "; ".join(values)
+
+
+def _format_numeric_summary(summary) -> str:
+    return (
+        f"min={summary.minimum:.2f}, max={summary.maximum:.2f}, "
+        f"mean={summary.mean:.2f}, median={summary.median:.2f}, "
+        f"std_dev={summary.standard_deviation:.2f}"
+    )

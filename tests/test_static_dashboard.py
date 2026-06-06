@@ -31,6 +31,8 @@ def test_dashboard_static_assets_are_served() -> None:
 
     assert script_response.status_code == 200
     assert style_response.status_code == 200
+    assert "Data Profile" in script_response.text
+    assert "Quality Score" in script_response.text
 
 
 def test_sample_analysis_still_works() -> None:

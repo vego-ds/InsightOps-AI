@@ -2,6 +2,8 @@ from pydantic import BaseModel, Field
 
 from insightops.anomalies.detector import AnomalyDetectionResult
 from insightops.metrics.kpis import SalesKPIResult
+from insightops.profiling.data_profile import SalesDataProfile
+from insightops.profiling.quality_score import DataQualityScore
 from insightops.security.policy import SecurityScanResult
 from insightops.validation.report import ValidationReport
 
@@ -27,6 +29,8 @@ def generate_executive_insights(
     kpis: SalesKPIResult,
     anomalies: AnomalyDetectionResult,
     security: SecurityScanResult,
+    data_profile: SalesDataProfile | None = None,
+    quality_score: DataQualityScore | None = None,
 ) -> ExecutiveInsightReport:
     insights: list[ExecutiveInsight] = []
     recommended_actions: list[str] = []
@@ -52,6 +56,67 @@ def generate_executive_insights(
             "Review and correct invalid sales records before executive "
             "reporting."
         )
+
+    if quality_score and quality_score.grade in {"poor", "fair"}:
+        insights.append(
+            ExecutiveInsight(
+                insight_type="data_quality_risk",
+                severity="medium",
+                title="Data quality risk may affect analysis",
+                message=(
+                    "The sales dataset quality score is below the preferred "
+                    "range for executive reporting."
+                ),
+                evidence={
+                    "quality_score": quality_score.score,
+                    "quality_grade": quality_score.grade,
+                },
+            )
+        )
+        recommended_actions.append(
+            "Improve data quality score before using outputs for strategic "
+            "decisions."
+        )
+
+    if data_profile and data_profile.duplicate_order_ids > 0:
+        insights.append(
+            ExecutiveInsight(
+                insight_type="data_integrity",
+                severity="medium",
+                title="Duplicate order IDs detected",
+                message=(
+                    f"{data_profile.duplicate_order_ids} duplicate order IDs "
+                    "were found in valid records."
+                ),
+                evidence={
+                    "duplicate_order_ids": data_profile.duplicate_order_ids,
+                },
+            )
+        )
+        recommended_actions.append(
+            "Deduplicate order IDs before forecasting or attribution analysis."
+        )
+
+    if data_profile:
+        missing_field_total = sum(data_profile.missing_field_counts.values())
+        if missing_field_total > 0:
+            insights.append(
+                ExecutiveInsight(
+                    insight_type="data_completeness",
+                    severity="medium",
+                    title="Missing required field values detected",
+                    message=(
+                        f"{missing_field_total} missing required field values "
+                        "were found in invalid rows."
+                    ),
+                    evidence={
+                        "missing_field_total": missing_field_total,
+                    },
+                )
+            )
+            recommended_actions.append(
+                "Fill missing required fields before advanced analytics."
+            )
 
     if security.human_review_required:
         insights.append(
