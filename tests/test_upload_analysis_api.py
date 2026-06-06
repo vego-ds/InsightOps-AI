@@ -42,6 +42,11 @@ def test_upload_analysis_accepts_valid_csv() -> None:
     assert payload["preparation"]["total_records"] == 3
     assert payload["transformation_log"]["entries"]
     assert payload["manipulation_summary"]["ranked_products"]
+    first_chart = payload["charts"]["charts"][0]
+    assert first_chart["business_question"]
+    assert first_chart["interpretation"]
+    assert isinstance(first_chart["related_insight_ids"], list)
+    assert isinstance(first_chart["recommended_actions"], list)
 
 
 def test_upload_analysis_rejects_non_csv_file() -> None:

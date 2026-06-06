@@ -35,3 +35,10 @@ def test_openapi_schema_documents_expected_api_contracts() -> None:
     assert "preparation" in analysis_properties
     assert "transformation_log" in analysis_properties
     assert "manipulation_summary" in analysis_properties
+
+    chart_properties = components["ChartSeries"]["properties"]
+    assert "business_question" in chart_properties
+    assert "interpretation" in chart_properties
+    assert "related_insight_ids" in chart_properties
+    assert "recommended_actions" in chart_properties
+    assert "secondary_value" in components["ChartDataPoint"]["properties"]

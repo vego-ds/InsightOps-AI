@@ -62,14 +62,18 @@ http://127.0.0.1:8000/docs
 10. Explain KPI results: revenue, order count, units sold, average order value.
 11. Explain security guardrails: prompt-injection detection and human-review flags.
 12. Explain anomaly detection: deterministic thresholds for revenue, quantity, discount, and zero revenue.
-13. Explain chart data: dashboard shows chart-ready data as tables, not visual charts.
-14. Explain executive insights and recommended actions.
-15. Upload `data/sample/sales_sample.csv` and show the same response contract.
+13. Explain visual analytics: each chart answers a business question, includes a deterministic interpretation, links to insight IDs, and carries recommended actions.
+14. Explain Pareto revenue concentration: show whether product revenue is concentrated in a few products.
+15. Explain discount concentration and data quality charts: show discount reliance and whether the dataset is reliable enough for executive reporting.
+16. Explain how visual evidence supports stakeholder recommendations.
+17. Explain executive insights and recommended actions.
+18. Upload `data/sample/sales_sample.csv` and show the same response contract.
 
 ## 5. Artifact And Operations Talking Points
 
 - Markdown and PDF reports can be generated from `AnalysisResponse`.
 - PNG chart artifacts can be generated from chart-ready data.
+- Visual analytics connect charts to business questions, interpretations, insight IDs, and stakeholder actions.
 - Data profile and quality score improve analytics credibility before deeper statistical modeling.
 - Source metadata, preparation, lineage, and manipulation summaries make the pipeline end-to-end analytics rather than only KPI reporting.
 - CI runs dependency verification, Ruff, and pytest.

@@ -50,13 +50,18 @@ def _render_chart_series(
 
     figure, axis = plt.subplots()
     axis.set_title(chart.title)
+    if chart.business_question:
+        figure.suptitle(chart.business_question, fontsize=9, y=0.98)
     axis.set_xlabel(chart.x_axis)
     axis.set_ylabel(chart.y_axis)
 
     if chart.data:
         labels = [point.label for point in chart.data]
         values = [point.value for point in chart.data]
-        axis.bar(labels, values)
+        if chart.chart_type == "line":
+            axis.plot(labels, values, marker="o")
+        else:
+            axis.bar(labels, values)
         figure.autofmt_xdate(rotation=30, ha="right")
     else:
         axis.text(

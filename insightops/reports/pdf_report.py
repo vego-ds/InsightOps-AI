@@ -203,6 +203,29 @@ def _build_report_story(analysis: AnalysisResponse) -> list:
         anomaly_items.append("No anomalies detected.")
     _add_bullets(story, styles, anomaly_items)
 
+    _add_heading(story, styles, "Visual Analytics")
+    if analysis.charts.charts:
+        for chart in analysis.charts.charts:
+            _add_paragraph(story, styles, chart.title, style_name="Heading3")
+            _add_bullets(
+                story,
+                styles,
+                [
+                    f"Business question: {chart.business_question}",
+                    f"Interpretation: {chart.interpretation}",
+                    (
+                        "Related insight IDs: "
+                        f"{_format_list(chart.related_insight_ids)}"
+                    ),
+                    (
+                        "Recommended actions: "
+                        f"{_format_list(chart.recommended_actions)}"
+                    ),
+                ],
+            )
+    else:
+        _add_bullets(story, styles, ["No visual analytics charts generated."])
+
     _add_heading(story, styles, "Executive Insights")
     if analysis.insights.insights:
         for insight in analysis.insights.insights:
@@ -211,6 +234,7 @@ def _build_report_story(analysis: AnalysisResponse) -> list:
                 story,
                 styles,
                 [
+                    f"Insight ID: {insight.insight_id}",
                     f"Severity: {insight.severity}",
                     f"Message: {insight.message}",
                     f"Evidence: {_format_evidence(insight.evidence)}",

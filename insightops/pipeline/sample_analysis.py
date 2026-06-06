@@ -61,7 +61,6 @@ def analyze_sales_csv_file(
     security = scan_sales_records_for_security(validation_report.records)
     kpis = compute_sales_kpis(validation_report.records)
     anomalies = detect_sales_anomalies(validation_report.records)
-    charts = build_sales_chart_data(kpis, anomalies)
     insights = generate_executive_insights(
         validation_report,
         kpis,
@@ -71,6 +70,13 @@ def analyze_sales_csv_file(
         quality_score,
         preparation,
         manipulation_summary,
+    )
+    charts = build_sales_chart_data(
+        kpis,
+        anomalies,
+        quality_score,
+        manipulation_summary,
+        insights,
     )
     audit_events = [
         create_source_metadata_collected_event(

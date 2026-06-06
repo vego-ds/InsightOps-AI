@@ -161,12 +161,34 @@ def _build_report_markdown(analysis: AnalysisResponse) -> str:
     else:
         lines.append("- No anomalies detected.")
 
+    lines.extend(["", "## Visual Analytics", ""])
+
+    if analysis.charts.charts:
+        for chart in analysis.charts.charts:
+            lines.append(f"### {chart.title}")
+            lines.append("")
+            lines.append(f"- Business question: {chart.business_question}")
+            lines.append(f"- Interpretation: {chart.interpretation}")
+            lines.append(
+                "- Related insight IDs: "
+                f"{_format_list(chart.related_insight_ids)}"
+            )
+            lines.append(
+                "- Recommended actions: "
+                f"{_format_list(chart.recommended_actions)}"
+            )
+            lines.append("")
+    else:
+        lines.append("- No visual analytics charts generated.")
+        lines.append("")
+
     lines.extend(["", "## Executive Insights", ""])
 
     if analysis.insights.insights:
         for insight in analysis.insights.insights:
             lines.append(f"### {insight.title}")
             lines.append("")
+            lines.append(f"- Insight ID: {insight.insight_id}")
             lines.append(f"- Severity: {insight.severity}")
             lines.append(f"- Message: {insight.message}")
             lines.append(f"- Evidence: {_format_evidence(insight.evidence)}")

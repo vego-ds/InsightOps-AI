@@ -25,6 +25,7 @@ CSV upload or sample data
   -> data profiling and quality scoring
   -> data preparation and transformation lineage
   -> manipulation summaries
+  -> visual analytics
   -> security scan
   -> KPI computation
   -> anomaly detection
@@ -35,10 +36,15 @@ CSV upload or sample data
 ```
 
 The pipeline explicitly covers collection, validation, profiling, quality
-scoring, preparation, manipulation, analytics, insights, reporting, and audit
-evidence. Data profiling and quality scoring sit immediately after validation,
-while preparation and manipulation create analysis-ready records and summaries
-before downstream KPI, anomaly, chart, and insight generation.
+scoring, preparation, manipulation, visual analytics, insights, reporting, and
+audit evidence. Data profiling and quality scoring sit immediately after
+validation, while preparation and manipulation create analysis-ready records and
+summaries before downstream KPI, anomaly, chart, and insight generation.
+
+Visual analytics sits between manipulation summaries and executive
+insights/reporting. Charts are evidence objects, not just display objects: each
+chart includes a business question, deterministic interpretation, related
+insight IDs, recommended actions, and chart-ready data points.
 
 Report generation is available as deterministic module-level artifact generation. Markdown, PDF, and PNG chart artifacts are not currently exposed through API endpoints.
 
@@ -54,7 +60,7 @@ Report generation is available as deterministic module-level artifact generation
 - `insightops/metrics`: deterministic KPI computation.
 - `insightops/security`: prompt-injection style phrase detection and security scan results.
 - `insightops/anomalies`: deterministic anomaly detection.
-- `insightops/charts`: chart-ready data and PNG artifact generation.
+- `insightops/charts`: visual analytics chart data, interpretation helpers, and PNG artifact generation.
 - `insightops/insights`: deterministic executive insight generation.
 - `insightops/reports`: Markdown and PDF report artifact generation.
 - `insightops/narrative`: optional guarded narrative writer foundation.

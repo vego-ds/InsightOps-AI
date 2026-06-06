@@ -62,6 +62,8 @@ def test_markdown_report_contains_expected_sections(tmp_path: Path) -> None:
     assert "Data Preparation" in report_text
     assert "Transformation Lineage" in report_text
     assert "Manipulation Summary" in report_text
+    assert "Visual Analytics" in report_text
+    assert "Business question" in report_text
     assert "KPI Summary" in report_text
     assert "Executive Insights" in report_text
     assert "Audit Events" in report_text

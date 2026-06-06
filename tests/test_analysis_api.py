@@ -74,6 +74,10 @@ def test_analysis_sample_returns_validation_and_kpis() -> None:
         assert "metric" in chart
         assert "x_axis" in chart
         assert "y_axis" in chart
+        assert "business_question" in chart
+        assert "interpretation" in chart
+        assert "related_insight_ids" in chart
+        assert "recommended_actions" in chart
         assert "data" in chart
 
     insights = payload["insights"]

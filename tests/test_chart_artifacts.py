@@ -62,6 +62,31 @@ def test_empty_chart_series_creates_placeholder_png(tmp_path: Path) -> None:
     assert Path(artifact.file_path).exists()
 
 
+def test_line_chart_series_creates_png(tmp_path: Path) -> None:
+    chart_data = SalesChartData(
+        charts=[
+            ChartSeries(
+                chart_id="monthly_net_revenue_trend",
+                title="Monthly Net Revenue Trend",
+                chart_type="line",
+                metric="net_revenue",
+                x_axis="month",
+                y_axis="net_revenue",
+                business_question="Is revenue trending?",
+                data=[
+                    ChartDataPoint(label="2026-01", value=100.0),
+                    ChartDataPoint(label="2026-02", value=200.0),
+                ],
+            )
+        ]
+    )
+
+    result = render_chart_artifacts(chart_data, str(tmp_path))
+
+    assert result.total_artifacts == 1
+    assert Path(result.artifacts[0].file_path).exists()
+
+
 def _chart_data() -> SalesChartData:
     return SalesChartData(
         charts=[

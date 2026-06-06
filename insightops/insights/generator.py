@@ -16,6 +16,7 @@ InsightEvidenceValue = str | int | float | bool
 
 
 class ExecutiveInsight(BaseModel):
+    insight_id: str
     insight_type: str
     severity: str
     title: str
@@ -45,6 +46,7 @@ def generate_executive_insights(
     if validation_report.invalid_rows > 0:
         insights.append(
             ExecutiveInsight(
+                insight_id="data_quality_001",
                 insight_type="data_quality",
                 severity="medium",
                 title="Invalid sales rows detected",
@@ -67,6 +69,7 @@ def generate_executive_insights(
     if quality_score and quality_score.grade in {"poor", "fair"}:
         insights.append(
             ExecutiveInsight(
+                insight_id="data_quality_risk_001",
                 insight_type="data_quality_risk",
                 severity="medium",
                 title="Data quality risk may affect analysis",
@@ -88,6 +91,7 @@ def generate_executive_insights(
     if data_profile and data_profile.duplicate_order_ids > 0:
         insights.append(
             ExecutiveInsight(
+                insight_id="data_integrity_001",
                 insight_type="data_integrity",
                 severity="medium",
                 title="Duplicate order IDs detected",
@@ -109,6 +113,7 @@ def generate_executive_insights(
         if missing_field_total > 0:
             insights.append(
                 ExecutiveInsight(
+                    insight_id="data_completeness_001",
                     insight_type="data_completeness",
                     severity="medium",
                     title="Missing required field values detected",
@@ -138,6 +143,7 @@ def generate_executive_insights(
             )
             insights.append(
                 ExecutiveInsight(
+                    insight_id="reconciliation_001",
                     insight_type="data_reconciliation",
                     severity="medium",
                     title="Revenue reconciliation differences detected",
@@ -164,6 +170,7 @@ def generate_executive_insights(
             field_name, label, count = concentration
             insights.append(
                 ExecutiveInsight(
+                    insight_id="high_value_concentration_001",
                     insight_type="business_concentration",
                     severity="info",
                     title="High-value orders are concentrated",
@@ -187,6 +194,7 @@ def generate_executive_insights(
             product, discounted_order_count = discount_concentration
             insights.append(
                 ExecutiveInsight(
+                    insight_id="discount_concentration_001",
                     insight_type="discount_concentration",
                     severity="info",
                     title="Discounted orders are concentrated",
@@ -204,6 +212,7 @@ def generate_executive_insights(
     if security.human_review_required:
         insights.append(
             ExecutiveInsight(
+                insight_id="security_001",
                 insight_type="security",
                 severity="high",
                 title="Human review required",
@@ -227,6 +236,7 @@ def generate_executive_insights(
         region, revenue = _top_group(kpis.revenue_by_region)
         insights.append(
             ExecutiveInsight(
+                insight_id="revenue_001",
                 insight_type="revenue",
                 severity="info",
                 title="Top revenue region identified",
@@ -239,6 +249,7 @@ def generate_executive_insights(
         product, revenue = _top_group(kpis.revenue_by_product)
         insights.append(
             ExecutiveInsight(
+                insight_id="product_001",
                 insight_type="product",
                 severity="info",
                 title="Top product identified",
@@ -251,6 +262,7 @@ def generate_executive_insights(
         sales_rep, revenue = _top_group(kpis.revenue_by_sales_rep)
         insights.append(
             ExecutiveInsight(
+                insight_id="sales_rep_001",
                 insight_type="sales_rep",
                 severity="info",
                 title="Top sales rep identified",
@@ -262,6 +274,7 @@ def generate_executive_insights(
     if anomalies.total_anomalies > 0:
         insights.append(
             ExecutiveInsight(
+                insight_id="anomaly_001",
                 insight_type="anomaly",
                 severity="high",
                 title="Sales anomalies detected",

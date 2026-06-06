@@ -290,17 +290,34 @@ function renderCharts(charts) {
   const chartSections = charts.charts
     .map(
       (chart) => `
-        <h3>${escapeHtml(chart.title)}</h3>
+        <article class="chart-card">
+          <h3>${escapeHtml(chart.title)}</h3>
+          <p><strong>Business question:</strong> ${escapeHtml(chart.business_question || "None")}</p>
+          <p><strong>Interpretation:</strong> ${escapeHtml(chart.interpretation || "None")}</p>
+          <p><strong>Related insight IDs:</strong> ${escapeHtml(formatInlineList(chart.related_insight_ids))}</p>
+          <h4>Recommended Actions</h4>
+          ${list(chart.recommended_actions, "No chart-specific recommended actions.")}
+          ${renderBarPreview(chart)}
+          <h4>Chart Data</h4>
         ${table(
-          [chart.x_axis, chart.y_axis],
-          chart.data.map((point) => [point.label, point.value]),
+          [
+            chart.x_axis,
+            chart.y_axis,
+            "secondary_value",
+          ],
+          chart.data.map((point) => [
+            point.label,
+            point.value,
+            point.secondary_value ?? "None",
+          ]),
           "No chart data available.",
         )}
+        </article>
       `,
     )
     .join("");
 
-  return panel("Chart Data Summary", chartSections || "No charts available.");
+  return panel("Visual Analytics", chartSections || "No charts available.");
 }
 
 function renderInsights(insights) {
@@ -403,6 +420,40 @@ function dataPointTable(points, labelHeader, valueHeader, emptyMessage) {
     points.map((point) => [point.label, point.value]),
     emptyMessage,
   );
+}
+
+function renderBarPreview(chart) {
+  if (!chart.data.length || chart.chart_type === "line") {
+    return "";
+  }
+
+  const maxValue = Math.max(...chart.data.map((point) => Number(point.value)));
+  if (maxValue <= 0) {
+    return "";
+  }
+
+  return `
+    <div class="bar-list" aria-label="${escapeHtml(chart.title)} preview">
+      ${chart.data
+        .map((point) => {
+          const width = Math.max(2, (Number(point.value) / maxValue) * 100);
+          return `
+            <div class="bar-row">
+              <span>${escapeHtml(point.label)}</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width: ${width.toFixed(2)}%"></div>
+              </div>
+              <strong>${escapeHtml(String(point.value))}</strong>
+            </div>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+}
+
+function formatInlineList(items) {
+  return items.length ? items.join(", ") : "None";
 }
 
 function list(items, emptyMessage) {

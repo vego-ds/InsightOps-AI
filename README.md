@@ -12,6 +12,7 @@ InsightOps-AI is a production-style sales analytics automation platform. It coll
 - KPI computation from valid records.
 - Prompt-injection guardrails and human-review flags.
 - Deterministic anomaly detection.
+- Visual analytics that pair chart data with business questions, interpretations, related insight IDs, and recommended actions.
 - Chart-ready data plus backend PNG chart artifacts.
 - Deterministic executive insights.
 - Markdown and PDF report artifact generation.
@@ -62,6 +63,8 @@ captures collection context, preparation creates deterministic derived fields,
 transformation lineage explains what changed, manipulation summaries expose
 monthly revenue, ranked entities, and discount behavior, and quality scoring
 returns a deterministic 0-100 score with issues and recommendations.
+Visual analytics now make charts evidence objects: outputs explain the business
+question, interpretation, and recommendation linkage behind each chart.
 
 ## Quickstart
 
@@ -101,7 +104,7 @@ The optional narrative layer defaults to disabled mode and requires no API key. 
 
 ## Dashboard
 
-The dashboard is a lightweight static demo UI built with HTML, CSS, and vanilla JavaScript. It can run sample analysis, upload CSV files, and render response sections as readable summaries and tables. It is not a production frontend.
+The dashboard is a lightweight static demo UI built with HTML, CSS, and vanilla JavaScript. It can run sample analysis, upload CSV files, and render response sections as readable summaries, visual analytics cards, CSS bar previews, and tables. It is not a production frontend.
 
 ## CI And Deployment
 

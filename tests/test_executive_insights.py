@@ -24,6 +24,7 @@ def test_invalid_rows_produce_data_quality_insight() -> None:
     insight = _insight_by_type(report.insights, "data_quality")
 
     assert insight.title == "Invalid sales rows detected"
+    assert insight.insight_id == "data_quality_001"
     assert insight.evidence["invalid_rows"] == 2
 
 
@@ -42,6 +43,7 @@ def test_security_human_review_produces_security_insight() -> None:
     insight = _insight_by_type(report.insights, "security")
 
     assert insight.severity == "high"
+    assert insight.insight_id == "security_001"
     assert insight.evidence["human_review_required"] is True
 
 
@@ -61,6 +63,7 @@ def test_fair_quality_score_produces_data_quality_risk_insight() -> None:
 
     insight = _insight_by_type(report.insights, "data_quality_risk")
 
+    assert insight.insight_id == "data_quality_risk_001"
     assert insight.evidence["quality_score"] == 70
     assert insight.evidence["quality_grade"] == "fair"
 
@@ -82,6 +85,7 @@ def test_duplicate_order_ids_produce_data_integrity_insight() -> None:
 
     insight = _insight_by_type(report.insights, "data_integrity")
 
+    assert insight.insight_id == "data_integrity_001"
     assert insight.evidence["duplicate_order_ids"] == 1
 
 
@@ -101,6 +105,7 @@ def test_missing_fields_produce_data_completeness_insight() -> None:
 
     insight = _insight_by_type(report.insights, "data_completeness")
 
+    assert insight.insight_id == "data_completeness_001"
     assert insight.evidence["missing_field_total"] == 2
 
 
@@ -119,6 +124,7 @@ def test_reconciliation_difference_produces_reconciliation_insight() -> None:
 
     insight = _insight_by_type(report.insights, "data_reconciliation")
 
+    assert insight.insight_id == "reconciliation_001"
     assert insight.evidence["affected_records"] == 1
     assert insight.evidence["max_absolute_difference"] == 10.0
 
@@ -138,6 +144,7 @@ def test_discount_concentration_produces_discount_insight() -> None:
 
     insight = _insight_by_type(report.insights, "discount_concentration")
 
+    assert insight.insight_id == "discount_concentration_001"
     assert insight.evidence["discounted_order_count"] == 1
 
 
@@ -157,6 +164,7 @@ def test_high_value_concentration_produces_business_insight() -> None:
 
     insight = _insight_by_type(report.insights, "business_concentration")
 
+    assert insight.insight_id == "high_value_concentration_001"
     assert insight.evidence["high_value_order_count"] == 1
 
 
@@ -170,6 +178,7 @@ def test_top_revenue_region_is_detected() -> None:
 
     insight = _insight_by_type(report.insights, "revenue")
 
+    assert insight.insight_id == "revenue_001"
     assert insight.evidence == {"region": "East", "revenue": 300.0}
 
 
@@ -183,6 +192,7 @@ def test_top_revenue_product_is_detected() -> None:
 
     insight = _insight_by_type(report.insights, "product")
 
+    assert insight.insight_id == "product_001"
     assert insight.evidence == {
         "product": "Analytics Pro",
         "revenue": 500.0,
@@ -199,6 +209,7 @@ def test_top_sales_rep_is_detected() -> None:
 
     insight = _insight_by_type(report.insights, "sales_rep")
 
+    assert insight.insight_id == "sales_rep_001"
     assert insight.evidence == {"sales_rep": "Ava Singh", "revenue": 450.0}
 
 
@@ -213,7 +224,31 @@ def test_anomalies_produce_anomaly_insight() -> None:
     insight = _insight_by_type(report.insights, "anomaly")
 
     assert insight.title == "Sales anomalies detected"
+    assert insight.insight_id == "anomaly_001"
     assert insight.evidence["total_anomalies"] == 1
+
+
+def test_generated_insight_ids_are_unique() -> None:
+    validation_report = load_sales_csv("data/sample/sales_sample.csv")
+    data_profile = build_sales_data_profile(validation_report)
+    quality_score = compute_data_quality_score(data_profile)
+    preparation, _ = prepare_sales_records(validation_report.records)
+    manipulation_summary = build_manipulation_summary(preparation)
+
+    report = generate_executive_insights(
+        validation_report,
+        _kpis(),
+        _anomalies(),
+        _safe_security(),
+        data_profile,
+        quality_score,
+        preparation,
+        manipulation_summary,
+    )
+
+    insight_ids = [insight.insight_id for insight in report.insights]
+
+    assert len(insight_ids) == len(set(insight_ids))
 
 
 def test_recommended_actions_include_data_quality_action() -> None:
