@@ -36,6 +36,7 @@ def test_dashboard_static_assets_are_served() -> None:
     assert "Transformation Lineage" in script_response.text
     assert "Manipulation Summary" in script_response.text
     assert "Trend Analysis" in script_response.text
+    assert "Forecast Analysis" in script_response.text
     assert "Data Profile" in script_response.text
     assert "Quality Score" in script_response.text
     assert "Quality Gate" in script_response.text

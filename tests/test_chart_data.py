@@ -3,6 +3,11 @@ from insightops.anomalies.detector import (
     SalesAnomaly,
 )
 from insightops.charts.chart_data import build_sales_chart_data
+from insightops.forecasting.baselines import (
+    ForecastAnalysis,
+    ForecastPoint,
+    MetricForecast,
+)
 from insightops.metrics.kpis import SalesKPIResult
 from insightops.preparation.manipulations import (
     ManipulationDataPoint,
@@ -24,9 +29,10 @@ def test_build_sales_chart_data_returns_expected_chart_series() -> None:
         _quality_score(),
         _manipulation_summary(),
         trend_analysis=_trend_analysis(),
+        forecast_analysis=_forecast_analysis(),
     )
 
-    assert len(chart_data.charts) == 11
+    assert len(chart_data.charts) == 13
 
 
 def test_expected_sales_charts_exist() -> None:
@@ -36,6 +42,7 @@ def test_expected_sales_charts_exist() -> None:
         _quality_score(),
         _manipulation_summary(),
         trend_analysis=_trend_analysis(),
+        forecast_analysis=_forecast_analysis(),
     )
     chart_ids = {chart.chart_id for chart in chart_data.charts}
 
@@ -46,6 +53,8 @@ def test_expected_sales_charts_exist() -> None:
     assert "monthly_order_count_trend" in chart_ids
     assert "average_order_value_trend" in chart_ids
     assert "average_discount_trend" in chart_ids
+    assert "revenue_forecast_baseline" in chart_ids
+    assert "order_count_forecast_baseline" in chart_ids
     assert "discount_summary_by_product" in chart_ids
     assert "anomalies_by_severity" in chart_ids
     assert "data_quality_score" in chart_ids
@@ -59,6 +68,7 @@ def test_revenue_chart_data_is_sorted_by_value_descending() -> None:
         _quality_score(),
         _manipulation_summary(),
         trend_analysis=_trend_analysis(),
+        forecast_analysis=_forecast_analysis(),
     )
     region_chart = _chart_by_id(chart_data.charts, "revenue_by_region")
 
@@ -81,6 +91,7 @@ def test_each_chart_has_visual_analytics_context() -> None:
         _quality_score(),
         _manipulation_summary(),
         trend_analysis=_trend_analysis(),
+        forecast_analysis=_forecast_analysis(),
     )
 
     for chart in chart_data.charts:
@@ -97,6 +108,7 @@ def test_monthly_revenue_trend_is_chronological() -> None:
         _quality_score(),
         _manipulation_summary(),
         trend_analysis=_trend_analysis(),
+        forecast_analysis=_forecast_analysis(),
     )
     chart = _chart_by_id(chart_data.charts, "monthly_net_revenue_trend")
 
@@ -112,6 +124,7 @@ def test_time_series_trend_charts_use_trend_analysis() -> None:
         _quality_score(),
         _manipulation_summary(),
         trend_analysis=_trend_analysis(),
+        forecast_analysis=_forecast_analysis(),
     )
 
     order_chart = _chart_by_id(chart_data.charts, "monthly_order_count_trend")
@@ -124,6 +137,27 @@ def test_time_series_trend_charts_use_trend_analysis() -> None:
     assert [point.value for point in discount_chart.data] == [0.1, 0.2]
 
 
+def test_forecast_baseline_charts_include_context() -> None:
+    chart_data = build_sales_chart_data(
+        _kpi_result(),
+        _anomaly_result(),
+        _quality_score(),
+        _manipulation_summary(),
+        trend_analysis=_trend_analysis(),
+        forecast_analysis=_forecast_analysis(),
+    )
+
+    revenue_chart = _chart_by_id(chart_data.charts, "revenue_forecast_baseline")
+    order_chart = _chart_by_id(chart_data.charts, "order_count_forecast_baseline")
+
+    assert revenue_chart.chart_type == "line"
+    assert revenue_chart.business_question
+    assert revenue_chart.interpretation
+    assert revenue_chart.data[-1].label == "2026-03"
+    assert order_chart.business_question
+    assert order_chart.interpretation
+
+
 def test_pareto_chart_includes_cumulative_share() -> None:
     chart_data = build_sales_chart_data(
         _kpi_result(),
@@ -131,6 +165,7 @@ def test_pareto_chart_includes_cumulative_share() -> None:
         _quality_score(),
         _manipulation_summary(),
         trend_analysis=_trend_analysis(),
+        forecast_analysis=_forecast_analysis(),
     )
     chart = _chart_by_id(chart_data.charts, "pareto_revenue_by_product")
 
@@ -146,6 +181,7 @@ def test_quality_score_and_discount_charts_exist() -> None:
         _quality_score(),
         _manipulation_summary(),
         trend_analysis=_trend_analysis(),
+        forecast_analysis=_forecast_analysis(),
     )
 
     assert (
@@ -298,4 +334,41 @@ def _trend_summary(metric: str, direction: str) -> MetricTrendSummary:
         percent_change=100.0,
         direction=direction,
         interpretation=f"{metric} is {direction}.",
+    )
+
+
+def _forecast_analysis() -> ForecastAnalysis:
+    return ForecastAnalysis(
+        readiness_status="limited",
+        confidence_level="low",
+        next_period="2026-03",
+        revenue_forecast=_metric_forecast("revenue", 200.0),
+        order_count_forecast=_metric_forecast("order_count", 1.0),
+        average_order_value_forecast=_metric_forecast("average_order_value", 200.0),
+        units_sold_forecast=_metric_forecast("units_sold", 2.0),
+        average_discount_forecast=_metric_forecast("average_discount", 0.2),
+        warnings=["Forecasts are deterministic baselines."],
+        recommended_actions=[],
+    )
+
+
+def _metric_forecast(metric: str, value: float) -> MetricForecast:
+    point = ForecastPoint(
+        period="2026-03",
+        metric=metric,
+        forecast_value=value,
+        method="last_period",
+        confidence="low",
+        explanation="Uses the most recent observed monthly value.",
+    )
+    return MetricForecast(
+        metric=metric,
+        next_period="2026-03",
+        last_period_forecast=point,
+        moving_average_forecast=point,
+        trend_projection_forecast=point,
+        selected_baseline_method="last_period",
+        selected_forecast_value=value,
+        confidence="low",
+        warnings=[],
     )

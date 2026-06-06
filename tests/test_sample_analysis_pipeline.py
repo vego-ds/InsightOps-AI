@@ -13,6 +13,7 @@ def test_sample_analysis_pipeline_returns_expected_sections() -> None:
     assert result.transformation_log
     assert result.manipulation_summary
     assert result.trend_analysis
+    assert result.forecast_analysis
     assert result.kpis
     assert result.security
     assert result.anomalies
@@ -58,6 +59,11 @@ def test_sample_analysis_pipeline_returns_preparation_details() -> None:
     assert result.trend_analysis.period_grain == "month"
     assert result.trend_analysis.total_periods >= 1
     assert result.trend_analysis.revenue_trend.metric == "revenue"
+    assert result.forecast_analysis.readiness_status in {
+        "ready",
+        "limited",
+        "not_ready",
+    }
 
 
 def test_sample_analysis_pipeline_returns_quality_score_details() -> None:
@@ -97,6 +103,10 @@ def test_sample_analysis_pipeline_returns_recommendations_and_workflows() -> Non
     )
     assert any(
         event.event_type == "trend_analysis_completed"
+        for event in result.audit_events
+    )
+    assert any(
+        event.event_type == "forecast_analysis_completed"
         for event in result.audit_events
     )
     assert any(

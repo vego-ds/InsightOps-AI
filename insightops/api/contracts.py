@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from insightops.anomalies.detector import AnomalyDetectionResult
 from insightops.audit.events import AuditEvent
 from insightops.charts.chart_data import SalesChartData
+from insightops.forecasting.baselines import ForecastAnalysis
 from insightops.governance.quality_gate import QualityGateResult
 from insightops.insights.generator import ExecutiveInsightReport
 from insightops.lineage.transformation_log import TransformationLog
@@ -29,6 +30,7 @@ class AnalysisResponse(BaseModel):
     transformation_log: TransformationLog
     manipulation_summary: ManipulationSummary
     trend_analysis: TimeSeriesTrendAnalysis
+    forecast_analysis: ForecastAnalysis
     kpis: SalesKPIResult
     security: SecurityScanResult
     anomalies: AnomalyDetectionResult

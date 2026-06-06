@@ -12,6 +12,7 @@ EXPECTED_ANALYSIS_SECTIONS = {
     "transformation_log",
     "manipulation_summary",
     "trend_analysis",
+    "forecast_analysis",
     "kpis",
     "security",
     "anomalies",
@@ -68,6 +69,13 @@ def test_analysis_sample_returns_validation_and_kpis() -> None:
     assert trends["total_periods"] >= 1
     assert "revenue_trend" in trends
     assert "average_discount_trend" in trends
+
+    forecast = payload["forecast_analysis"]
+    assert "readiness_status" in forecast
+    assert "confidence_level" in forecast
+    assert "next_period" in forecast
+    assert isinstance(forecast["warnings"], list)
+    assert isinstance(forecast["recommended_actions"], list)
 
     kpis = payload["kpis"]
     assert kpis["total_orders"] == 3

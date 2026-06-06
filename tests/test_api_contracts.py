@@ -19,6 +19,7 @@ def test_analysis_response_can_be_created_from_sample_pipeline_result() -> None:
     assert response.transformation_log
     assert response.manipulation_summary
     assert response.trend_analysis
+    assert response.forecast_analysis
     assert response.kpis
     assert response.security
     assert response.anomalies

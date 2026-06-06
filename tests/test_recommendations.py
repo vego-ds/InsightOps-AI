@@ -1,6 +1,7 @@
 from tests.test_markdown_report import _minimal_analysis_response
 
 from insightops.anomalies.detector import SalesAnomaly
+from insightops.forecasting.baselines import ForecastPoint, MetricForecast
 from insightops.recommendations.action_plan import generate_recommendation_plan
 
 
@@ -129,6 +130,65 @@ def test_increasing_discount_trend_produces_discount_review() -> None:
     assert "average_discount_trend" in recommendation.related_chart_ids
 
 
+def test_forecast_not_ready_produces_readiness_recommendation() -> None:
+    analysis = _minimal_analysis_response()
+    analysis.forecast_analysis.readiness_status = "not_ready"
+    analysis.forecast_analysis.confidence_level = "low"
+
+    plan = generate_recommendation_plan(analysis)
+
+    recommendation = _recommendation_by_id(plan, "forecast_readiness_001")
+    assert recommendation.business_area == "forecasting_readiness"
+    assert recommendation.workflow_stage == "forecasting_readiness"
+
+
+def test_limited_forecast_produces_baseline_review_recommendation() -> None:
+    analysis = _minimal_analysis_response()
+    analysis.forecast_analysis.readiness_status = "limited"
+    analysis.forecast_analysis.confidence_level = "low"
+
+    plan = generate_recommendation_plan(analysis)
+
+    recommendation = _recommendation_by_id(plan, "baseline_forecast_review_001")
+    assert recommendation.business_area == "planning"
+    assert "revenue_forecast_baseline" in recommendation.related_chart_ids
+
+
+def test_declining_revenue_forecast_produces_risk_recommendation() -> None:
+    analysis = _minimal_analysis_response()
+    forecast = _metric_forecast("revenue", selected_value=150.0, latest_value=200.0)
+    analysis.forecast_analysis.revenue_forecast = forecast
+    forecast.last_period_forecast.forecast_value = 200.0
+    forecast.selected_forecast_value = 150.0
+
+    plan = generate_recommendation_plan(analysis)
+
+    recommendation = _recommendation_by_id(plan, "forecast_revenue_risk_001")
+    assert recommendation.business_area == "revenue_planning"
+    assert "revenue_forecast_baseline" in recommendation.related_chart_ids
+
+
+def test_increasing_discount_forecast_produces_pressure_recommendation() -> None:
+    analysis = _minimal_analysis_response()
+    forecast = _metric_forecast(
+        "average_discount",
+        selected_value=0.2,
+        latest_value=0.1,
+    )
+    analysis.forecast_analysis.average_discount_forecast = forecast
+    forecast.last_period_forecast.forecast_value = 0.1
+    forecast.selected_forecast_value = 0.2
+
+    plan = generate_recommendation_plan(analysis)
+
+    recommendation = _recommendation_by_id(
+        plan,
+        "forecast_discount_pressure_001",
+    )
+    assert recommendation.business_area == "pricing_discipline"
+    assert recommendation.workflow_stage == "pricing_discipline"
+
+
 def test_clean_analysis_returns_empty_recommendation_plan() -> None:
     analysis = _minimal_analysis_response()
     analysis.quality_gate.status = "pass"
@@ -138,6 +198,8 @@ def test_clean_analysis_returns_empty_recommendation_plan() -> None:
     analysis.quality_gate.human_review_required = False
     analysis.quality_score.score = 100
     analysis.quality_score.grade = "excellent"
+    analysis.forecast_analysis.readiness_status = "ready"
+    analysis.forecast_analysis.confidence_level = "medium"
 
     plan = generate_recommendation_plan(analysis)
 
@@ -177,4 +239,39 @@ def _discount_summary(product: str, average_discount: float):
         average_discount=average_discount,
         discounted_order_count=1,
         total_orders=1,
+    )
+
+
+def _metric_forecast(
+    metric: str,
+    *,
+    selected_value: float,
+    latest_value: float,
+) -> MetricForecast:
+    latest = ForecastPoint(
+        period="2026-02",
+        metric=metric,
+        forecast_value=latest_value,
+        method="last_period",
+        confidence="low",
+        explanation="Uses latest value.",
+    )
+    selected = ForecastPoint(
+        period="2026-02",
+        metric=metric,
+        forecast_value=selected_value,
+        method="moving_average",
+        confidence="low",
+        explanation="Uses baseline average.",
+    )
+    return MetricForecast(
+        metric=metric,
+        next_period="2026-02",
+        last_period_forecast=latest,
+        moving_average_forecast=selected,
+        trend_projection_forecast=selected,
+        selected_baseline_method="moving_average",
+        selected_forecast_value=selected_value,
+        confidence="low",
+        warnings=[],
     )

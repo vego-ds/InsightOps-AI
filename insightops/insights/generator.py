@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 
 from insightops.anomalies.detector import AnomalyDetectionResult
 from insightops.anomalies.interpretation import summarize_anomaly_methods
+from insightops.forecasting.baselines import ForecastAnalysis
 from insightops.governance.quality_gate import QualityGateResult
 from insightops.metrics.kpis import SalesKPIResult
 from insightops.preparation.manipulations import ManipulationSummary
@@ -44,6 +45,7 @@ def generate_executive_insights(
     preparation: PreparedSalesDataset | None = None,
     manipulation_summary: ManipulationSummary | None = None,
     trend_analysis: TimeSeriesTrendAnalysis | None = None,
+    forecast_analysis: ForecastAnalysis | None = None,
 ) -> ExecutiveInsightReport:
     insights: list[ExecutiveInsight] = []
     recommended_actions: list[str] = []
@@ -434,6 +436,121 @@ def generate_executive_insights(
                 )
             )
 
+    if forecast_analysis:
+        if forecast_analysis.readiness_status == "not_ready":
+            insights.append(
+                ExecutiveInsight(
+                    insight_id="forecast_readiness_001",
+                    insight_type="forecast_readiness",
+                    severity="medium",
+                    title="Forecast readiness is insufficient",
+                    message=(
+                        "The dataset does not have enough reliable monthly "
+                        "history for planning forecasts."
+                    ),
+                    evidence={
+                        "readiness_status": forecast_analysis.readiness_status,
+                        "confidence_level": forecast_analysis.confidence_level,
+                    },
+                )
+            )
+        elif forecast_analysis.readiness_status == "limited":
+            insights.append(
+                ExecutiveInsight(
+                    insight_id="forecast_readiness_001",
+                    insight_type="forecast_readiness",
+                    severity="low",
+                    title="Baseline forecasts are low confidence",
+                    message=(
+                        "Only limited monthly history is available, so "
+                        "baseline forecasts should be treated as directional."
+                    ),
+                    evidence={
+                        "readiness_status": forecast_analysis.readiness_status,
+                        "confidence_level": forecast_analysis.confidence_level,
+                    },
+                )
+            )
+        else:
+            revenue_value = _selected_forecast_value(
+                forecast_analysis.revenue_forecast
+            )
+            order_count_value = _selected_forecast_value(
+                forecast_analysis.order_count_forecast
+            )
+            insights.append(
+                ExecutiveInsight(
+                    insight_id="forecast_revenue_001",
+                    insight_type="forecast_revenue",
+                    severity=(
+                        "medium"
+                        if _forecast_declines(
+                            forecast_analysis.revenue_forecast
+                        )
+                        else "info"
+                    ),
+                    title=(
+                        "Revenue baseline forecast indicates planning risk"
+                        if _forecast_declines(
+                            forecast_analysis.revenue_forecast
+                        )
+                        else "Revenue baseline forecast is available"
+                    ),
+                    message=(
+                        "The selected revenue baseline forecast for the next "
+                        f"period is {revenue_value:.2f}."
+                    ),
+                    evidence={
+                        "next_period": forecast_analysis.next_period or "",
+                        "selected_forecast_value": revenue_value,
+                    },
+                )
+            )
+            insights.append(
+                ExecutiveInsight(
+                    insight_id="forecast_order_count_001",
+                    insight_type="forecast_order_count",
+                    severity="info",
+                    title="Order count baseline forecast is available",
+                    message=(
+                        "The selected order count baseline forecast for the "
+                        f"next period is {order_count_value:.2f}."
+                    ),
+                    evidence={
+                        "next_period": forecast_analysis.next_period or "",
+                        "selected_forecast_value": order_count_value,
+                    },
+                )
+            )
+
+        if _forecast_declines(forecast_analysis.revenue_forecast):
+            recommended_actions.append(
+                "Review pipeline and period drivers behind baseline revenue risk."
+            )
+
+        if _forecast_increases(forecast_analysis.average_discount_forecast):
+            insights.append(
+                ExecutiveInsight(
+                    insight_id="forecast_discount_001",
+                    insight_type="forecast_discount",
+                    severity="medium",
+                    title="Discount baseline forecast indicates pricing pressure",
+                    message=(
+                        "The average discount baseline forecast is higher than "
+                        "the latest observed discount level."
+                    ),
+                    evidence={
+                        "next_period": forecast_analysis.next_period or "",
+                        "selected_forecast_value": _selected_forecast_value(
+                            forecast_analysis.average_discount_forecast
+                        ),
+                    },
+                )
+            )
+            recommended_actions.append(
+                "Review discount approvals before using baseline forecasts for planning."
+            )
+
     anomaly_method_summary = summarize_anomaly_methods(anomalies)
     total_statistical_anomalies = int(
         anomaly_method_summary["total_statistical_anomalies"]
@@ -505,6 +622,24 @@ def _top_group(grouped_revenue: dict[str, float]) -> tuple[str, float]:
         grouped_revenue.items(),
         key=lambda item: (-item[1], item[0]),
     )[0]
+
+
+def _selected_forecast_value(forecast) -> float:
+    if forecast is None:
+        return 0.0
+    return forecast.selected_forecast_value
+
+
+def _forecast_declines(forecast) -> bool:
+    if forecast is None:
+        return False
+    return forecast.selected_forecast_value < forecast.last_period_forecast.forecast_value
+
+
+def _forecast_increases(forecast) -> bool:
+    if forecast is None:
+        return False
+    return forecast.selected_forecast_value > forecast.last_period_forecast.forecast_value
 
 
 def _discount_concentration(

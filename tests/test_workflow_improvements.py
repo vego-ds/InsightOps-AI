@@ -75,3 +75,30 @@ def test_trend_recommendations_generate_workflow_improvements() -> None:
     assert plan.workflows[0].related_recommendation_ids == [
         "revenue_trend_review_001"
     ]
+
+
+def test_forecast_recommendations_generate_named_workflows() -> None:
+    recommendation = BusinessRecommendation(
+        recommendation_id="forecast_readiness_001",
+        priority="medium",
+        business_area="forecasting_readiness",
+        title="Collect more history",
+        problem="Forecast readiness is not sufficient.",
+        evidence={"confidence_level": "low"},
+        recommended_action="Collect more monthly periods.",
+        expected_impact="Improves planning confidence.",
+        workflow_stage="forecasting_readiness",
+        owner_role="Revenue Operations Manager",
+        implementation_difficulty="medium",
+        follow_up_metric="monthly_period_count",
+    )
+
+    plan = generate_workflow_improvement_plan(
+        RecommendationPlan(
+            total_recommendations=1,
+            recommendations=[recommendation],
+        )
+    )
+
+    assert plan.total_workflows == 1
+    assert plan.workflows[0].workflow_name == "Forecasting Readiness Workflow"

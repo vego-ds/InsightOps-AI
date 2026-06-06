@@ -225,6 +225,43 @@ def _build_report_story(analysis: AnalysisResponse) -> list:
         ],
     )
 
+    _add_heading(story, styles, "Forecasting Readiness and Baseline Forecasts")
+    _add_bullets(
+        story,
+        styles,
+        [
+            "Forecast type: deterministic baseline forecasts, not ML forecasts.",
+            f"Readiness status: {analysis.forecast_analysis.readiness_status}",
+            f"Confidence level: {analysis.forecast_analysis.confidence_level}",
+            f"Next period: {analysis.forecast_analysis.next_period or 'none'}",
+            (
+                "Revenue forecast: "
+                f"{_format_metric_forecast(analysis.forecast_analysis.revenue_forecast)}"
+            ),
+            (
+                "Order count forecast: "
+                f"{_format_metric_forecast(analysis.forecast_analysis.order_count_forecast)}"
+            ),
+            (
+                "Average order value forecast: "
+                f"{_format_metric_forecast(analysis.forecast_analysis.average_order_value_forecast)}"
+            ),
+            (
+                "Units sold forecast: "
+                f"{_format_metric_forecast(analysis.forecast_analysis.units_sold_forecast)}"
+            ),
+            (
+                "Average discount forecast: "
+                f"{_format_metric_forecast(analysis.forecast_analysis.average_discount_forecast)}"
+            ),
+            f"Warnings: {_format_list(analysis.forecast_analysis.warnings)}",
+            (
+                "Recommended actions: "
+                f"{_format_list(analysis.forecast_analysis.recommended_actions)}"
+            ),
+        ],
+    )
+
     _add_heading(story, styles, "Security")
     security_items = [
         (
@@ -500,6 +537,18 @@ def _format_trend_summary(summary) -> str:
         f"percent_change={_format_optional_percent(summary.percent_change)}, "
         f"direction={summary.direction}, "
         f"interpretation={summary.interpretation}"
+    )
+
+
+def _format_metric_forecast(forecast) -> str:
+    if forecast is None:
+        return "none"
+
+    return (
+        f"next_period={forecast.next_period}, "
+        f"selected_method={forecast.selected_baseline_method}, "
+        f"selected_value={forecast.selected_forecast_value:.2f}, "
+        f"confidence={forecast.confidence}"
     )
 
 

@@ -3,6 +3,7 @@ from pathlib import Path
 from insightops.anomalies.detector import AnomalyDetectionResult
 from insightops.api.contracts import AnalysisResponse
 from insightops.charts.chart_data import SalesChartData
+from insightops.forecasting.baselines import generate_forecast_analysis
 from insightops.governance.quality_gate import evaluate_quality_gate
 from insightops.insights.generator import ExecutiveInsightReport
 from insightops.lineage.transformation_log import TransformationLog
@@ -71,6 +72,7 @@ def test_markdown_report_contains_expected_sections(tmp_path: Path) -> None:
     assert "Transformation Lineage" in report_text
     assert "Manipulation Summary" in report_text
     assert "Trend Analysis" in report_text
+    assert "Forecasting Readiness and Baseline Forecasts" in report_text
     assert "Visual Analytics" in report_text
     assert "Business question" in report_text
     assert "KPI Summary" in report_text
@@ -137,6 +139,17 @@ def _minimal_analysis_response() -> AnalysisResponse:
         manipulation_summary=ManipulationSummary(),
         trend_analysis=analyze_time_series_trends(
             PreparedSalesDataset(records=[], total_records=0)
+        ),
+        forecast_analysis=generate_forecast_analysis(
+            analyze_time_series_trends(
+                PreparedSalesDataset(records=[], total_records=0)
+            ),
+            evaluate_quality_gate(
+                validation,
+                data_profile,
+                quality_score,
+                security,
+            ),
         ),
         kpis=SalesKPIResult(
             total_revenue=0.0,

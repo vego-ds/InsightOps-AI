@@ -47,4 +47,12 @@ def _workflow_from_recommendation(recommendation) -> WorkflowImprovement:
 
 
 def _workflow_name(workflow_stage: str) -> str:
+    forecast_workflows = {
+        "forecasting_readiness": "Forecasting Readiness Workflow",
+        "sales_planning_review": "Sales Planning Review Workflow",
+        "pricing_discipline": "Pricing Discipline Workflow",
+    }
+    if workflow_stage in forecast_workflows:
+        return forecast_workflows[workflow_stage]
+
     return workflow_stage.replace("_", " ").title()

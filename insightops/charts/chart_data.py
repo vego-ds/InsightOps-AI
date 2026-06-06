@@ -12,6 +12,7 @@ from insightops.charts.interpretations import (
     top_category_interpretation,
     trend_direction_interpretation,
 )
+from insightops.forecasting.baselines import ForecastAnalysis, MetricForecast
 from insightops.insights.generator import ExecutiveInsightReport
 from insightops.metrics.kpis import SalesKPIResult
 from insightops.preparation.manipulations import ManipulationSummary
@@ -50,6 +51,7 @@ def build_sales_chart_data(
     manipulation_summary: ManipulationSummary | None = None,
     insights: ExecutiveInsightReport | None = None,
     trend_analysis: TimeSeriesTrendAnalysis | None = None,
+    forecast_analysis: ForecastAnalysis | None = None,
 ) -> SalesChartData:
     insight_ids = _insight_ids_by_type(insights)
     recommended_actions = insights.recommended_actions if insights else []
@@ -134,6 +136,40 @@ def build_sales_chart_data(
                 y_axis="average_discount",
                 business_question="Is discount pressure increasing over time?",
                 related_insight_ids=insight_ids.get("trend_discount", []),
+                recommended_actions=recommended_actions,
+            ),
+            _build_forecast_chart(
+                trend_analysis=trend_analysis,
+                forecast=(
+                    forecast_analysis.revenue_forecast
+                    if forecast_analysis is not None
+                    else None
+                ),
+                chart_id="revenue_forecast_baseline",
+                title="Revenue Baseline Forecast",
+                metric="revenue",
+                y_axis="revenue",
+                business_question=(
+                    "What is the deterministic baseline revenue for the next period?"
+                ),
+                related_insight_ids=insight_ids.get("forecast_revenue", []),
+                recommended_actions=recommended_actions,
+            ),
+            _build_forecast_chart(
+                trend_analysis=trend_analysis,
+                forecast=(
+                    forecast_analysis.order_count_forecast
+                    if forecast_analysis is not None
+                    else None
+                ),
+                chart_id="order_count_forecast_baseline",
+                title="Order Count Baseline Forecast",
+                metric="order_count",
+                y_axis="order_count",
+                business_question=(
+                    "What is the deterministic baseline order volume for the next period?"
+                ),
+                related_insight_ids=insight_ids.get("forecast_order_count", []),
                 recommended_actions=recommended_actions,
             ),
             _build_discount_summary_chart(
@@ -287,6 +323,58 @@ def _build_trend_chart(
             ChartDataPoint(label=point.period, value=getattr(point, metric))
             for point in ordered_points
         ],
+    )
+
+
+def _build_forecast_chart(
+    *,
+    trend_analysis: TimeSeriesTrendAnalysis | None,
+    forecast: MetricForecast | None,
+    chart_id: str,
+    title: str,
+    metric: str,
+    y_axis: str,
+    business_question: str,
+    related_insight_ids: list[str],
+    recommended_actions: list[str],
+) -> ChartSeries:
+    observed_points = trend_analysis.data if trend_analysis is not None else []
+    data = [
+        ChartDataPoint(label=point.period, value=getattr(point, metric))
+        for point in sorted(observed_points, key=lambda point: point.period)
+    ]
+    if forecast is not None:
+        data.append(
+            ChartDataPoint(
+                label=forecast.next_period,
+                value=forecast.selected_forecast_value,
+            )
+        )
+
+    return ChartSeries(
+        chart_id=chart_id,
+        title=title,
+        chart_type="line",
+        metric=metric,
+        x_axis="month",
+        y_axis=y_axis,
+        business_question=business_question,
+        interpretation=(
+            _forecast_interpretation(forecast)
+            if forecast is not None
+            else "No forecast baseline is available."
+        ),
+        related_insight_ids=related_insight_ids,
+        recommended_actions=recommended_actions,
+        data=data,
+    )
+
+
+def _forecast_interpretation(forecast: MetricForecast) -> str:
+    return (
+        f"Selected {forecast.selected_baseline_method} baseline for "
+        f"{forecast.next_period} is {forecast.selected_forecast_value:.2f} "
+        f"with {forecast.confidence} confidence."
     )
 
 

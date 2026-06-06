@@ -7,6 +7,7 @@ from insightops.audit.events import (
     create_csv_loaded_event,
     create_data_profile_generated_event,
     create_data_preparation_completed_event,
+    create_forecast_analysis_completed_event,
     create_insights_generated_event,
     create_kpi_computed_event,
     create_manipulation_summary_generated_event,
@@ -22,6 +23,7 @@ from insightops.audit.events import (
 )
 from insightops.api.contracts import AnalysisResponse
 from insightops.charts.chart_data import build_sales_chart_data
+from insightops.forecasting.baselines import generate_forecast_analysis
 from insightops.governance.quality_gate import evaluate_quality_gate
 from insightops.ingestion.csv_loader import load_sales_csv
 from insightops.insights.generator import generate_executive_insights
@@ -76,6 +78,7 @@ def analyze_sales_csv_file(
     )
     manipulation_summary = build_manipulation_summary(preparation)
     trend_analysis = analyze_time_series_trends(preparation)
+    forecast_analysis = generate_forecast_analysis(trend_analysis, quality_gate)
     kpis = compute_sales_kpis(validation_report.records)
     anomalies = detect_sales_anomalies(validation_report.records)
     insights = generate_executive_insights(
@@ -89,6 +92,7 @@ def analyze_sales_csv_file(
         preparation,
         manipulation_summary,
         trend_analysis,
+        forecast_analysis,
     )
     charts = build_sales_chart_data(
         kpis,
@@ -97,6 +101,7 @@ def analyze_sales_csv_file(
         manipulation_summary,
         insights,
         trend_analysis,
+        forecast_analysis,
     )
     recommendation_plan = generate_recommendation_plan(
         _analysis_without_recommendations(
@@ -109,6 +114,7 @@ def analyze_sales_csv_file(
             transformation_log=transformation_log,
             manipulation_summary=manipulation_summary,
             trend_analysis=trend_analysis,
+            forecast_analysis=forecast_analysis,
             kpis=kpis,
             security=security,
             anomalies=anomalies,
@@ -144,6 +150,10 @@ def analyze_sales_csv_file(
         ),
         create_manipulation_summary_generated_event(),
         create_trend_analysis_completed_event(trend_analysis.total_periods),
+        create_forecast_analysis_completed_event(
+            forecast_analysis.readiness_status,
+            forecast_analysis.confidence_level,
+        ),
         create_kpi_computed_event(kpis.total_orders, kpis.total_revenue),
         create_security_scan_completed_event(
             security.prompt_injection_detected,
@@ -172,6 +182,7 @@ def analyze_sales_csv_file(
         transformation_log=transformation_log,
         manipulation_summary=manipulation_summary,
         trend_analysis=trend_analysis,
+        forecast_analysis=forecast_analysis,
         kpis=kpis,
         security=security,
         anomalies=anomalies,
@@ -217,6 +228,7 @@ def _analysis_without_recommendations(
     transformation_log,
     manipulation_summary,
     trend_analysis,
+    forecast_analysis,
     kpis,
     security,
     anomalies,
@@ -238,6 +250,7 @@ def _analysis_without_recommendations(
         transformation_log=transformation_log,
         manipulation_summary=manipulation_summary,
         trend_analysis=trend_analysis,
+        forecast_analysis=forecast_analysis,
         kpis=kpis,
         security=security,
         anomalies=anomalies,

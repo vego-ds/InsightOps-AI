@@ -2,6 +2,11 @@ from insightops.anomalies.detector import (
     AnomalyDetectionResult,
     SalesAnomaly,
 )
+from insightops.forecasting.baselines import (
+    ForecastAnalysis,
+    ForecastPoint,
+    MetricForecast,
+)
 from insightops.governance.quality_gate import QualityGateResult
 from insightops.ingestion.csv_loader import load_sales_csv
 from insightops.insights.generator import generate_executive_insights
@@ -439,6 +444,55 @@ def test_insufficient_trend_data_produces_low_severity_insight() -> None:
     assert insight.severity == "low"
 
 
+def test_forecast_readiness_insight_is_generated() -> None:
+    report = generate_executive_insights(
+        _validation_report(),
+        _empty_kpis(),
+        _empty_anomalies(),
+        _safe_security(),
+        forecast_analysis=_forecast_analysis(readiness_status="not_ready"),
+    )
+
+    insight = _insight_by_type(report.insights, "forecast_readiness")
+
+    assert insight.insight_id == "forecast_readiness_001"
+    assert insight.severity == "medium"
+
+
+def test_revenue_forecast_insight_is_generated_when_ready() -> None:
+    report = generate_executive_insights(
+        _validation_report(),
+        _empty_kpis(),
+        _empty_anomalies(),
+        _safe_security(),
+        forecast_analysis=_forecast_analysis(readiness_status="ready"),
+    )
+
+    insight = _insight_by_type(report.insights, "forecast_revenue")
+
+    assert insight.insight_id == "forecast_revenue_001"
+    assert insight.evidence["selected_forecast_value"] == 120.0
+
+
+def test_discount_forecast_pressure_generates_pricing_insight() -> None:
+    report = generate_executive_insights(
+        _validation_report(),
+        _empty_kpis(),
+        _empty_anomalies(),
+        _safe_security(),
+        forecast_analysis=_forecast_analysis(
+            readiness_status="ready",
+            discount_selected=0.2,
+            discount_latest=0.1,
+        ),
+    )
+
+    insight = _insight_by_type(report.insights, "forecast_discount")
+
+    assert insight.insight_id == "forecast_discount_001"
+    assert insight.severity == "medium"
+
+
 def _insight_by_type(insights: list, insight_type: str):
     return next(insight for insight in insights if insight.insight_type == insight_type)
 
@@ -552,6 +606,72 @@ def _trend_summary(
         percent_change=percent_change,
         direction=direction,
         interpretation=f"{metric} is {direction}.",
+    )
+
+
+def _forecast_analysis(
+    *,
+    readiness_status: str,
+    discount_selected: float = 0.1,
+    discount_latest: float = 0.1,
+) -> ForecastAnalysis:
+    confidence = "medium" if readiness_status == "ready" else "low"
+    return ForecastAnalysis(
+        readiness_status=readiness_status,
+        confidence_level=confidence,
+        next_period="2026-04",
+        revenue_forecast=_metric_forecast("revenue", 120.0, 100.0, confidence),
+        order_count_forecast=_metric_forecast("order_count", 4.0, 3.0, confidence),
+        average_order_value_forecast=_metric_forecast(
+            "average_order_value",
+            30.0,
+            30.0,
+            confidence,
+        ),
+        units_sold_forecast=_metric_forecast("units_sold", 12.0, 10.0, confidence),
+        average_discount_forecast=_metric_forecast(
+            "average_discount",
+            discount_selected,
+            discount_latest,
+            confidence,
+        ),
+        warnings=["Forecasts are deterministic baselines."],
+        recommended_actions=[],
+    )
+
+
+def _metric_forecast(
+    metric: str,
+    selected_value: float,
+    latest_value: float,
+    confidence: str,
+) -> MetricForecast:
+    latest = ForecastPoint(
+        period="2026-04",
+        metric=metric,
+        forecast_value=latest_value,
+        method="last_period",
+        confidence=confidence,
+        explanation="Uses latest observed value.",
+    )
+    selected = ForecastPoint(
+        period="2026-04",
+        metric=metric,
+        forecast_value=selected_value,
+        method="moving_average",
+        confidence=confidence,
+        explanation="Uses baseline moving average.",
+    )
+    return MetricForecast(
+        metric=metric,
+        next_period="2026-04",
+        last_period_forecast=latest,
+        moving_average_forecast=selected,
+        trend_projection_forecast=selected,
+        selected_baseline_method="moving_average",
+        selected_forecast_value=selected_value,
+        confidence=confidence,
+        warnings=[],
     )
 
 

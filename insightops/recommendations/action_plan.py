@@ -51,6 +51,10 @@ def generate_recommendation_plan(
             _revenue_trend_recommendation(analysis),
             _order_volume_trend_recommendation(analysis),
             _discount_trend_recommendation(analysis),
+            _forecast_readiness_recommendation(analysis),
+            _baseline_forecast_review_recommendation(analysis),
+            _forecast_revenue_risk_recommendation(analysis),
+            _forecast_discount_pressure_recommendation(analysis),
         ]
         if recommendation is not None
     ]
@@ -443,6 +447,139 @@ def _discount_trend_recommendation(
         implementation_difficulty="medium",
         follow_up_metric="average_discount",
         related_insight_ids=_insight_ids(analysis, "trend_discount"),
+        related_chart_ids=["average_discount_trend"],
+    )
+
+
+def _forecast_readiness_recommendation(
+    analysis: AnalysisResponse,
+) -> BusinessRecommendation | None:
+    forecast = analysis.forecast_analysis
+    if forecast.readiness_status != "not_ready":
+        return None
+
+    return BusinessRecommendation(
+        recommendation_id="forecast_readiness_001",
+        priority="medium",
+        business_area="forecasting_readiness",
+        title="Collect more monthly history before planning forecasts",
+        problem="Forecast readiness is not sufficient for planning use.",
+        evidence={
+            "readiness_status": forecast.readiness_status,
+            "confidence_level": forecast.confidence_level,
+        },
+        recommended_action=(
+            "Collect more monthly sales periods and resolve quality blockers "
+            "before using forecasts for planning."
+        ),
+        expected_impact="Improves forecast reliability and planning confidence.",
+        workflow_stage="forecasting_readiness",
+        owner_role="Revenue Operations Manager",
+        implementation_difficulty="medium",
+        follow_up_metric="monthly_period_count",
+        related_insight_ids=_insight_ids(analysis, "forecast_readiness"),
+        related_chart_ids=[],
+    )
+
+
+def _baseline_forecast_review_recommendation(
+    analysis: AnalysisResponse,
+) -> BusinessRecommendation | None:
+    forecast = analysis.forecast_analysis
+    if forecast.readiness_status != "limited":
+        return None
+
+    return BusinessRecommendation(
+        recommendation_id="baseline_forecast_review_001",
+        priority="medium",
+        business_area="planning",
+        title="Use baseline forecasts only as directional planning signals",
+        problem="Only limited monthly history is available for forecasting.",
+        evidence={
+            "readiness_status": forecast.readiness_status,
+            "confidence_level": forecast.confidence_level,
+        },
+        recommended_action=(
+            "Use baseline forecasts as directional signals and validate them "
+            "against pipeline and market context."
+        ),
+        expected_impact="Reduces overconfidence in limited-history planning.",
+        workflow_stage="sales_planning_review",
+        owner_role="Sales Planning Lead",
+        implementation_difficulty="low",
+        follow_up_metric="forecast_confidence_level",
+        related_insight_ids=_insight_ids(analysis, "forecast_readiness"),
+        related_chart_ids=[
+            "revenue_forecast_baseline",
+            "order_count_forecast_baseline",
+        ],
+    )
+
+
+def _forecast_revenue_risk_recommendation(
+    analysis: AnalysisResponse,
+) -> BusinessRecommendation | None:
+    forecast = analysis.forecast_analysis.revenue_forecast
+    if forecast is None:
+        return None
+    if forecast.selected_forecast_value >= forecast.last_period_forecast.forecast_value:
+        return None
+
+    return BusinessRecommendation(
+        recommendation_id="forecast_revenue_risk_001",
+        priority="medium",
+        business_area="revenue_planning",
+        title="Review baseline revenue forecast risk",
+        problem="The selected revenue baseline is below the latest observed month.",
+        evidence={
+            "latest_observed_revenue": forecast.last_period_forecast.forecast_value,
+            "selected_forecast_value": forecast.selected_forecast_value,
+            "selected_method": forecast.selected_baseline_method,
+        },
+        recommended_action=(
+            "Review pipeline coverage, recent period drivers, and conversion "
+            "risk before finalizing the next planning cycle."
+        ),
+        expected_impact="Improves early revenue risk detection.",
+        workflow_stage="sales_planning_review",
+        owner_role="Sales Director",
+        implementation_difficulty="medium",
+        follow_up_metric="forecast_revenue_gap",
+        related_insight_ids=_insight_ids(analysis, "forecast_revenue"),
+        related_chart_ids=["revenue_forecast_baseline"],
+    )
+
+
+def _forecast_discount_pressure_recommendation(
+    analysis: AnalysisResponse,
+) -> BusinessRecommendation | None:
+    forecast = analysis.forecast_analysis.average_discount_forecast
+    if forecast is None:
+        return None
+    if forecast.selected_forecast_value <= forecast.last_period_forecast.forecast_value:
+        return None
+
+    return BusinessRecommendation(
+        recommendation_id="forecast_discount_pressure_001",
+        priority="medium",
+        business_area="pricing_discipline",
+        title="Review forecast discount pressure",
+        problem="The selected average discount baseline is above the latest observed month.",
+        evidence={
+            "latest_observed_discount": forecast.last_period_forecast.forecast_value,
+            "selected_forecast_value": forecast.selected_forecast_value,
+            "selected_method": forecast.selected_baseline_method,
+        },
+        recommended_action=(
+            "Review discount approval workflows and identify the causes of "
+            "forecast discount pressure."
+        ),
+        expected_impact="Improves margin discipline in planning conversations.",
+        workflow_stage="pricing_discipline",
+        owner_role="Sales Operations Manager",
+        implementation_difficulty="medium",
+        follow_up_metric="forecast_average_discount",
+        related_insight_ids=_insight_ids(analysis, "forecast_discount"),
         related_chart_ids=["average_discount_trend"],
     )
 

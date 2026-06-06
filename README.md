@@ -11,6 +11,7 @@ InsightOps-AI is a production-style sales analytics automation platform. It coll
 - Data quality gate with pass, warning, and blocked governance status.
 - Manipulation summaries for monthly revenue, rankings, and discount behavior.
 - Monthly trend analysis for revenue, order volume, units sold, average order value, and discount behavior.
+- Forecast readiness checks and deterministic baseline forecasts for planning.
 - KPI computation from valid records.
 - Prompt-injection guardrails and human-review flags.
 - Deterministic anomaly detection.
@@ -31,7 +32,7 @@ InsightOps-AI is a production-style sales analytics automation platform. It coll
 FastAPI routes
   -> analysis pipeline
   -> collection / validation / profiling / quality gate
-  -> preparation / manipulation / trends / KPIs / anomalies
+  -> preparation / manipulation / trends / baseline forecasts / KPIs / anomalies
   -> insights / visual analytics / recommendations / audit events
   -> typed API response
 ```
@@ -58,6 +59,7 @@ Both analysis endpoints return:
 - `transformation_log`
 - `manipulation_summary`
 - `trend_analysis`
+- `forecast_analysis`
 - `kpis`
 - `security`
 - `anomalies`
@@ -71,7 +73,8 @@ Phase 2 analytics depth now makes the data lifecycle explicit. Source metadata
 captures collection context, preparation creates deterministic derived fields,
 transformation lineage explains what changed, manipulation summaries expose
 monthly revenue, ranked entities, and discount behavior, trend analysis summarizes
-time-based business performance, and quality scoring
+time-based business performance, baseline forecasting provides deterministic
+last-period, moving-average, and trend-projection planning aids, and quality scoring
 returns a deterministic 0-100 score with issues and recommendations.
 Visual analytics now make charts evidence objects: outputs explain the business
 question, interpretation, and recommendation linkage behind each chart.
@@ -115,6 +118,13 @@ The optional narrative layer defaults to disabled mode and requires no API key. 
 - Markdown executive reports can be generated from analysis outputs.
 - PDF executive reports can be generated from analysis outputs.
 - Artifact generation is currently module-level and not exposed through API download endpoints.
+
+## Forecasting
+
+Forecasting is deterministic and baseline-only. The platform checks forecast
+readiness, then calculates last-period, moving-average, and simple trend
+projection baselines. These outputs are planning aids, not ML predictions,
+regression, or advanced forecasting models.
 
 ## Dashboard
 

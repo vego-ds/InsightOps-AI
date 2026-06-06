@@ -101,6 +101,20 @@ def create_trend_analysis_completed_event(total_periods: int) -> AuditEvent:
     )
 
 
+def create_forecast_analysis_completed_event(
+    readiness_status: str,
+    confidence_level: str,
+) -> AuditEvent:
+    return AuditEvent(
+        event_type="forecast_analysis_completed",
+        message="Sales forecast analysis completed.",
+        metadata={
+            "readiness_status": readiness_status,
+            "confidence_level": confidence_level,
+        },
+    )
+
+
 def create_kpi_computed_event(
     total_orders: int,
     total_revenue: float,

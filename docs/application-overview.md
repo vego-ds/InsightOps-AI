@@ -2,7 +2,7 @@
 
 ## What InsightOps-AI Is
 
-InsightOps-AI is a deterministic sales analytics automation application. It accepts sales CSV data, validates and profiles the dataset, computes sales KPIs, summarizes historical monthly trends, detects anomalies, generates visual analytics context, and turns analytical findings into business recommendations and workflow improvement plans.
+InsightOps-AI is a deterministic sales analytics automation application. It accepts sales CSV data, validates and profiles the dataset, computes sales KPIs, summarizes historical monthly trends, produces baseline forecast planning aids, detects anomalies, generates visual analytics context, and turns analytical findings into business recommendations and workflow improvement plans.
 
 The application is designed as a governed analytics API with a lightweight static dashboard and module-level report artifact generation. It emphasizes explainability, auditability, and deterministic decision-support before any optional narrative generation.
 
@@ -38,6 +38,7 @@ InsightOps-AI helps convert raw sales CSVs into structured, audit-ready analytic
 - Transformation lineage for preparation steps.
 - Sales KPI computation.
 - Monthly trend analysis for revenue, order count, units sold, average order value, and average discount.
+- Forecast readiness checks and baseline forecasts using last-period, moving average, and simple trend projection methods.
 - Rule-based and IQR-based statistical anomaly detection.
 - Prompt-injection style text detection and human-review flags.
 - Visual analytics objects with business questions, interpretations, related insight IDs, and recommended actions.
@@ -59,6 +60,7 @@ CSV sample or upload
   -> preparation and transformation lineage
   -> manipulation summaries
   -> monthly trend analysis
+  -> baseline forecast analysis
   -> KPIs
   -> anomaly detection
   -> executive insights
@@ -81,7 +83,7 @@ Audit events record major pipeline stages so outputs can be traced back to valid
 
 ## Visual Analytics And Recommendations
 
-Visual analytics are treated as evidence objects rather than simple chart data. Trend charts show historical monthly movement for revenue, order count, average order value, and average discount. They do not perform forecasting. Each chart includes:
+Visual analytics are treated as evidence objects rather than simple chart data. Trend charts show historical monthly movement for revenue, order count, average order value, and average discount. Forecast charts add deterministic next-period baselines for planning. They do not use ML, regression, or advanced forecasting libraries. Each chart includes:
 
 - a business question
 - a deterministic interpretation

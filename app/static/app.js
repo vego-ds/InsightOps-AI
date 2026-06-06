@@ -77,6 +77,7 @@ function renderResults(data) {
     renderTransformationLog(data.transformation_log),
     renderManipulationSummary(data.manipulation_summary),
     renderTrendAnalysis(data.trend_analysis),
+    renderForecastAnalysis(data.forecast_analysis),
     renderKpis(data.kpis),
     renderSecurity(data.security),
     renderAnomalies(data.anomalies),
@@ -354,6 +355,72 @@ function renderKpis(kpis) {
       ["Average Order Value", formatMoney(kpis.average_order_value)],
     ]),
   );
+}
+
+function renderForecastAnalysis(forecastAnalysis) {
+  return panel(
+    "Forecast Analysis",
+    `
+      ${metricGrid([
+        ["Readiness Status", forecastAnalysis.readiness_status],
+        ["Confidence Level", forecastAnalysis.confidence_level],
+        ["Next Period", forecastAnalysis.next_period || "None"],
+      ])}
+      <h3>Warnings</h3>
+      ${list(forecastAnalysis.warnings, "No forecast warnings.")}
+      <h3>Recommended Actions</h3>
+      ${list(forecastAnalysis.recommended_actions, "No forecast actions.")}
+      <h3>Baseline Forecasts</h3>
+      ${[
+        ["Revenue", forecastAnalysis.revenue_forecast],
+        ["Order Count", forecastAnalysis.order_count_forecast],
+        ["Average Order Value", forecastAnalysis.average_order_value_forecast],
+        ["Units Sold", forecastAnalysis.units_sold_forecast],
+        ["Average Discount", forecastAnalysis.average_discount_forecast],
+      ]
+        .map(([label, forecast]) => renderMetricForecast(label, forecast))
+        .join("")}
+    `,
+  );
+}
+
+function renderMetricForecast(label, forecast) {
+  if (!forecast) {
+    return `
+      <article class="chart-card">
+        <h3>${escapeHtml(label)}</h3>
+        <p>No forecast available.</p>
+      </article>
+    `;
+  }
+
+  return `
+    <article class="chart-card">
+      <h3>${escapeHtml(label)}</h3>
+      ${metricGrid([
+        ["Selected Method", forecast.selected_baseline_method],
+        ["Selected Forecast", forecast.selected_forecast_value],
+        ["Confidence", forecast.confidence],
+        ["Next Period", forecast.next_period],
+      ])}
+      ${table(
+        ["Method", "Forecast Value", "Confidence", "Explanation"],
+        [
+          forecast.last_period_forecast,
+          forecast.moving_average_forecast,
+          forecast.trend_projection_forecast,
+        ].map((point) => [
+          point.method,
+          point.forecast_value,
+          point.confidence,
+          point.explanation,
+        ]),
+        "No forecast methods available.",
+      )}
+      <h4>Metric Warnings</h4>
+      ${list(forecast.warnings, "No metric warnings.")}
+    </article>
+  `;
 }
 
 function renderAnomalies(anomalies) {
