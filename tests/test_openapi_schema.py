@@ -32,9 +32,12 @@ def test_openapi_schema_documents_expected_api_contracts() -> None:
     assert "source_metadata" in analysis_properties
     assert "data_profile" in analysis_properties
     assert "quality_score" in analysis_properties
+    assert "quality_gate" in analysis_properties
     assert "preparation" in analysis_properties
     assert "transformation_log" in analysis_properties
     assert "manipulation_summary" in analysis_properties
+    assert "recommendation_plan" in analysis_properties
+    assert "workflow_improvement_plan" in analysis_properties
 
     chart_properties = components["ChartSeries"]["properties"]
     assert "business_question" in chart_properties
@@ -42,3 +45,8 @@ def test_openapi_schema_documents_expected_api_contracts() -> None:
     assert "related_insight_ids" in chart_properties
     assert "recommended_actions" in chart_properties
     assert "secondary_value" in components["ChartDataPoint"]["properties"]
+
+    anomaly_properties = components["SalesAnomaly"]["properties"]
+    assert "method" in anomaly_properties
+    assert "threshold" in anomaly_properties
+    assert "comparison" in anomaly_properties

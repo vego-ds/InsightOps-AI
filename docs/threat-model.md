@@ -8,6 +8,7 @@
 - Generated reports.
 - API availability.
 - Future LLM boundaries.
+- Executive confidence decisions.
 
 ## Trust Boundaries
 
@@ -29,6 +30,8 @@
 - LLM hallucination if future providers are added.
 - OpenRouter API key exposure.
 - External provider outage or malformed response.
+- Low-quality data being presented as high-confidence executive output.
+- Missing data, duplicate order IDs, or invalid rows causing misleading analysis.
 
 ## Mitigations Implemented
 
@@ -41,6 +44,8 @@
 - OpenRouter credentials are environment-only and optional.
 - Provider errors and malformed responses fall back deterministically.
 - Prompt-injection and human-review cases block LLM provider calls.
+- Data quality gate assigns pass, warning, or blocked governance status.
+- Low-confidence or blocked gate outcomes restrict executive reporting and LLM narrative eligibility.
 - Typed API contracts.
 - Audit events.
 - `.gitignore` and `.dockerignore` for cache, env, and generated files.
@@ -55,6 +60,7 @@
 - Prompt-injection detection is phrase-based and conservative.
 - Dependency versions are not pinned.
 - OpenRouter narrative output can still be stylistically wrong or overconfident, so deterministic evidence remains the source of truth.
+- Low-quality source data can still require human remediation before business use.
 
 ## Future Mitigations
 
@@ -64,3 +70,4 @@
 - Pin dependencies or add lockfile workflow.
 - Add file content scanning beyond extension checks.
 - Add provider-specific monitoring and evaluation before relying on LLM narratives in production.
+- Persist quality gate decisions for governance review.

@@ -1,6 +1,8 @@
 from pydantic import BaseModel, Field
 
 from insightops.anomalies.detector import AnomalyDetectionResult
+from insightops.anomalies.interpretation import summarize_anomaly_methods
+from insightops.governance.quality_gate import QualityGateResult
 from insightops.metrics.kpis import SalesKPIResult
 from insightops.preparation.manipulations import ManipulationSummary
 from insightops.preparation.prepared_dataset import (
@@ -37,6 +39,7 @@ def generate_executive_insights(
     security: SecurityScanResult,
     data_profile: SalesDataProfile | None = None,
     quality_score: DataQualityScore | None = None,
+    quality_gate: QualityGateResult | None = None,
     preparation: PreparedSalesDataset | None = None,
     manipulation_summary: ManipulationSummary | None = None,
 ) -> ExecutiveInsightReport:
@@ -64,6 +67,61 @@ def generate_executive_insights(
         recommended_actions.append(
             "Review and correct invalid sales records before executive "
             "reporting."
+        )
+
+    if quality_gate and quality_gate.status == "blocked":
+        insights.append(
+            ExecutiveInsight(
+                insight_id="governance_blocked_001",
+                insight_type="governance",
+                severity="high",
+                title="Analysis governance gate blocked executive reporting",
+                message=(
+                    "The data quality gate determined that executive "
+                    "reporting should not proceed without remediation."
+                ),
+                evidence={
+                    "status": quality_gate.status,
+                    "confidence_level": quality_gate.confidence_level,
+                },
+            )
+        )
+        recommended_actions.extend(quality_gate.required_actions)
+    elif quality_gate and quality_gate.status == "warning":
+        insights.append(
+            ExecutiveInsight(
+                insight_id="governance_warning_001",
+                insight_type="governance",
+                severity="medium",
+                title="Analysis governance gate issued warnings",
+                message=(
+                    "The data quality gate allows analysis to proceed with "
+                    "reduced confidence and required review actions."
+                ),
+                evidence={
+                    "status": quality_gate.status,
+                    "confidence_level": quality_gate.confidence_level,
+                },
+            )
+        )
+        recommended_actions.extend(quality_gate.required_actions)
+
+    if quality_gate and quality_gate.confidence_level == "low":
+        insights.append(
+            ExecutiveInsight(
+                insight_id="low_confidence_001",
+                insight_type="analysis_confidence",
+                severity="high",
+                title="Executive reporting confidence is low",
+                message=(
+                    "The analysis confidence level is low, so executive "
+                    "outputs require remediation before use."
+                ),
+                evidence={
+                    "confidence_level": quality_gate.confidence_level,
+                    "status": quality_gate.status,
+                },
+            )
         )
 
     if quality_score and quality_score.grade in {"poor", "fair"}:
@@ -288,6 +346,50 @@ def generate_executive_insights(
         recommended_actions.append(
             "Investigate high-severity sales anomalies before final "
             "reporting."
+        )
+
+    anomaly_method_summary = summarize_anomaly_methods(anomalies)
+    total_statistical_anomalies = int(
+        anomaly_method_summary["total_statistical_anomalies"]
+    )
+    if total_statistical_anomalies > 0:
+        insights.append(
+            ExecutiveInsight(
+                insight_id="statistical_outliers_001",
+                insight_type="statistical_outliers",
+                severity="medium",
+                title="Statistical sales outliers detected",
+                message=(
+                    f"{total_statistical_anomalies} sales anomalies were "
+                    "detected using transparent statistical thresholds."
+                ),
+                evidence={
+                    "total_statistical_anomalies": total_statistical_anomalies,
+                },
+            )
+        )
+        recommended_actions.append(
+            "Review statistical outliers before using results for executive decisions."
+        )
+
+    product_relative_count = sum(
+        1
+        for anomaly in anomalies.anomalies
+        if anomaly.anomaly_type == "product_relative_high_revenue"
+    )
+    if product_relative_count > 0:
+        insights.append(
+            ExecutiveInsight(
+                insight_id="product_relative_outliers_001",
+                insight_type="product_relative_outliers",
+                severity="medium",
+                title="Product-relative revenue irregularities detected",
+                message=(
+                    f"{product_relative_count} records exceeded product-level "
+                    "revenue outlier thresholds."
+                ),
+                evidence={"product_relative_outlier_count": product_relative_count},
+            )
         )
 
     recommended_actions.append(

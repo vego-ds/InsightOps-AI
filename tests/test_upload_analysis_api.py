@@ -9,6 +9,7 @@ EXPECTED_ANALYSIS_SECTIONS = {
     "validation",
     "data_profile",
     "quality_score",
+    "quality_gate",
     "preparation",
     "transformation_log",
     "manipulation_summary",
@@ -17,6 +18,8 @@ EXPECTED_ANALYSIS_SECTIONS = {
     "anomalies",
     "charts",
     "insights",
+    "recommendation_plan",
+    "workflow_improvement_plan",
     "audit_events",
 }
 
@@ -39,6 +42,8 @@ def test_upload_analysis_accepts_valid_csv() -> None:
     assert payload["source_metadata"]["file_name"] == "sales_sample.csv"
     assert payload["data_profile"]["total_rows"] == 5
     assert payload["quality_score"]["grade"] == "fair"
+    assert payload["quality_gate"]["status"] == "warning"
+    assert payload["quality_gate"]["confidence_level"] == "medium"
     assert payload["preparation"]["total_records"] == 3
     assert payload["transformation_log"]["entries"]
     assert payload["manipulation_summary"]["ranked_products"]
@@ -47,6 +52,8 @@ def test_upload_analysis_accepts_valid_csv() -> None:
     assert first_chart["interpretation"]
     assert isinstance(first_chart["related_insight_ids"], list)
     assert isinstance(first_chart["recommended_actions"], list)
+    assert payload["recommendation_plan"]["total_recommendations"] >= 1
+    assert payload["workflow_improvement_plan"]["total_workflows"] >= 1
 
 
 def test_upload_analysis_rejects_non_csv_file() -> None:

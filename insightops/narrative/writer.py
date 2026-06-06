@@ -11,10 +11,26 @@ def generate_deterministic_narrative(
     evidence = _build_source_evidence(analysis)
     warnings = _build_warnings(analysis)
     actions = analysis.insights.recommended_actions
+    high_priority_count = sum(
+        1
+        for recommendation in analysis.recommendation_plan.recommendations
+        if recommendation.priority == "high"
+    )
     action_text = (
         " Recommended actions: " + "; ".join(actions) + "."
         if actions
         else " No recommended actions were generated."
+    )
+    recommendation_text = (
+        f" The recommendation engine produced "
+        f"{analysis.recommendation_plan.total_recommendations} business "
+        f"recommendations, including {high_priority_count} high-priority "
+        "recommendations."
+    )
+    workflow_text = (
+        f" It also identified "
+        f"{analysis.workflow_improvement_plan.total_workflows} workflow "
+        "improvements."
     )
 
     narrative = (
@@ -27,6 +43,8 @@ def generate_deterministic_narrative(
         f"anomalies. "
         f"Human security review required: "
         f"{analysis.security.human_review_required}."
+        f"{recommendation_text}"
+        f"{workflow_text}"
         f"{action_text}"
     )
 

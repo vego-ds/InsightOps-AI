@@ -23,28 +23,36 @@ CSV upload or sample data
   -> source metadata collection
   -> validation
   -> data profiling and quality scoring
+  -> security scan
+  -> quality gate and confidence assignment
   -> data preparation and transformation lineage
   -> manipulation summaries
   -> visual analytics
-  -> security scan
   -> KPI computation
   -> anomaly detection
   -> chart data generation
   -> executive insights
+  -> recommendations and workflow improvements
   -> audit events
   -> API response
 ```
 
 The pipeline explicitly covers collection, validation, profiling, quality
-scoring, preparation, manipulation, visual analytics, insights, reporting, and
-audit evidence. Data profiling and quality scoring sit immediately after
-validation, while preparation and manipulation create analysis-ready records and
+scoring, governance, preparation, manipulation, visual analytics, insights,
+reporting, and audit evidence. Data profiling, quality scoring, and the security
+scan feed the quality gate, which assigns confidence and controls LLM narrative
+eligibility. Preparation and manipulation then create analysis-ready records and
 summaries before downstream KPI, anomaly, chart, and insight generation.
 
 Visual analytics sits between manipulation summaries and executive
 insights/reporting. Charts are evidence objects, not just display objects: each
 chart includes a business question, deterministic interpretation, related
 insight IDs, recommended actions, and chart-ready data points.
+
+The recommendation engine sits after insights and visual analytics. It converts
+findings into business recommendations with evidence, owners, expected impact,
+follow-up metrics, and related insight/chart IDs. The workflow improvement plan
+maps recommendations into operational process changes.
 
 Report generation is available as deterministic module-level artifact generation. Markdown, PDF, and PNG chart artifacts are not currently exposed through API endpoints.
 
@@ -55,13 +63,16 @@ Report generation is available as deterministic module-level artifact generation
 - `insightops/validation`: `SalesRecord` validation and validation reports.
 - `insightops/sources`: dataset source metadata.
 - `insightops/profiling`: data profiles and quality scores.
+- `insightops/governance`: data quality gate and analysis confidence decisions.
 - `insightops/preparation`: cleaning, derived fields, and manipulation summaries.
 - `insightops/lineage`: transformation lineage models.
 - `insightops/metrics`: deterministic KPI computation.
 - `insightops/security`: prompt-injection style phrase detection and security scan results.
-- `insightops/anomalies`: deterministic anomaly detection.
+- `insightops/anomalies`: deterministic rule-based and statistical anomaly detection.
+- `insightops/statistics`: transparent robust statistics and IQR outlier helpers.
 - `insightops/charts`: visual analytics chart data, interpretation helpers, and PNG artifact generation.
 - `insightops/insights`: deterministic executive insight generation.
+- `insightops/recommendations`: business recommendation and workflow improvement plans.
 - `insightops/reports`: Markdown and PDF report artifact generation.
 - `insightops/narrative`: optional guarded narrative writer foundation.
 - `insightops/pipeline`: orchestration for sample and uploaded CSV analysis.
@@ -70,7 +81,7 @@ Report generation is available as deterministic module-level artifact generation
 
 ## Deterministic-First Design
 
-The core platform uses deterministic rules for collection metadata, validation, profiling, quality scoring, preparation, manipulation, metrics, security checks, anomalies, chart data, insights, reports, and audit events. This makes outputs explainable and testable before any optional LLM layer is introduced.
+The core platform uses deterministic rules for collection metadata, validation, profiling, quality scoring, governance gates, preparation, manipulation, metrics, security checks, anomalies, chart data, insights, reports, and audit events. Anomaly detection combines fixed business rules with transparent IQR-based statistical methods; no ML is used, and thresholds remain auditable. This makes outputs explainable and testable before any optional LLM layer is introduced.
 
 ## Optional LLM Narrative
 

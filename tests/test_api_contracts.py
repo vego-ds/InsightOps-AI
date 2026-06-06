@@ -14,6 +14,7 @@ def test_analysis_response_can_be_created_from_sample_pipeline_result() -> None:
     assert response.validation
     assert response.data_profile
     assert response.quality_score
+    assert response.quality_gate
     assert response.preparation
     assert response.transformation_log
     assert response.manipulation_summary
@@ -22,6 +23,8 @@ def test_analysis_response_can_be_created_from_sample_pipeline_result() -> None:
     assert response.anomalies
     assert response.charts
     assert response.insights
+    assert response.recommendation_plan
+    assert response.workflow_improvement_plan
     assert response.audit_events
 
 

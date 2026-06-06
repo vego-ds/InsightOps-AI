@@ -113,6 +113,25 @@ def _build_report_story(analysis: AnalysisResponse) -> list:
         ],
     )
 
+    _add_heading(story, styles, "Quality Gate and Analysis Confidence")
+    _add_bullets(
+        story,
+        styles,
+        [
+            f"Status: {analysis.quality_gate.status}",
+            f"Confidence level: {analysis.quality_gate.confidence_level}",
+            (
+                "Human review required: "
+                f"{analysis.quality_gate.human_review_required}"
+            ),
+            f"Reasons: {_format_list(analysis.quality_gate.reasons)}",
+            (
+                "Required actions: "
+                f"{_format_list(analysis.quality_gate.required_actions)}"
+            ),
+        ],
+    )
+
     _add_heading(story, styles, "Data Preparation")
     _add_bullets(
         story,
@@ -195,7 +214,10 @@ def _build_report_story(analysis: AnalysisResponse) -> list:
             (
                 f"{anomaly.anomaly_type} | severity={anomaly.severity} | "
                 f"order_id={anomaly.order_id} | field={anomaly.field} | "
-                f"value={anomaly.value} | {anomaly.message}"
+                f"value={anomaly.value} | method={anomaly.method or 'rule'} | "
+                f"threshold={_format_optional_float(anomaly.threshold)} | "
+                f"comparison={anomaly.comparison or 'none'} | "
+                f"{anomaly.message}"
             )
             for anomaly in analysis.anomalies.anomalies
         )
@@ -249,6 +271,53 @@ def _build_report_story(analysis: AnalysisResponse) -> list:
         styles,
         analysis.insights.recommended_actions or ["No recommended actions."],
     )
+
+    _add_heading(story, styles, "Business Recommendations")
+    if analysis.recommendation_plan.recommendations:
+        for recommendation in analysis.recommendation_plan.recommendations:
+            _add_paragraph(
+                story,
+                styles,
+                recommendation.title,
+                style_name="Heading3",
+            )
+            _add_bullets(
+                story,
+                styles,
+                [
+                    f"Priority: {recommendation.priority}",
+                    f"Business area: {recommendation.business_area}",
+                    f"Problem: {recommendation.problem}",
+                    f"Evidence: {_format_evidence(recommendation.evidence)}",
+                    (
+                        "Recommended action: "
+                        f"{recommendation.recommended_action}"
+                    ),
+                    f"Expected impact: {recommendation.expected_impact}",
+                    f"Owner role: {recommendation.owner_role}",
+                    f"Follow-up metric: {recommendation.follow_up_metric}",
+                ],
+            )
+    else:
+        _add_bullets(story, styles, ["No business recommendations generated."])
+
+    _add_heading(story, styles, "Workflow Improvements")
+    if analysis.workflow_improvement_plan.workflows:
+        for workflow in analysis.workflow_improvement_plan.workflows:
+            _add_paragraph(story, styles, workflow.workflow_name, style_name="Heading3")
+            _add_bullets(
+                story,
+                styles,
+                [
+                    f"Current issue: {workflow.current_issue}",
+                    f"Proposed change: {workflow.proposed_change}",
+                    f"Expected benefit: {workflow.expected_benefit}",
+                    f"Owner role: {workflow.owner_role}",
+                    f"Follow-up metric: {workflow.follow_up_metric}",
+                ],
+            )
+    else:
+        _add_bullets(story, styles, ["No workflow improvements generated."])
 
     _add_heading(story, styles, "Audit Events")
     if analysis.audit_events:
@@ -307,6 +376,12 @@ def _format_evidence_value(value: str | int | float | bool) -> str:
     if isinstance(value, float):
         return f"{value:.2f}"
     return str(value)
+
+
+def _format_optional_float(value: float | None) -> str:
+    if value is None:
+        return "none"
+    return f"{value:.2f}"
 
 
 def _format_date_range(analysis: AnalysisResponse) -> str:

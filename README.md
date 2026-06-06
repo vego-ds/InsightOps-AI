@@ -8,13 +8,17 @@ InsightOps-AI is a production-style sales analytics automation platform. It coll
 - Data collection metadata and transformation lineage.
 - Data preparation with deterministic derived analytical fields.
 - Data profiling and quality scoring foundation.
+- Data quality gate with pass, warning, and blocked governance status.
 - Manipulation summaries for monthly revenue, rankings, and discount behavior.
 - KPI computation from valid records.
 - Prompt-injection guardrails and human-review flags.
 - Deterministic anomaly detection.
 - Visual analytics that pair chart data with business questions, interpretations, related insight IDs, and recommended actions.
 - Chart-ready data plus backend PNG chart artifacts.
+- Rule-based and statistical IQR outlier detection, including product-relative revenue outliers.
 - Deterministic executive insights.
+- Business recommendations with evidence, owner roles, expected impact, and follow-up metrics.
+- Workflow improvement plans that translate findings into operational process changes.
 - Markdown and PDF report artifact generation.
 - Optional guarded narrative writer foundation, disabled by default.
 - Lightweight static dashboard demo.
@@ -48,6 +52,7 @@ Both analysis endpoints return:
 - `validation`
 - `data_profile`
 - `quality_score`
+- `quality_gate`
 - `preparation`
 - `transformation_log`
 - `manipulation_summary`
@@ -56,6 +61,8 @@ Both analysis endpoints return:
 - `anomalies`
 - `charts`
 - `insights`
+- `recommendation_plan`
+- `workflow_improvement_plan`
 - `audit_events`
 
 Phase 2 analytics depth now makes the data lifecycle explicit. Source metadata
@@ -65,6 +72,10 @@ monthly revenue, ranked entities, and discount behavior, and quality scoring
 returns a deterministic 0-100 score with issues and recommendations.
 Visual analytics now make charts evidence objects: outputs explain the business
 question, interpretation, and recommendation linkage behind each chart.
+The quality gate assigns analysis confidence and makes sure low-quality data
+does not silently become confident executive output.
+The recommendation engine turns analytics into stakeholder-ready action plans
+and workflow improvements.
 
 ## Quickstart
 

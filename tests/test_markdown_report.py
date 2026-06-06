@@ -3,6 +3,7 @@ from pathlib import Path
 from insightops.anomalies.detector import AnomalyDetectionResult
 from insightops.api.contracts import AnalysisResponse
 from insightops.charts.chart_data import SalesChartData
+from insightops.governance.quality_gate import evaluate_quality_gate
 from insightops.insights.generator import ExecutiveInsightReport
 from insightops.lineage.transformation_log import TransformationLog
 from insightops.metrics.kpis import SalesKPIResult
@@ -14,6 +15,10 @@ from insightops.profiling.quality_score import compute_data_quality_score
 from insightops.reports.artifacts import ReportArtifact
 from insightops.reports.markdown_report import (
     generate_executive_markdown_report,
+)
+from insightops.recommendations.action_plan import RecommendationPlan
+from insightops.recommendations.workflow_improvements import (
+    WorkflowImprovementPlan,
 )
 from insightops.security.policy import SecurityScanResult
 from insightops.sources.source_metadata import DatasetSourceMetadata
@@ -59,6 +64,7 @@ def test_markdown_report_contains_expected_sections(tmp_path: Path) -> None:
     assert "Data Quality" in report_text
     assert "Data Profile" in report_text
     assert "Quality Score" in report_text
+    assert "Quality Gate and Analysis Confidence" in report_text
     assert "Data Preparation" in report_text
     assert "Transformation Lineage" in report_text
     assert "Manipulation Summary" in report_text
@@ -66,6 +72,8 @@ def test_markdown_report_contains_expected_sections(tmp_path: Path) -> None:
     assert "Business question" in report_text
     assert "KPI Summary" in report_text
     assert "Executive Insights" in report_text
+    assert "Business Recommendations" in report_text
+    assert "Workflow Improvements" in report_text
     assert "Audit Events" in report_text
 
 
@@ -98,6 +106,11 @@ def _minimal_analysis_response() -> AnalysisResponse:
     validation = ValidationReport(total_rows=0, valid_rows=0, invalid_rows=0)
     data_profile = build_sales_data_profile(validation)
     quality_score = compute_data_quality_score(data_profile)
+    security = SecurityScanResult(
+        prompt_injection_detected=False,
+        flagged_fields=[],
+        human_review_required=False,
+    )
 
     return AnalysisResponse(
         source_metadata=DatasetSourceMetadata(
@@ -110,6 +123,12 @@ def _minimal_analysis_response() -> AnalysisResponse:
         validation=validation,
         data_profile=data_profile,
         quality_score=quality_score,
+        quality_gate=evaluate_quality_gate(
+            validation,
+            data_profile,
+            quality_score,
+            security,
+        ),
         preparation=PreparedSalesDataset(records=[], total_records=0),
         transformation_log=TransformationLog(entries=[]),
         manipulation_summary=ManipulationSummary(),
@@ -119,17 +138,21 @@ def _minimal_analysis_response() -> AnalysisResponse:
             total_units_sold=0,
             average_order_value=0.0,
         ),
-        security=SecurityScanResult(
-            prompt_injection_detected=False,
-            flagged_fields=[],
-            human_review_required=False,
-        ),
+        security=security,
         anomalies=AnomalyDetectionResult(total_anomalies=0, anomalies=[]),
         charts=SalesChartData(charts=[]),
         insights=ExecutiveInsightReport(
             summary="No notable issues.",
             insights=[],
             recommended_actions=[],
+        ),
+        recommendation_plan=RecommendationPlan(
+            total_recommendations=0,
+            recommendations=[],
+        ),
+        workflow_improvement_plan=WorkflowImprovementPlan(
+            total_workflows=0,
+            workflows=[],
         ),
         audit_events=[],
     )

@@ -48,6 +48,13 @@ def test_source_evidence_is_populated() -> None:
     assert narrative.source_evidence.insight_count > 0
 
 
+def test_narrative_mentions_recommendations_and_workflows() -> None:
+    narrative = generate_deterministic_narrative(analyze_sample_sales_data())
+
+    assert "business recommendations" in narrative.narrative
+    assert "workflow improvements" in narrative.narrative
+
+
 def test_default_provider_works_without_environment_variables(monkeypatch) -> None:
     monkeypatch.delenv("INSIGHTOPS_NARRATIVE_PROVIDER", raising=False)
 

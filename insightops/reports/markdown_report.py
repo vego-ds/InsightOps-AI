@@ -87,6 +87,20 @@ def _build_report_markdown(analysis: AnalysisResponse) -> str:
             f"{_format_list(analysis.quality_score.recommendations)}"
         ),
         "",
+        "## Quality Gate and Analysis Confidence",
+        "",
+        f"- Status: {analysis.quality_gate.status}",
+        f"- Confidence level: {analysis.quality_gate.confidence_level}",
+        (
+            "- Human review required: "
+            f"{analysis.quality_gate.human_review_required}"
+        ),
+        f"- Reasons: {_format_list(analysis.quality_gate.reasons)}",
+        (
+            "- Required actions: "
+            f"{_format_list(analysis.quality_gate.required_actions)}"
+        ),
+        "",
         "## Data Preparation",
         "",
         f"- Prepared records: {analysis.preparation.total_records}",
@@ -156,7 +170,11 @@ def _build_report_markdown(analysis: AnalysisResponse) -> str:
                 "- "
                 f"{anomaly.anomaly_type} | severity={anomaly.severity} | "
                 f"order_id={anomaly.order_id} | field={anomaly.field} | "
-                f"value={anomaly.value} | {anomaly.message}"
+                f"value={anomaly.value} | "
+                f"method={anomaly.method or 'rule'} | "
+                f"threshold={_format_optional_float(anomaly.threshold)} | "
+                f"comparison={anomaly.comparison or 'none'} | "
+                f"{anomaly.message}"
             )
     else:
         lines.append("- No anomalies detected.")
@@ -205,6 +223,45 @@ def _build_report_markdown(analysis: AnalysisResponse) -> str:
     else:
         lines.append("- No recommended actions.")
 
+    lines.extend(["", "## Business Recommendations", ""])
+
+    if analysis.recommendation_plan.recommendations:
+        for recommendation in analysis.recommendation_plan.recommendations:
+            lines.append(f"### {recommendation.title}")
+            lines.append("")
+            lines.append(f"- Priority: {recommendation.priority}")
+            lines.append(f"- Business area: {recommendation.business_area}")
+            lines.append(f"- Problem: {recommendation.problem}")
+            lines.append(
+                "- Evidence: "
+                f"{_format_evidence(recommendation.evidence)}"
+            )
+            lines.append(
+                "- Recommended action: "
+                f"{recommendation.recommended_action}"
+            )
+            lines.append(f"- Expected impact: {recommendation.expected_impact}")
+            lines.append(f"- Owner role: {recommendation.owner_role}")
+            lines.append(f"- Follow-up metric: {recommendation.follow_up_metric}")
+            lines.append("")
+    else:
+        lines.append("- No business recommendations generated.")
+
+    lines.extend(["", "## Workflow Improvements", ""])
+
+    if analysis.workflow_improvement_plan.workflows:
+        for workflow in analysis.workflow_improvement_plan.workflows:
+            lines.append(f"### {workflow.workflow_name}")
+            lines.append("")
+            lines.append(f"- Current issue: {workflow.current_issue}")
+            lines.append(f"- Proposed change: {workflow.proposed_change}")
+            lines.append(f"- Expected benefit: {workflow.expected_benefit}")
+            lines.append(f"- Owner role: {workflow.owner_role}")
+            lines.append(f"- Follow-up metric: {workflow.follow_up_metric}")
+            lines.append("")
+    else:
+        lines.append("- No workflow improvements generated.")
+
     lines.extend(["", "## Audit Events", ""])
 
     if analysis.audit_events:
@@ -231,6 +288,12 @@ def _format_evidence_value(value: str | int | float | bool) -> str:
     if isinstance(value, float):
         return f"{value:.2f}"
     return str(value)
+
+
+def _format_optional_float(value: float | None) -> str:
+    if value is None:
+        return "none"
+    return f"{value:.2f}"
 
 
 def _format_date_range(analysis: AnalysisResponse) -> str:

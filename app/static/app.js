@@ -72,6 +72,7 @@ function renderResults(data) {
     renderValidation(data.validation),
     renderDataProfile(data.data_profile),
     renderQualityScore(data.quality_score),
+    renderQualityGate(data.quality_gate),
     renderPreparation(data.preparation),
     renderTransformationLog(data.transformation_log),
     renderManipulationSummary(data.manipulation_summary),
@@ -80,6 +81,8 @@ function renderResults(data) {
     renderAnomalies(data.anomalies),
     renderCharts(data.charts),
     renderInsights(data.insights),
+    renderRecommendations(data.recommendation_plan),
+    renderWorkflowImprovements(data.workflow_improvement_plan),
     renderAuditEvents(data.audit_events),
   ].join("");
   resultsEl.hidden = false;
@@ -152,6 +155,27 @@ function renderQualityScore(qualityScore) {
       ${list(qualityScore.issues, "No quality issues detected.")}
       <h3>Recommendations</h3>
       ${list(qualityScore.recommendations, "No quality recommendations.")}
+    `,
+  );
+}
+
+function renderQualityGate(qualityGate) {
+  return panel(
+    "Quality Gate",
+    `
+      ${metricGrid([
+        ["Status", qualityGate.status],
+        ["Confidence", qualityGate.confidence_level],
+        ["Can Generate KPIs", qualityGate.can_generate_kpis],
+        ["Can Generate Charts", qualityGate.can_generate_charts],
+        ["Can Generate Reports", qualityGate.can_generate_reports],
+        ["Can Generate LLM Narrative", qualityGate.can_generate_llm_narrative],
+        ["Human Review Required", qualityGate.human_review_required],
+      ])}
+      <h3>Reasons</h3>
+      ${list(qualityGate.reasons, "No quality gate reasons available.")}
+      <h3>Required Actions</h3>
+      ${list(qualityGate.required_actions, "No required actions.")}
     `,
   );
 }
@@ -270,16 +294,29 @@ function renderAnomalies(anomalies) {
   const rows = anomalies.anomalies.map((anomaly) => [
     anomaly.anomaly_type,
     anomaly.severity,
+    anomaly.method || "rule",
     anomaly.order_id,
     anomaly.field,
     anomaly.value,
+    anomaly.threshold ?? "None",
+    anomaly.comparison || "None",
     anomaly.message,
   ]);
 
   return panel(
     "Anomaly Summary",
     `${metricGrid([["Total Anomalies", anomalies.total_anomalies]])}${table(
-      ["Type", "Severity", "Order ID", "Field", "Value", "Message"],
+      [
+        "Type",
+        "Severity",
+        "Method",
+        "Order ID",
+        "Field",
+        "Value",
+        "Threshold",
+        "Comparison",
+        "Message",
+      ],
       rows,
       "No anomalies detected.",
     )}`,
@@ -347,6 +384,65 @@ function renderInsights(insights) {
       <h3>Recommended Actions</h3>
       <ul>${actions}</ul>
     `,
+  );
+}
+
+function renderRecommendations(plan) {
+  const items = plan.recommendations.length
+    ? plan.recommendations
+        .map(
+          (recommendation) => `
+            <article class="chart-card">
+              <h3>${escapeHtml(recommendation.title)}</h3>
+              ${metricGrid([
+                ["Priority", recommendation.priority],
+                ["Business Area", recommendation.business_area],
+                ["Workflow Stage", recommendation.workflow_stage],
+                ["Owner Role", recommendation.owner_role],
+                ["Difficulty", recommendation.implementation_difficulty],
+                ["Follow-up Metric", recommendation.follow_up_metric],
+              ])}
+              <p><strong>Problem:</strong> ${escapeHtml(recommendation.problem)}</p>
+              <p><strong>Recommended Action:</strong> ${escapeHtml(recommendation.recommended_action)}</p>
+              <p><strong>Expected Impact:</strong> ${escapeHtml(recommendation.expected_impact)}</p>
+              <p><strong>Evidence:</strong> ${escapeHtml(formatObject(recommendation.evidence))}</p>
+              <p><strong>Related insight IDs:</strong> ${escapeHtml(formatInlineList(recommendation.related_insight_ids))}</p>
+              <p><strong>Related chart IDs:</strong> ${escapeHtml(formatInlineList(recommendation.related_chart_ids))}</p>
+            </article>
+          `,
+        )
+        .join("")
+    : "<p>No business recommendations generated.</p>";
+
+  return panel("Business Recommendations", items);
+}
+
+function renderWorkflowImprovements(plan) {
+  const rows = plan.workflows.map((workflow) => [
+    workflow.workflow_name,
+    workflow.current_issue,
+    workflow.proposed_change,
+    workflow.expected_benefit,
+    workflow.owner_role,
+    workflow.follow_up_metric,
+    workflow.related_recommendation_ids.join(", ") || "None",
+  ]);
+
+  return panel(
+    "Workflow Improvements",
+    table(
+      [
+        "Workflow",
+        "Current Issue",
+        "Proposed Change",
+        "Expected Benefit",
+        "Owner Role",
+        "Follow-up Metric",
+        "Related Recommendations",
+      ],
+      rows,
+      "No workflow improvements generated.",
+    ),
   );
 }
 
@@ -454,6 +550,15 @@ function renderBarPreview(chart) {
 
 function formatInlineList(items) {
   return items.length ? items.join(", ") : "None";
+}
+
+function formatObject(value) {
+  const entries = Object.entries(value);
+  if (!entries.length) {
+    return "None";
+  }
+
+  return entries.map(([key, item]) => `${key}=${item}`).join(", ");
 }
 
 function list(items, emptyMessage) {

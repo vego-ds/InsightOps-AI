@@ -58,6 +58,17 @@ def create_quality_score_generated_event(
     )
 
 
+def create_quality_gate_evaluated_event(
+    status: str,
+    confidence_level: str,
+) -> AuditEvent:
+    return AuditEvent(
+        event_type="quality_gate_evaluated",
+        message="Data quality gate evaluated.",
+        metadata={"status": status, "confidence_level": confidence_level},
+    )
+
+
 def create_data_preparation_completed_event(total_records: int) -> AuditEvent:
     return AuditEvent(
         event_type="data_preparation_completed",
@@ -141,6 +152,26 @@ def create_insights_generated_event(total_insights: int) -> AuditEvent:
         event_type="insights_generated",
         message="Executive insights generated.",
         metadata={"total_insights": total_insights},
+    )
+
+
+def create_recommendations_generated_event(
+    total_recommendations: int,
+) -> AuditEvent:
+    return AuditEvent(
+        event_type="recommendations_generated",
+        message="Business recommendations generated.",
+        metadata={"total_recommendations": total_recommendations},
+    )
+
+
+def create_workflow_improvements_generated_event(
+    total_workflows: int,
+) -> AuditEvent:
+    return AuditEvent(
+        event_type="workflow_improvements_generated",
+        message="Workflow improvements generated.",
+        metadata={"total_workflows": total_workflows},
     )
 
 

@@ -37,8 +37,11 @@ def test_dashboard_static_assets_are_served() -> None:
     assert "Manipulation Summary" in script_response.text
     assert "Data Profile" in script_response.text
     assert "Quality Score" in script_response.text
+    assert "Quality Gate" in script_response.text
     assert "Visual Analytics" in script_response.text
     assert "Business question" in script_response.text
+    assert "Business Recommendations" in script_response.text
+    assert "Workflow Improvements" in script_response.text
 
 
 def test_sample_analysis_still_works() -> None:

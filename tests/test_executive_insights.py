@@ -2,6 +2,7 @@ from insightops.anomalies.detector import (
     AnomalyDetectionResult,
     SalesAnomaly,
 )
+from insightops.governance.quality_gate import QualityGateResult
 from insightops.ingestion.csv_loader import load_sales_csv
 from insightops.insights.generator import generate_executive_insights
 from insightops.metrics.kpis import SalesKPIResult
@@ -228,6 +229,97 @@ def test_anomalies_produce_anomaly_insight() -> None:
     assert insight.evidence["total_anomalies"] == 1
 
 
+def test_statistical_anomalies_produce_statistical_outlier_insight() -> None:
+    report = generate_executive_insights(
+        _validation_report(),
+        _empty_kpis(),
+        AnomalyDetectionResult(
+            total_anomalies=1,
+            anomalies=[
+                SalesAnomaly(
+                    anomaly_type="iqr_high_revenue",
+                    severity="medium",
+                    order_id="ORD-1",
+                    field="revenue",
+                    value=1000.0,
+                    message="Revenue is above the IQR upper bound.",
+                    method="iqr",
+                    threshold=160.0,
+                    comparison="value > upper_bound",
+                )
+            ],
+        ),
+        _safe_security(),
+    )
+
+    insight = _insight_by_type(report.insights, "statistical_outliers")
+
+    assert insight.insight_id == "statistical_outliers_001"
+    assert insight.evidence["total_statistical_anomalies"] == 1
+
+
+def test_product_relative_anomalies_produce_product_relative_insight() -> None:
+    report = generate_executive_insights(
+        _validation_report(),
+        _empty_kpis(),
+        AnomalyDetectionResult(
+            total_anomalies=1,
+            anomalies=[
+                SalesAnomaly(
+                    anomaly_type="product_relative_high_revenue",
+                    severity="medium",
+                    order_id="ORD-1",
+                    field="revenue",
+                    value=1000.0,
+                    message="Revenue is above product-level threshold.",
+                    method="segment_iqr",
+                    threshold=160.0,
+                    comparison="value > product_upper_bound",
+                )
+            ],
+        ),
+        _safe_security(),
+    )
+
+    insight = _insight_by_type(report.insights, "product_relative_outliers")
+
+    assert insight.insight_id == "product_relative_outliers_001"
+    assert insight.evidence["product_relative_outlier_count"] == 1
+
+
+def test_warning_quality_gate_produces_governance_insight() -> None:
+    report = generate_executive_insights(
+        _validation_report(),
+        _empty_kpis(),
+        _empty_anomalies(),
+        _safe_security(),
+        quality_gate=_quality_gate(status="warning", confidence_level="medium"),
+    )
+
+    insight = _insight_by_type(report.insights, "governance")
+
+    assert insight.insight_id == "governance_warning_001"
+    assert insight.severity == "medium"
+
+
+def test_blocked_quality_gate_produces_governance_and_low_confidence_insights() -> None:
+    report = generate_executive_insights(
+        _validation_report(),
+        _empty_kpis(),
+        _empty_anomalies(),
+        _safe_security(),
+        quality_gate=_quality_gate(status="blocked", confidence_level="low"),
+    )
+
+    governance = _insight_by_type(report.insights, "governance")
+    confidence = _insight_by_type(report.insights, "analysis_confidence")
+
+    assert governance.insight_id == "governance_blocked_001"
+    assert governance.severity == "high"
+    assert confidence.insight_id == "low_confidence_001"
+    assert confidence.severity == "high"
+
+
 def test_generated_insight_ids_are_unique() -> None:
     validation_report = load_sales_csv("data/sample/sales_sample.csv")
     data_profile = build_sales_data_profile(validation_report)
@@ -242,8 +334,8 @@ def test_generated_insight_ids_are_unique() -> None:
         _safe_security(),
         data_profile,
         quality_score,
-        preparation,
-        manipulation_summary,
+        preparation=preparation,
+        manipulation_summary=manipulation_summary,
     )
 
     insight_ids = [insight.insight_id for insight in report.insights]
@@ -352,4 +444,22 @@ def _safe_security() -> SecurityScanResult:
         prompt_injection_detected=False,
         flagged_fields=[],
         human_review_required=False,
+    )
+
+
+def _quality_gate(
+    *,
+    status: str,
+    confidence_level: str,
+) -> QualityGateResult:
+    return QualityGateResult(
+        status=status,
+        confidence_level=confidence_level,
+        can_generate_kpis=status != "blocked",
+        can_generate_charts=status != "blocked",
+        can_generate_reports=status != "blocked",
+        can_generate_llm_narrative=False,
+        human_review_required=status == "blocked",
+        reasons=["Governance test reason."],
+        required_actions=["Governance test action."],
     )

@@ -8,6 +8,7 @@ def test_sample_analysis_pipeline_returns_expected_sections() -> None:
     assert result.validation
     assert result.data_profile
     assert result.quality_score
+    assert result.quality_gate
     assert result.preparation
     assert result.transformation_log
     assert result.manipulation_summary
@@ -16,6 +17,8 @@ def test_sample_analysis_pipeline_returns_expected_sections() -> None:
     assert result.anomalies
     assert result.charts
     assert result.insights
+    assert result.recommendation_plan
+    assert result.workflow_improvement_plan
     assert result.audit_events
 
     assert result.validation.total_rows == 5
@@ -60,3 +63,35 @@ def test_sample_analysis_pipeline_returns_quality_score_details() -> None:
     assert result.quality_score.grade == "fair"
     assert result.quality_score.issues
     assert result.quality_score.recommendations
+
+
+def test_sample_analysis_pipeline_returns_quality_gate_details() -> None:
+    result = analyze_sample_sales_data()
+
+    assert result.quality_gate.status == "warning"
+    assert result.quality_gate.confidence_level == "medium"
+    assert result.quality_gate.can_generate_kpis is True
+    assert result.quality_gate.can_generate_charts is True
+    assert result.quality_gate.can_generate_reports is True
+    assert result.quality_gate.can_generate_llm_narrative is False
+    assert any(
+        event.event_type == "quality_gate_evaluated"
+        for event in result.audit_events
+    )
+
+
+def test_sample_analysis_pipeline_returns_recommendations_and_workflows() -> None:
+    result = analyze_sample_sales_data()
+
+    assert result.recommendation_plan.total_recommendations >= 1
+    assert result.workflow_improvement_plan.total_workflows == (
+        result.recommendation_plan.total_recommendations
+    )
+    assert any(
+        event.event_type == "recommendations_generated"
+        for event in result.audit_events
+    )
+    assert any(
+        event.event_type == "workflow_improvements_generated"
+        for event in result.audit_events
+    )

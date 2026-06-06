@@ -7,6 +7,7 @@ EXPECTED_ANALYSIS_SECTIONS = {
     "validation",
     "data_profile",
     "quality_score",
+    "quality_gate",
     "preparation",
     "transformation_log",
     "manipulation_summary",
@@ -15,6 +16,8 @@ EXPECTED_ANALYSIS_SECTIONS = {
     "anomalies",
     "charts",
     "insights",
+    "recommendation_plan",
+    "workflow_improvement_plan",
     "audit_events",
 }
 
@@ -46,6 +49,14 @@ def test_analysis_sample_returns_validation_and_kpis() -> None:
     quality_score = payload["quality_score"]
     assert quality_score["score"] == 70
     assert quality_score["grade"] == "fair"
+
+    quality_gate = payload["quality_gate"]
+    assert quality_gate["status"] == "warning"
+    assert quality_gate["confidence_level"] == "medium"
+    assert "can_generate_kpis" in quality_gate
+    assert "can_generate_charts" in quality_gate
+    assert "can_generate_reports" in quality_gate
+    assert "can_generate_llm_narrative" in quality_gate
 
     assert payload["preparation"]["total_records"] == 3
     assert len(payload["transformation_log"]["entries"]) >= 2
@@ -84,6 +95,14 @@ def test_analysis_sample_returns_validation_and_kpis() -> None:
     assert "summary" in insights
     assert isinstance(insights["insights"], list)
     assert isinstance(insights["recommended_actions"], list)
+
+    recommendation_plan = payload["recommendation_plan"]
+    assert recommendation_plan["total_recommendations"] >= 1
+    assert isinstance(recommendation_plan["recommendations"], list)
+
+    workflow_improvement_plan = payload["workflow_improvement_plan"]
+    assert workflow_improvement_plan["total_workflows"] >= 1
+    assert isinstance(workflow_improvement_plan["workflows"], list)
 
     audit_events = payload["audit_events"]
     assert len(audit_events) >= 1

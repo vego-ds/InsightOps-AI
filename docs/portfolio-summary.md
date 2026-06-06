@@ -18,8 +18,10 @@ Sales leaders need trustworthy analysis from messy CSV data. This project demons
 - CSV ingestion and row validation.
 - Source metadata, data preparation, transformation lineage, and manipulation summaries.
 - Data profiling and deterministic quality scoring.
+- Data quality gate and analysis confidence layer.
 - KPI computation.
 - Visual analytics tied to business questions, interpretations, insights, and recommended actions.
+- Business recommendation and workflow improvement engine.
 - Security guardrails for prompt-injection style text.
 - Anomaly detection.
 - Chart-ready data and PNG artifact generation.
@@ -64,10 +66,10 @@ This project shows backend engineering judgment: deterministic business logic, t
 
 ## Resume Bullet Points
 
-- Built a FastAPI sales analytics platform that validates CSV data, tracks source metadata and lineage, computes KPIs, ties visual analytics to recommendations, detects anomalies, and returns typed audit-ready analysis responses.
+- Built a FastAPI sales analytics platform that validates CSV data, tracks source metadata and lineage, gates analysis confidence, computes KPIs, ties visual analytics to recommendations, generates workflow improvements, detects anomalies, and returns typed audit-ready analysis responses.
 - Implemented prompt-injection guardrails and deterministic fallback for optional narrative generation.
 - Added CI, Docker deployment support, static dashboard demo, and Markdown/PDF report artifact generation.
 
 ## LinkedIn/GitHub Description
 
-InsightOps-AI is a production-style sales analytics automation API with deterministic data collection metadata, validation, preparation, profiling, KPI computation, visual analytics tied to insights, security guardrails, anomaly detection, executive insights, report artifacts, CI, Docker support, and a lightweight static dashboard.
+InsightOps-AI is a production-style sales analytics automation API with deterministic data collection metadata, validation, preparation, profiling, quality gates, KPI computation, visual analytics tied to insights, business recommendations, workflow improvements, security guardrails, anomaly detection, executive insights, report artifacts, CI, Docker support, and a lightweight static dashboard.

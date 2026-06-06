@@ -23,6 +23,17 @@ def test_should_allow_llm_narrative_false_when_prompt_injection_detected() -> No
 
 def test_should_allow_llm_narrative_true_for_safe_analysis() -> None:
     analysis = _minimal_analysis_response()
+    analysis.quality_gate.can_generate_llm_narrative = True
 
     assert should_allow_llm_narrative(analysis) is True
     assert get_llm_block_reason(analysis) is None
+
+
+def test_should_allow_llm_narrative_false_when_quality_gate_blocks() -> None:
+    analysis = _minimal_analysis_response()
+    analysis.quality_gate.can_generate_llm_narrative = False
+    analysis.quality_gate.status = "warning"
+    analysis.quality_gate.confidence_level = "medium"
+
+    assert should_allow_llm_narrative(analysis) is False
+    assert "data quality gate" in get_llm_block_reason(analysis)
