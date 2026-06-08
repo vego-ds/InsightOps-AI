@@ -15,6 +15,5 @@ SUSPICIOUS_PROMPT_INJECTION_PHRASES = (
 def detect_prompt_injection(text: str) -> bool:
     normalized_text = text.casefold()
     return any(
-        phrase in normalized_text
-        for phrase in SUSPICIOUS_PROMPT_INJECTION_PHRASES
+        phrase in normalized_text for phrase in SUSPICIOUS_PROMPT_INJECTION_PHRASES
     )

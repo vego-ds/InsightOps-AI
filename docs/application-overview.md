@@ -98,7 +98,12 @@ Workflow improvements translate recommendations into process changes, such as im
 ## Stakeholder-Facing Outputs
 
 - Typed JSON analysis responses from the FastAPI API.
-- Lightweight static dashboard with executive summary, business actions, visual evidence, and collapsible technical sections.
+- Governed sales analytics workspace dashboard featuring:
+  - Guided analytics plain-English command parser (client-side, no-eval).
+  - State-aware dynamic chip shortcuts.
+  - Visual charts rendered using only inline SVGs and CSS bar gauges (including line, bar, pie, and metric gauge previews).
+  - Live search filtering and category buttons for chart discovery.
+  - Collapsible Technical Evidence drawer with centralized render error guards and shape diagnostics checker.
 - Backend PNG chart artifacts from chart-ready data.
 - Markdown executive report downloads.
 - PDF executive report downloads.

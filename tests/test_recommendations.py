@@ -215,8 +215,7 @@ def test_recommendation_ids_are_deterministic_and_unique() -> None:
 
     plan = generate_recommendation_plan(analysis)
     recommendation_ids = [
-        recommendation.recommendation_id
-        for recommendation in plan.recommendations
+        recommendation.recommendation_id for recommendation in plan.recommendations
     ]
 
     assert recommendation_ids == sorted(recommendation_ids)

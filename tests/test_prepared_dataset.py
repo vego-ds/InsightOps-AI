@@ -7,18 +7,16 @@ from insightops.validation.models import SalesRecord
 def test_prepare_sales_records_creates_derived_fields() -> None:
     validation_report = load_sales_csv("data/sample/sales_sample.csv")
 
-    dataset, transformation_log = prepare_sales_records(
-        validation_report.records
-    )
+    dataset, transformation_log = prepare_sales_records(validation_report.records)
 
     assert isinstance(dataset, PreparedSalesDataset)
-    assert dataset.total_records == 3
+    assert dataset.total_records == 198
 
     record = dataset.records[0]
-    assert record.gross_revenue == 2400.0
-    assert record.discount_amount == 240.0
-    assert record.net_revenue == 2160.0
-    assert record.average_unit_revenue == 1080.0
+    assert record.gross_revenue == 1500.0
+    assert record.discount_amount == 150.0
+    assert record.net_revenue == 1350.0
+    assert record.average_unit_revenue == 1350.0
     assert record.order_year == 2026
     assert record.order_month == 1
     assert record.order_quarter == 1
@@ -28,10 +26,7 @@ def test_prepare_sales_records_creates_derived_fields() -> None:
 
     assert len(transformation_log.entries) == 2
     assert transformation_log.entries[0].step_name == "clean_sales_records"
-    assert (
-        transformation_log.entries[1].step_name
-        == "derive_sales_analytics_fields"
-    )
+    assert transformation_log.entries[1].step_name == "derive_sales_analytics_fields"
 
 
 def test_prepare_sales_records_cleans_without_mutating_original() -> None:

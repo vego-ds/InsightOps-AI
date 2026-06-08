@@ -39,7 +39,7 @@
 ## Mitigations Implemented
 
 - CSV-only upload checks.
-- 1 MB default upload size limit.
+- 100 MB default upload size limit with chunked streaming and dynamic size enforcement.
 - Row-level validation with Pydantic.
 - Prompt-injection phrase detection.
 - Human-review flags.
@@ -51,7 +51,7 @@
 - Low-confidence or blocked gate outcomes restrict executive reporting and LLM narrative eligibility.
 - Report generation respects the quality gate and blocks reports when report generation is not allowed.
 - Report exports use temporary directories and return bytes instead of persistent repository files.
-- Uploaded files are removed after request processing.
+- Uploaded files are streamed to temporary files and guaranteed to be unlinked (deleted) immediately upon request completion (success or error).
 - Typed API contracts.
 - Audit events.
 - `.gitignore` and `.dockerignore` for cache, env, and generated files.

@@ -35,6 +35,12 @@ It should ingest sales data, validate schemas, compute sales KPIs, detect anomal
 - Do not persist uploaded files or generated report artifacts unless explicitly designing storage.
 - Report export endpoints must respect the quality gate.
 - Do not overclaim persistent report management.
+- Do not over-saturate dashboard output.
+- Do not repeat generic actions across every chart.
+- Keep executive reports concise.
+- Keep technical details in the appendix.
+- Use richer sample data for demos.
+- Do not commit large mock files (e.g., > 1 MB) to test large upload size limits; use monkeypatching to set smaller runtime limits during testing instead.
 
 ## Commands
 

@@ -159,11 +159,9 @@ def test_anomaly_output_order_is_deterministic() -> None:
     )
 
     assert [
-        (anomaly.order_id, anomaly.anomaly_type)
-        for anomaly in result.anomalies
+        (anomaly.order_id, anomaly.anomaly_type) for anomaly in result.anomalies
     ] == sorted(
-        (anomaly.order_id, anomaly.anomaly_type)
-        for anomaly in result.anomalies
+        (anomaly.order_id, anomaly.anomaly_type) for anomaly in result.anomalies
     )
 
 
@@ -191,7 +189,5 @@ def _sales_record(
 
 def _anomaly_by_type(result, anomaly_type: str):
     return next(
-        anomaly
-        for anomaly in result.anomalies
-        if anomaly.anomaly_type == anomaly_type
+        anomaly for anomaly in result.anomalies if anomaly.anomaly_type == anomaly_type
     )

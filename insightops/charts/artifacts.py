@@ -31,8 +31,7 @@ def render_chart_artifacts(
     output_path.mkdir(parents=True, exist_ok=True)
 
     artifacts = [
-        _render_chart_series(chart, output_path)
-        for chart in chart_data.charts
+        _render_chart_series(chart, output_path) for chart in chart_data.charts
     ]
 
     return ChartArtifactResult(

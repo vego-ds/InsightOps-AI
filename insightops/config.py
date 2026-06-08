@@ -8,7 +8,7 @@ class AppSettings(BaseModel):
     environment: str = "development"
     host: str = "0.0.0.0"
     port: int = 8000
-    max_upload_bytes: int = 1_000_000
+    max_upload_bytes: int = 104_857_600
     narrative_provider: str = "disabled"
     openrouter_api_key: str | None = None
     openrouter_model: str = "openrouter/auto"
@@ -22,7 +22,7 @@ def load_app_settings() -> AppSettings:
         port=_get_int_env("INSIGHTOPS_PORT", 8000),
         max_upload_bytes=_get_int_env(
             "INSIGHTOPS_MAX_UPLOAD_BYTES",
-            1_000_000,
+            104_857_600,
         ),
         narrative_provider=os.getenv(
             "INSIGHTOPS_NARRATIVE_PROVIDER",

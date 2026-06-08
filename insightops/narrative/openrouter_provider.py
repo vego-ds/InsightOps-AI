@@ -85,10 +85,7 @@ def _messages_for_analysis(analysis: AnalysisResponse) -> list[dict[str, str]]:
         {"role": "system", "content": instructions.strip()},
         {
             "role": "user",
-            "content": (
-                "UNTRUSTED DATA AND DETERMINISTIC FACTS:"
-                f"{facts}"
-            ).strip(),
+            "content": (f"UNTRUSTED DATA AND DETERMINISTIC FACTS:{facts}").strip(),
         },
     ]
 

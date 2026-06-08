@@ -16,9 +16,7 @@ class BusinessRecommendation(BaseModel):
     business_area: str
     title: str
     problem: str
-    evidence: dict[str, RecommendationEvidenceValue] = Field(
-        default_factory=dict
-    )
+    evidence: dict[str, RecommendationEvidenceValue] = Field(default_factory=dict)
     recommended_action: str
     expected_impact: str
     workflow_stage: str
@@ -82,8 +80,7 @@ def _data_quality_recommendation(
         business_area="data_quality",
         title="Remediate data quality before executive decisions",
         problem=(
-            "The quality gate found data quality risk that reduces analysis "
-            "confidence."
+            "The quality gate found data quality risk that reduces analysis confidence."
         ),
         evidence={
             "quality_gate_status": analysis.quality_gate.status,
@@ -213,19 +210,13 @@ def _revenue_concentration_recommendation(
     analysis: AnalysisResponse,
 ) -> BusinessRecommendation | None:
     high_value_records = [
-        record
-        for record in analysis.preparation.records
-        if record.is_high_value_order
+        record for record in analysis.preparation.records if record.is_high_value_order
     ]
     if not high_value_records:
         return None
 
-    region_counts = _count_labels(
-        [record.region for record in high_value_records]
-    )
-    product_counts = _count_labels(
-        [record.product for record in high_value_records]
-    )
+    region_counts = _count_labels([record.region for record in high_value_records])
+    product_counts = _count_labels([record.product for record in high_value_records])
     label, count, dimension = _top_concentration(region_counts, product_counts)
     if count / len(high_value_records) < 0.5:
         return None

@@ -56,7 +56,7 @@ def build_sales_chart_data(
     insight_ids = _insight_ids_by_type(insights)
     recommended_actions = insights.recommended_actions if insights else []
 
-    return SalesChartData(
+    res = SalesChartData(
         charts=[
             _build_revenue_chart(
                 chart_id="revenue_by_region",
@@ -196,6 +196,55 @@ def build_sales_chart_data(
         ]
     )
 
+    for chart in res.charts:
+        chart.recommended_actions = _get_chart_specific_actions(
+            chart.chart_id, chart.recommended_actions
+        )
+
+    return res
+
+
+def _get_chart_specific_actions(chart_id: str, all_actions: list[str]) -> list[str]:
+    # 1. Filter out generic quality actions
+    generic_substrings = [
+        "invalid sales",
+        "quality score",
+        "missing value",
+        "data quality",
+        "missing field",
+        "kpi and chart",
+        "fill missing",
+        "correct missing",
+    ]
+
+    filtered = []
+    for action in all_actions:
+        lower_action = action.lower()
+        is_generic = any(sub in lower_action for sub in generic_substrings)
+
+        # Exception: if the chart is specifically about data quality, keep them
+        if is_generic and chart_id == "data_quality_score":
+            filtered.append(action)
+        elif not is_generic:
+            filtered.append(action)
+
+    # Deduplicate
+    deduped = []
+    for action in filtered:
+        if action not in deduped:
+            deduped.append(action)
+
+    # Keep at most 1 to 2 actions
+    chart_specific = deduped[:2]
+
+    # Fallback if empty
+    if not chart_specific:
+        chart_specific = [
+            "Use this visual as supporting evidence for the related business recommendation."
+        ]
+
+    return chart_specific
+
 
 def _build_revenue_chart(
     *,
@@ -235,9 +284,7 @@ def _build_anomalies_by_severity_chart(
     related_insight_ids: list[str],
     recommended_actions: list[str],
 ) -> ChartSeries:
-    severity_counts = Counter(
-        anomaly.severity for anomaly in anomalies.anomalies
-    )
+    severity_counts = Counter(anomaly.severity for anomaly in anomalies.anomalies)
 
     return ChartSeries(
         chart_id="anomalies_by_severity",
@@ -247,9 +294,7 @@ def _build_anomalies_by_severity_chart(
         x_axis="severity",
         y_axis="count",
         business_question="How severe are detected sales anomalies?",
-        interpretation=anomaly_severity_interpretation(
-            dict(severity_counts)
-        ),
+        interpretation=anomaly_severity_interpretation(dict(severity_counts)),
         related_insight_ids=related_insight_ids,
         recommended_actions=recommended_actions,
         data=[
@@ -302,7 +347,9 @@ def _build_trend_chart(
 ) -> ChartSeries:
     points = trend_analysis.data if trend_analysis is not None else []
     ordered_points = sorted(points, key=lambda point: point.period)
-    trend_summary = getattr(trend_analysis, f"{metric}_trend", None) if trend_analysis else None
+    trend_summary = (
+        getattr(trend_analysis, f"{metric}_trend", None) if trend_analysis else None
+    )
 
     return ChartSeries(
         chart_id=chart_id,
@@ -435,9 +482,7 @@ def _build_quality_score_chart(
         metric="quality_score",
         x_axis="grade",
         y_axis="score",
-        business_question=(
-            "Is the dataset reliable enough for executive reporting?"
-        ),
+        business_question=("Is the dataset reliable enough for executive reporting?"),
         interpretation=quality_score_interpretation(quality_score),
         related_insight_ids=related_insight_ids,
         recommended_actions=recommended_actions,
@@ -477,12 +522,8 @@ def _build_pareto_revenue_by_product_chart(
         metric="revenue",
         x_axis="product",
         y_axis="revenue",
-        business_question=(
-            "Is revenue concentrated in a small number of products?"
-        ),
-        interpretation=pareto_concentration_interpretation(
-            revenue_by_product
-        ),
+        business_question=("Is revenue concentrated in a small number of products?"),
+        interpretation=pareto_concentration_interpretation(revenue_by_product),
         related_insight_ids=related_insight_ids,
         recommended_actions=recommended_actions,
         data=data,
@@ -497,8 +538,6 @@ def _insight_ids_by_type(
         return insight_ids
 
     for insight in insights.insights:
-        insight_ids.setdefault(insight.insight_type, []).append(
-            insight.insight_id
-        )
+        insight_ids.setdefault(insight.insight_type, []).append(insight.insight_id)
 
     return insight_ids

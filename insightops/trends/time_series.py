@@ -105,10 +105,14 @@ def _monthly_data(
         average_order_value = (
             round(revenue / order_count, 2) if order_count > 0 else 0.0
         )
-        average_discount = round(
-            sum(record.discount for record in records) / order_count,
-            2,
-        ) if order_count > 0 else 0.0
+        average_discount = (
+            round(
+                sum(record.discount for record in records) / order_count,
+                2,
+            )
+            if order_count > 0
+            else 0.0
+        )
         data.append(
             TrendDataPoint(
                 period=period,
@@ -132,9 +136,7 @@ def _metric_trend(
     end_value = round(values[-1], 2) if values else 0.0
     absolute_change = round(end_value - start_value, 2)
     percent_change = (
-        round((absolute_change / start_value) * 100, 2)
-        if start_value != 0
-        else None
+        round((absolute_change / start_value) * 100, 2) if start_value != 0 else None
     )
     direction = _trend_direction(total_periods, absolute_change, percent_change)
 

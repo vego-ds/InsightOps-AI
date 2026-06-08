@@ -33,199 +33,176 @@ def _build_report_markdown(analysis: AnalysisResponse) -> str:
         "",
         analysis.insights.summary,
         "",
-        "## Source Metadata",
+        "## Decision Readiness",
         "",
-        f"- Source type: {analysis.source_metadata.source_type}",
-        f"- File name: {analysis.source_metadata.file_name}",
-        f"- File size bytes: {analysis.source_metadata.file_size_bytes}",
-        f"- Collection method: {analysis.source_metadata.collection_method}",
-        f"- Record count: {analysis.source_metadata.record_count}",
-        f"- Notes: {analysis.source_metadata.notes or 'none'}",
+        f"- Quality Gate Status: {analysis.quality_gate.status.upper()}",
+        f"- Analysis Confidence Level: {analysis.quality_gate.confidence_level.upper()}",
+        f"- Forecast Readiness Status: {analysis.forecast_analysis.readiness_status.upper()}",
+        f"- Human Auditor Oversight Required: {analysis.quality_gate.human_review_required}",
         "",
-        "## Validation",
+        "## KPI Snapshot",
         "",
-        f"- Total rows: {analysis.validation.total_rows}",
-        f"- Valid rows: {analysis.validation.valid_rows}",
-        f"- Invalid rows: {analysis.validation.invalid_rows}",
+        "| Metric | Value |",
+        "| :--- | :--- |",
+        f"| Total Net Sales Revenue | ${analysis.kpis.total_revenue:,.2f} |",
+        f"| Total Valid Orders | {analysis.kpis.total_orders} |",
+        f"| Total Units Sold | {analysis.kpis.total_units_sold} |",
+        f"| Average Order Value (AOV) | ${analysis.kpis.average_order_value:,.2f} |",
         "",
-        "## Data Profile",
+        "## Top Findings",
         "",
-        f"- Date range: {_format_date_range(analysis)}",
-        f"- Unique customers: {analysis.data_profile.unique_customers}",
-        f"- Unique regions: {analysis.data_profile.unique_regions}",
-        f"- Unique products: {analysis.data_profile.unique_products}",
-        f"- Unique sales reps: {analysis.data_profile.unique_sales_reps}",
-        f"- Duplicate order IDs: {analysis.data_profile.duplicate_order_ids}",
-        (
-            "- Missing fields: "
-            f"{_format_mapping(analysis.data_profile.missing_field_counts)}"
-        ),
-        (
-            "- Revenue summary: "
-            f"{_format_numeric_summary(analysis.data_profile.revenue_summary)}"
-        ),
-        (
-            "- Quantity summary: "
-            f"{_format_numeric_summary(analysis.data_profile.quantity_summary)}"
-        ),
-        (
-            "- Discount summary: "
-            f"{_format_numeric_summary(analysis.data_profile.discount_summary)}"
-        ),
-        (
-            "- Unit price summary: "
-            f"{_format_numeric_summary(analysis.data_profile.unit_price_summary)}"
-        ),
-        "",
-        "## Quality Score",
-        "",
-        f"- Score: {analysis.quality_score.score}",
-        f"- Grade: {analysis.quality_score.grade}",
-        f"- Issues: {_format_list(analysis.quality_score.issues)}",
-        (
-            "- Recommendations: "
-            f"{_format_list(analysis.quality_score.recommendations)}"
-        ),
-        "",
-        "## Quality Gate and Analysis Confidence",
-        "",
-        f"- Status: {analysis.quality_gate.status}",
-        f"- Confidence level: {analysis.quality_gate.confidence_level}",
-        (
-            "- Human review required: "
-            f"{analysis.quality_gate.human_review_required}"
-        ),
-        f"- Reasons: {_format_list(analysis.quality_gate.reasons)}",
-        (
-            "- Required actions: "
-            f"{_format_list(analysis.quality_gate.required_actions)}"
-        ),
-        "",
-        "## KPI Summary",
-        "",
-        f"- Total revenue: ${analysis.kpis.total_revenue:.2f}",
-        f"- Total orders: {analysis.kpis.total_orders}",
-        f"- Total units sold: {analysis.kpis.total_units_sold}",
-        (
-            "- Average order value: "
-            f"${analysis.kpis.average_order_value:.2f}"
-        ),
-        "",
-        "## Data Preparation",
-        "",
-        f"- Prepared records: {analysis.preparation.total_records}",
-        (
-            "- Derived fields: "
-            "gross_revenue, discount_amount, net_revenue, "
-            "average_unit_revenue, order_year, order_month, order_quarter, "
-            "is_discounted, is_high_value_order, "
-            "revenue_reconciliation_difference"
-        ),
-        "",
-        "## Transformation Lineage",
-        "",
-        *_format_transformation_lines(analysis),
-        "",
-        "## Manipulation Summary",
-        "",
-        "- Monthly revenue: "
-        f"{_format_points(analysis.manipulation_summary.monthly_revenue)}",
-        "- Ranked regions: "
-        f"{_format_points(analysis.manipulation_summary.ranked_regions)}",
-        "- Ranked products: "
-        f"{_format_points(analysis.manipulation_summary.ranked_products)}",
-        "- Ranked sales reps: "
-        f"{_format_points(analysis.manipulation_summary.ranked_sales_reps)}",
-        (
-            "- Discount summary by product: "
-            f"{_format_discount_summary(analysis)}"
-        ),
-        "",
-        "## Trend Analysis",
-        "",
-        f"- Period grain: {analysis.trend_analysis.period_grain}",
-        f"- Total periods: {analysis.trend_analysis.total_periods}",
-        (
-            "- Monthly performance: "
-            f"{_format_trend_points(analysis)}"
-        ),
-        (
-            "- Revenue trend: "
-            f"{_format_trend_summary(analysis.trend_analysis.revenue_trend)}"
-        ),
-        (
-            "- Order count trend: "
-            f"{_format_trend_summary(analysis.trend_analysis.order_count_trend)}"
-        ),
-        (
-            "- Average order value trend: "
-            f"{_format_trend_summary(analysis.trend_analysis.average_order_value_trend)}"
-        ),
-        (
-            "- Units sold trend: "
-            f"{_format_trend_summary(analysis.trend_analysis.units_sold_trend)}"
-        ),
-        (
-            "- Average discount trend: "
-            f"{_format_trend_summary(analysis.trend_analysis.average_discount_trend)}"
-        ),
-        f"- Warnings: {_format_list(analysis.trend_analysis.warnings)}",
-        "",
-        "## Forecasting Readiness and Baseline Forecasts",
-        "",
-        "- Forecast type: deterministic baseline forecasts, not ML forecasts.",
-        f"- Readiness status: {analysis.forecast_analysis.readiness_status}",
-        f"- Confidence level: {analysis.forecast_analysis.confidence_level}",
-        f"- Next period: {analysis.forecast_analysis.next_period or 'none'}",
-        (
-            "- Revenue forecast: "
-            f"{_format_metric_forecast(analysis.forecast_analysis.revenue_forecast)}"
-        ),
-        (
-            "- Order count forecast: "
-            f"{_format_metric_forecast(analysis.forecast_analysis.order_count_forecast)}"
-        ),
-        (
-            "- Average order value forecast: "
-            f"{_format_metric_forecast(analysis.forecast_analysis.average_order_value_forecast)}"
-        ),
-        (
-            "- Units sold forecast: "
-            f"{_format_metric_forecast(analysis.forecast_analysis.units_sold_forecast)}"
-        ),
-        (
-            "- Average discount forecast: "
-            f"{_format_metric_forecast(analysis.forecast_analysis.average_discount_forecast)}"
-        ),
-        f"- Warnings: {_format_list(analysis.forecast_analysis.warnings)}",
-        (
-            "- Recommended actions: "
-            f"{_format_list(analysis.forecast_analysis.recommended_actions)}"
-        ),
-        "",
-        "## Security",
-        "",
-        (
-            "- prompt_injection_detected: "
-            f"{analysis.security.prompt_injection_detected}"
-        ),
-        f"- human_review_required: {analysis.security.human_review_required}",
     ]
 
-    if analysis.security.flagged_fields:
+    top_insights = analysis.insights.insights[:3]
+    if top_insights:
+        for insight in top_insights:
+            lines.append(f"### {insight.title}")
+            lines.append(f"- Message: {insight.message}")
+            lines.append(f"- Severity: {insight.severity}")
+            lines.append("")
+    else:
+        lines.append("- No critical findings generated.")
+        lines.append("")
+
+    lines.append("## Top Business Actions")
+    lines.append("")
+    top_actions = analysis.insights.recommended_actions[:3]
+    if top_actions:
+        for action in top_actions:
+            lines.append(f"- {action}")
+        lines.append("")
+    else:
+        lines.append("- No recommended actions.")
+        lines.append("")
+
+    lines.append("## Primary Visual Evidence")
+    lines.append("")
+    primary_ids = [
+        "revenue_by_region",
+        "revenue_by_product",
+        "revenue_by_sales_rep",
+        "pareto_revenue_by_product",
+        "data_quality_score",
+    ]
+    primary_charts = [
+        c for c in (analysis.charts.charts or []) if c.chart_id in primary_ids
+    ]
+    if primary_charts:
+        for chart in primary_charts:
+            lines.append(f"### {chart.title}")
+            lines.append(f"- Business Question: {chart.business_question}")
+            lines.append(f"- Concise Finding: {chart.interpretation}")
+            actions = chart.recommended_actions
+            single_action = (
+                actions[0]
+                if (actions and len(actions) > 0)
+                else "Use this visual as supporting evidence for the related business recommendation."
+            )
+            lines.append(f"- Recommended Next Action: {single_action}")
+            lines.append("")
+    else:
+        lines.append("- No primary visual evidence charts generated.")
+        lines.append("")
+
+    lines.append("## Forecast Readiness")
+    lines.append("")
+    total_periods = analysis.trend_analysis.total_periods
+    readiness_status = analysis.forecast_analysis.readiness_status
+    if total_periods < 2 or readiness_status == "not_ready":
         lines.append(
-            "- flagged fields: " + ", ".join(analysis.security.flagged_fields)
+            f"**Warning**: Historical data is insufficient for reliable trend and forecast projections. Total periods: {total_periods} (minimum 2 periods required). Forecast readiness status: {readiness_status.upper()}."
         )
+        lines.append("")
+    else:
+        lines.append(f"- Historical Monthly Periods: {total_periods}")
+        lines.append(f"- Forecast Grain: {analysis.trend_analysis.period_grain}")
+        lines.append(
+            f"- Forecast Confidence Level: {analysis.forecast_analysis.confidence_level.upper()}"
+        )
+        lines.append(
+            f"- Next Period Projected: {analysis.forecast_analysis.next_period or 'none'}"
+        )
+        if analysis.forecast_analysis.revenue_forecast:
+            lines.append(
+                f"- Revenue Forecast: {_format_metric_forecast(analysis.forecast_analysis.revenue_forecast)}"
+            )
+        lines.append("")
+
+    lines.append("## Data Quality and Limitations")
+    lines.append("")
+    lines.append(f"- Total rows: {analysis.validation.total_rows}")
+    lines.append(f"- Valid rows: {analysis.validation.valid_rows}")
+    lines.append(f"- Invalid rows: {analysis.validation.invalid_rows}")
+    lines.append(f"- Duplicate order IDs: {analysis.data_profile.duplicate_order_ids}")
+    lines.append(
+        f"- Missing fields: {_format_mapping(analysis.data_profile.missing_field_counts)}"
+    )
+    lines.append("")
+
+    # TECHNICAL APPENDIX
+    lines.extend(
+        [
+            "---",
+            "## Technical Appendix",
+            "",
+            "### Source Metadata",
+            "",
+            f"- Source type: {analysis.source_metadata.source_type}",
+            f"- File name: {analysis.source_metadata.file_name}",
+            f"- File size bytes: {analysis.source_metadata.file_size_bytes}",
+            f"- Collection method: {analysis.source_metadata.collection_method}",
+            f"- Record count: {analysis.source_metadata.record_count}",
+            f"- Notes: {analysis.source_metadata.notes or 'none'}",
+            "",
+            "### Validation Details",
+            "",
+            f"- Total rows: {analysis.validation.total_rows}",
+            f"- Valid rows: {analysis.validation.valid_rows}",
+            f"- Invalid rows: {analysis.validation.invalid_rows}",
+            "",
+            "### Data Profile Details",
+            "",
+            f"- Date range: {_format_date_range(analysis)}",
+            f"- Unique customers: {analysis.data_profile.unique_customers}",
+            f"- Unique regions: {analysis.data_profile.unique_regions}",
+            f"- Unique products: {analysis.data_profile.unique_products}",
+            f"- Unique sales reps: {analysis.data_profile.unique_sales_reps}",
+            f"- Duplicate order IDs: {analysis.data_profile.duplicate_order_ids}",
+            f"- Missing fields: {_format_mapping(analysis.data_profile.missing_field_counts)}",
+            f"- Revenue summary: {_format_numeric_summary(analysis.data_profile.revenue_summary)}",
+            f"- Quantity summary: {_format_numeric_summary(analysis.data_profile.quantity_summary)}",
+            f"- Discount summary: {_format_numeric_summary(analysis.data_profile.discount_summary)}",
+            f"- Unit price summary: {_format_numeric_summary(analysis.data_profile.unit_price_summary)}",
+            "",
+            "### Quality Score Details",
+            "",
+            f"- Score: {analysis.quality_score.score}",
+            f"- Grade: {analysis.quality_score.grade}",
+            f"- Issues: {_format_list(analysis.quality_score.issues)}",
+            f"- Recommendations: {_format_list(analysis.quality_score.recommendations)}",
+            "",
+            "### Transformation Lineage",
+            "",
+            *_format_transformation_lines(analysis),
+            "",
+            "### Manipulation Summary",
+            "",
+            f"- Monthly revenue: {_format_points(analysis.manipulation_summary.monthly_revenue)}",
+            f"- Ranked regions: {_format_points(analysis.manipulation_summary.ranked_regions)}",
+            f"- Ranked products: {_format_points(analysis.manipulation_summary.ranked_products)}",
+            f"- Ranked sales reps: {_format_points(analysis.manipulation_summary.ranked_sales_reps)}",
+            f"- Discount summary by product: {_format_discount_summary(analysis)}",
+            "",
+        ]
+    )
 
     lines.extend(
         [
-            "",
-            "## Anomalies",
+            "### Anomalies",
             "",
             f"- Total anomalies: {analysis.anomalies.total_anomalies}",
         ]
     )
-
     if analysis.anomalies.anomalies:
         for anomaly in analysis.anomalies.anomalies:
             lines.append(
@@ -240,92 +217,9 @@ def _build_report_markdown(analysis: AnalysisResponse) -> str:
             )
     else:
         lines.append("- No anomalies detected.")
+    lines.append("")
 
-    lines.extend(["", "## Visual Analytics", ""])
-
-    if analysis.charts.charts:
-        for chart in analysis.charts.charts:
-            lines.append(f"### {chart.title}")
-            lines.append("")
-            lines.append(f"- Business question: {chart.business_question}")
-            lines.append(f"- Interpretation: {chart.interpretation}")
-            lines.append(
-                "- Related insight IDs: "
-                f"{_format_list(chart.related_insight_ids)}"
-            )
-            lines.append(
-                "- Recommended actions: "
-                f"{_format_list(chart.recommended_actions)}"
-            )
-            lines.append("")
-    else:
-        lines.append("- No visual analytics charts generated.")
-        lines.append("")
-
-    lines.extend(["", "## Executive Insights", ""])
-
-    if analysis.insights.insights:
-        for insight in analysis.insights.insights:
-            lines.append(f"### {insight.title}")
-            lines.append("")
-            lines.append(f"- Insight ID: {insight.insight_id}")
-            lines.append(f"- Severity: {insight.severity}")
-            lines.append(f"- Message: {insight.message}")
-            lines.append(f"- Evidence: {_format_evidence(insight.evidence)}")
-            lines.append("")
-    else:
-        lines.append("- No executive insights generated.")
-        lines.append("")
-
-    lines.extend(["## Recommended Actions", ""])
-
-    if analysis.insights.recommended_actions:
-        for action in analysis.insights.recommended_actions:
-            lines.append(f"- {action}")
-    else:
-        lines.append("- No recommended actions.")
-
-    lines.extend(["", "## Business Recommendations", ""])
-
-    if analysis.recommendation_plan.recommendations:
-        for recommendation in analysis.recommendation_plan.recommendations:
-            lines.append(f"### {recommendation.title}")
-            lines.append("")
-            lines.append(f"- Priority: {recommendation.priority}")
-            lines.append(f"- Business area: {recommendation.business_area}")
-            lines.append(f"- Problem: {recommendation.problem}")
-            lines.append(
-                "- Evidence: "
-                f"{_format_evidence(recommendation.evidence)}"
-            )
-            lines.append(
-                "- Recommended action: "
-                f"{recommendation.recommended_action}"
-            )
-            lines.append(f"- Expected impact: {recommendation.expected_impact}")
-            lines.append(f"- Owner role: {recommendation.owner_role}")
-            lines.append(f"- Follow-up metric: {recommendation.follow_up_metric}")
-            lines.append("")
-    else:
-        lines.append("- No business recommendations generated.")
-
-    lines.extend(["", "## Workflow Improvements", ""])
-
-    if analysis.workflow_improvement_plan.workflows:
-        for workflow in analysis.workflow_improvement_plan.workflows:
-            lines.append(f"### {workflow.workflow_name}")
-            lines.append("")
-            lines.append(f"- Current issue: {workflow.current_issue}")
-            lines.append(f"- Proposed change: {workflow.proposed_change}")
-            lines.append(f"- Expected benefit: {workflow.expected_benefit}")
-            lines.append(f"- Owner role: {workflow.owner_role}")
-            lines.append(f"- Follow-up metric: {workflow.follow_up_metric}")
-            lines.append("")
-    else:
-        lines.append("- No workflow improvements generated.")
-
-    lines.extend(["", "## Audit Events", ""])
-
+    lines.extend(["### Audit Events", ""])
     if analysis.audit_events:
         for event in analysis.audit_events:
             lines.append(f"- {event.event_type}: {event.message}")
@@ -377,9 +271,7 @@ def _format_mapping(values: dict[str, int]) -> str:
     if not values:
         return "none"
 
-    return ", ".join(
-        f"{key}={value}" for key, value in sorted(values.items())
-    )
+    return ", ".join(f"{key}={value}" for key, value in sorted(values.items()))
 
 
 def _format_list(values: list[str]) -> str:
@@ -415,8 +307,7 @@ def _format_points(points) -> str:
         return "none"
 
     return ", ".join(
-        f"{point.label}={_format_evidence_value(point.value)}"
-        for point in points
+        f"{point.label}={_format_evidence_value(point.value)}" for point in points
     )
 
 

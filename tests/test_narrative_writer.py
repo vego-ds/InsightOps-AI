@@ -16,9 +16,9 @@ def test_deterministic_narrative_generation_works() -> None:
 def test_narrative_includes_kpi_and_validation_facts() -> None:
     narrative = generate_deterministic_narrative(analyze_sample_sales_data())
 
-    assert "$4700.00" in narrative.narrative
-    assert "3 orders" in narrative.narrative
-    assert "2 invalid rows out of 5" in narrative.narrative
+    assert "$446250.00" in narrative.narrative
+    assert "198 orders" in narrative.narrative
+    assert "2 invalid rows out of 200" in narrative.narrative
 
 
 def test_narrative_includes_anomaly_warnings_when_anomalies_exist() -> None:
@@ -43,7 +43,7 @@ def test_narrative_includes_security_warning_when_human_review_required() -> Non
 def test_source_evidence_is_populated() -> None:
     narrative = generate_deterministic_narrative(analyze_sample_sales_data())
 
-    assert narrative.source_evidence.total_orders == 3
+    assert narrative.source_evidence.total_orders == 198
     assert narrative.source_evidence.invalid_rows == 2
     assert narrative.source_evidence.insight_count > 0
 

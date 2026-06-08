@@ -63,22 +63,21 @@ def test_markdown_report_contains_expected_sections(tmp_path: Path) -> None:
 
     assert "Executive Sales Report" in report_text
     assert "Executive Summary" in report_text
+    assert "Decision Readiness" in report_text
+    assert "KPI Snapshot" in report_text
+    assert "Top Findings" in report_text
+    assert "Top Business Actions" in report_text
+    assert "Primary Visual Evidence" in report_text
+    assert "Forecast Readiness" in report_text
+    assert "Data Quality and Limitations" in report_text
+    assert "Technical Appendix" in report_text
     assert "Source Metadata" in report_text
-    assert "Validation" in report_text
-    assert "Data Profile" in report_text
-    assert "Quality Score" in report_text
-    assert "Quality Gate and Analysis Confidence" in report_text
-    assert "Data Preparation" in report_text
+    assert "Validation Details" in report_text
+    assert "Data Profile Details" in report_text
+    assert "Quality Score Details" in report_text
     assert "Transformation Lineage" in report_text
     assert "Manipulation Summary" in report_text
-    assert "Trend Analysis" in report_text
-    assert "Forecasting Readiness and Baseline Forecasts" in report_text
-    assert "Visual Analytics" in report_text
-    assert "Business question" in report_text
-    assert "KPI Summary" in report_text
-    assert "Executive Insights" in report_text
-    assert "Business Recommendations" in report_text
-    assert "Workflow Improvements" in report_text
+    assert "Anomalies" in report_text
     assert "Audit Events" in report_text
 
 

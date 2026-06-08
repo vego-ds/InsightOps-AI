@@ -42,11 +42,11 @@ def test_upload_analysis_accepts_valid_csv() -> None:
     assert set(payload) == EXPECTED_ANALYSIS_SECTIONS
     assert payload["source_metadata"]["source_type"] == "uploaded_csv"
     assert payload["source_metadata"]["file_name"] == "sales_sample.csv"
-    assert payload["data_profile"]["total_rows"] == 5
+    assert payload["data_profile"]["total_rows"] == 200
     assert payload["quality_score"]["grade"] == "fair"
     assert payload["quality_gate"]["status"] == "warning"
     assert payload["quality_gate"]["confidence_level"] == "medium"
-    assert payload["preparation"]["total_records"] == 3
+    assert payload["preparation"]["total_records"] == 198
     assert payload["transformation_log"]["entries"]
     assert payload["manipulation_summary"]["ranked_products"]
     assert payload["trend_analysis"]["period_grain"] == "month"
@@ -87,7 +87,11 @@ def test_upload_analysis_rejects_empty_csv_file() -> None:
     assert response.status_code == 400
 
 
-def test_upload_analysis_rejects_oversized_csv_file() -> None:
+def test_upload_analysis_rejects_oversized_csv_file(monkeypatch) -> None:
+    from app.main import settings
+
+    monkeypatch.setattr(settings, "max_upload_bytes", 1_000_000)
+
     client = TestClient(app)
     oversized_content = b"a" * 1_000_001
 

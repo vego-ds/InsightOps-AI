@@ -72,9 +72,7 @@ def test_trend_recommendations_generate_workflow_improvements() -> None:
 
     assert plan.total_workflows == 1
     assert plan.workflows[0].workflow_name == "Sales Performance Review"
-    assert plan.workflows[0].related_recommendation_ids == [
-        "revenue_trend_review_001"
-    ]
+    assert plan.workflows[0].related_recommendation_ids == ["revenue_trend_review_001"]
 
 
 def test_forecast_recommendations_generate_named_workflows() -> None:

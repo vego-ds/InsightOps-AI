@@ -58,8 +58,7 @@ def generate_executive_insights(
                 severity="medium",
                 title="Invalid sales rows detected",
                 message=(
-                    f"{validation_report.invalid_rows} invalid sales rows "
-                    "were found."
+                    f"{validation_report.invalid_rows} invalid sales rows were found."
                 ),
                 evidence={
                     "total_rows": validation_report.total_rows,
@@ -69,8 +68,7 @@ def generate_executive_insights(
             )
         )
         recommended_actions.append(
-            "Review and correct invalid sales records before executive "
-            "reporting."
+            "Review and correct invalid sales records before executive reporting."
         )
 
     if quality_gate and quality_gate.status == "blocked":
@@ -146,8 +144,7 @@ def generate_executive_insights(
             )
         )
         recommended_actions.append(
-            "Improve data quality score before using outputs for strategic "
-            "decisions."
+            "Improve data quality score before using outputs for strategic decisions."
         )
 
     if data_profile and data_profile.duplicate_order_ids > 0:
@@ -237,8 +234,7 @@ def generate_executive_insights(
                     severity="info",
                     title="High-value orders are concentrated",
                     message=(
-                        f"High-value orders are concentrated in "
-                        f"{field_name} '{label}'."
+                        f"High-value orders are concentrated in {field_name} '{label}'."
                     ),
                     evidence={
                         "field": field_name,
@@ -261,8 +257,7 @@ def generate_executive_insights(
                     severity="info",
                     title="Discounted orders are concentrated",
                     message=(
-                        "Discounted orders are concentrated in product "
-                        f"'{product}'."
+                        f"Discounted orders are concentrated in product '{product}'."
                     ),
                     evidence={
                         "product": product,
@@ -279,13 +274,10 @@ def generate_executive_insights(
                 severity="high",
                 title="Human review required",
                 message=(
-                    "Prompt injection or suspicious text was detected in "
-                    "sales records."
+                    "Prompt injection or suspicious text was detected in sales records."
                 ),
                 evidence={
-                    "prompt_injection_detected": (
-                        security.prompt_injection_detected
-                    ),
+                    "prompt_injection_detected": (security.prompt_injection_detected),
                     "human_review_required": security.human_review_required,
                 },
             )
@@ -340,16 +332,12 @@ def generate_executive_insights(
                 insight_type="anomaly",
                 severity="high",
                 title="Sales anomalies detected",
-                message=(
-                    f"{anomalies.total_anomalies} sales anomalies were "
-                    "detected."
-                ),
+                message=(f"{anomalies.total_anomalies} sales anomalies were detected."),
                 evidence={"total_anomalies": anomalies.total_anomalies},
             )
         )
         recommended_actions.append(
-            "Investigate high-severity sales anomalies before final "
-            "reporting."
+            "Investigate high-severity sales anomalies before final reporting."
         )
 
     if trend_analysis:
@@ -472,9 +460,7 @@ def generate_executive_insights(
                 )
             )
         else:
-            revenue_value = _selected_forecast_value(
-                forecast_analysis.revenue_forecast
-            )
+            revenue_value = _selected_forecast_value(forecast_analysis.revenue_forecast)
             order_count_value = _selected_forecast_value(
                 forecast_analysis.order_count_forecast
             )
@@ -484,16 +470,12 @@ def generate_executive_insights(
                     insight_type="forecast_revenue",
                     severity=(
                         "medium"
-                        if _forecast_declines(
-                            forecast_analysis.revenue_forecast
-                        )
+                        if _forecast_declines(forecast_analysis.revenue_forecast)
                         else "info"
                     ),
                     title=(
                         "Revenue baseline forecast indicates planning risk"
-                        if _forecast_declines(
-                            forecast_analysis.revenue_forecast
-                        )
+                        if _forecast_declines(forecast_analysis.revenue_forecast)
                         else "Revenue baseline forecast is available"
                     ),
                     message=(
@@ -599,16 +581,15 @@ def generate_executive_insights(
         "Use KPI and chart outputs to support executive sales review."
     )
 
-    if insights:
-        summary = (
-            f"{len(insights)} executive insights were generated from the "
-            "sales analysis."
-        )
-    else:
-        summary = (
-            "The sales dataset passed validation, security, KPI, and anomaly "
-            "checks without notable issues."
-        )
+    summary = _build_narrative(
+        validation_report,
+        kpis,
+        data_profile,
+        quality_score,
+        quality_gate,
+        trend_analysis,
+        forecast_analysis,
+    )
 
     return ExecutiveInsightReport(
         summary=summary,
@@ -633,13 +614,17 @@ def _selected_forecast_value(forecast) -> float:
 def _forecast_declines(forecast) -> bool:
     if forecast is None:
         return False
-    return forecast.selected_forecast_value < forecast.last_period_forecast.forecast_value
+    return (
+        forecast.selected_forecast_value < forecast.last_period_forecast.forecast_value
+    )
 
 
 def _forecast_increases(forecast) -> bool:
     if forecast is None:
         return False
-    return forecast.selected_forecast_value > forecast.last_period_forecast.forecast_value
+    return (
+        forecast.selected_forecast_value > forecast.last_period_forecast.forecast_value
+    )
 
 
 def _discount_concentration(
@@ -682,3 +667,107 @@ def _high_value_concentration(
             return field_name, label, count
 
     return None
+
+
+def _build_narrative(
+    validation_report: ValidationReport,
+    kpis: SalesKPIResult,
+    data_profile: SalesDataProfile | None,
+    quality_score: DataQualityScore | None,
+    quality_gate: QualityGateResult | None,
+    trend_analysis: TimeSeriesTrendAnalysis | None,
+    forecast_analysis: ForecastAnalysis | None,
+) -> str:
+    # 1. Revenue & Orders
+    rev_str = f"${kpis.total_revenue:,.2f}"
+    orders_str = f"{kpis.total_orders} valid order" + (
+        "s" if kpis.total_orders != 1 else ""
+    )
+
+    # 2. Data quality, invalid rows, missing fields
+    grade_str = quality_score.grade if quality_score else "unknown"
+    invalid_count = validation_report.invalid_rows
+    missing_count = (
+        sum(data_profile.missing_field_counts.values())
+        if (data_profile and data_profile.missing_field_counts)
+        else 0
+    )
+
+    quality_desc = f"Data quality is {grade_str}, with {invalid_count} invalid row" + (
+        "s" if invalid_count != 1 else ""
+    )
+    if missing_count > 0:
+        quality_desc += f" and {missing_count} missing required field value" + (
+            "s" if missing_count != 1 else ""
+        )
+
+    # 3. Quality Gate & Confidence
+    gate_status = quality_gate.status if quality_gate else "passed"
+    confidence = quality_gate.confidence_level if quality_gate else "high"
+    gate_desc = (
+        f"The quality gate allows analysis to proceed with {confidence} confidence"
+    )
+    if gate_status == "blocked":
+        gate_desc = f"The quality gate has blocked analysis due to low confidence ({confidence})"
+    elif gate_status == "warning":
+        gate_desc = (
+            f"The quality gate allows analysis to proceed with {confidence} confidence"
+        )
+
+    # 4. Trend & Forecast Readiness
+    trend_periods = trend_analysis.total_periods if trend_analysis else 0
+    forecast_status = (
+        forecast_analysis.readiness_status if forecast_analysis else "not_ready"
+    )
+
+    readiness_parts = []
+    if trend_periods < 2:
+        readiness_parts.append(
+            f"trend and forecast readiness are limited because only {trend_periods} monthly period is available"
+            if trend_periods == 1
+            else f"trend and forecast readiness are limited because only {trend_periods} monthly periods are available"
+        )
+    else:
+        readiness_parts.append(
+            f"trend analysis is active across {trend_periods} periods"
+        )
+
+    if forecast_status == "not_ready":
+        if trend_periods >= 2:
+            readiness_parts.append("forecast readiness is not ready")
+    elif forecast_status == "limited":
+        readiness_parts.append("forecast readiness is limited")
+    elif forecast_status == "ready":
+        readiness_parts.append("forecast readiness is fully ready")
+
+    readiness_desc = ", and ".join(readiness_parts)
+
+    # 5. Top Region & Product
+    top_region = "None"
+    if kpis.revenue_by_region:
+        top_region = max(kpis.revenue_by_region, key=kpis.revenue_by_region.get)
+    top_product = "None"
+    if kpis.revenue_by_product:
+        top_product = max(kpis.revenue_by_product, key=kpis.revenue_by_product.get)
+
+    leaders_desc = f"{top_region} and {top_product} lead revenue"
+
+    # 6. Top recommended action / business priority
+    priority_action = "using outputs for strategic planning"
+    if gate_status in ("blocked", "warning"):
+        priority_action = (
+            "correcting source data quality before using outputs for strategic planning"
+        )
+    elif invalid_count > 0:
+        priority_action = "correcting invalid sales records before final reporting"
+    elif missing_count > 0:
+        priority_action = "remediating missing fields to improve forecast signals"
+    elif forecast_status == "not_ready":
+        priority_action = (
+            "collecting more historical monthly periods to activate predictive models"
+        )
+
+    action_desc = f"while the immediate business priority is {priority_action}."
+
+    narrative = f"The analyzed sales dataset contains {rev_str} in valid revenue across {orders_str}. {quality_desc}. {gate_desc}, but {readiness_desc}. {leaders_desc}, {action_desc}"
+    return narrative

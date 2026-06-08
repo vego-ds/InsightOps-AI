@@ -60,7 +60,7 @@ findings into business recommendations with evidence, owners, expected impact,
 follow-up metrics, and related insight/chart IDs. The workflow improvement plan
 maps recommendations into operational process changes.
 
-Report generation is available as deterministic module-level artifact generation. Markdown, PDF, and PNG chart artifacts are not currently exposed through API endpoints.
+Report generation is available as deterministic module-level artifact generation. Markdown and PDF report artifacts are exposed through dedicated report export API endpoints, while PNG chart artifacts remain a backend capability.
 
 ## Module Breakdown
 
@@ -103,7 +103,7 @@ Suspicious text from uploaded data is treated as data, not instructions. Human-r
 - No database persistence.
 - No LLM-generated pipeline decisions.
 - No visual chart rendering in the dashboard.
-- Report artifacts are module-level outputs, not API endpoints.
+- Report artifacts are temporarily generated per-request and not retained in persistent user storage.
 
 ## Future Improvements
 

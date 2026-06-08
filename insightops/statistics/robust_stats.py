@@ -65,7 +65,5 @@ def standard_deviation(values: list[float]) -> float | None:
     if average is None:
         return None
 
-    variance = sum((value - average) ** 2 for value in values) / (
-        len(values) - 1
-    )
+    variance = sum((value - average) ** 2 for value in values) / (len(values) - 1)
     return round(sqrt(variance), 2)

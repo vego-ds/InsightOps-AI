@@ -50,6 +50,5 @@ def compute_sales_kpis(records: list[SalesRecord]) -> SalesKPIResult:
 
 def _round_grouped_revenue(grouped_revenue: dict[str, float]) -> dict[str, float]:
     return {
-        group_name: round(revenue, 2)
-        for group_name, revenue in grouped_revenue.items()
+        group_name: round(revenue, 2) for group_name, revenue in grouped_revenue.items()
     }

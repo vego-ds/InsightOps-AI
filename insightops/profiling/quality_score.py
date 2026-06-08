@@ -18,15 +18,11 @@ def compute_data_quality_score(profile: SalesDataProfile) -> DataQualityScore:
     if profile.invalid_rows > 0:
         score -= min(40, profile.invalid_rows * 10)
         issues.append(f"{profile.invalid_rows} invalid rows detected")
-        recommendations.append(
-            "Review invalid rows before executive reporting"
-        )
+        recommendations.append("Review invalid rows before executive reporting")
 
     if profile.duplicate_order_ids > 0:
         score -= min(20, profile.duplicate_order_ids * 10)
-        issues.append(
-            f"{profile.duplicate_order_ids} duplicate order IDs detected"
-        )
+        issues.append(f"{profile.duplicate_order_ids} duplicate order IDs detected")
         recommendations.append("Deduplicate order IDs before forecasting")
 
     missing_field_total = sum(profile.missing_field_counts.values())

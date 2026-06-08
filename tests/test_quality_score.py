@@ -6,7 +6,7 @@ from insightops.profiling.quality_score import compute_data_quality_score
 def test_quality_score_returns_score_and_grade() -> None:
     score = _sample_quality_score()
 
-    assert score.score == 70
+    assert score.score == 60
     assert score.grade == "fair"
 
 
@@ -14,10 +14,7 @@ def test_quality_score_reports_invalid_rows() -> None:
     score = _sample_quality_score()
 
     assert "2 invalid rows detected" in score.issues
-    assert (
-        "Review invalid rows before executive reporting"
-        in score.recommendations
-    )
+    assert "Review invalid rows before executive reporting" in score.recommendations
 
 
 def test_quality_score_reports_duplicate_order_ids() -> None:
@@ -27,7 +24,7 @@ def test_quality_score_reports_duplicate_order_ids() -> None:
 
     score = compute_data_quality_score(profile)
 
-    assert "1 duplicate order IDs detected" in score.issues
+    assert "2 duplicate order IDs detected" in score.issues
     assert "Deduplicate order IDs before forecasting" in score.recommendations
 
 
@@ -44,6 +41,8 @@ def test_quality_score_for_clean_profile_is_excellent() -> None:
     validation_report.invalid_rows = 0
     validation_report.errors = []
     profile = build_sales_data_profile(validation_report)
+    profile.duplicate_order_ids = 0
+    profile.missing_field_counts = {}
 
     score = compute_data_quality_score(profile)
 

@@ -170,9 +170,7 @@ def _detect_product_relative_high_revenue(
 
     anomalies: list[SalesAnomaly] = []
     for product, product_records in sorted(records_by_product.items()):
-        bounds = calculate_iqr_bounds(
-            [record.revenue for record in product_records]
-        )
+        bounds = calculate_iqr_bounds([record.revenue for record in product_records])
         if bounds is None:
             continue
 
@@ -184,8 +182,7 @@ def _detect_product_relative_high_revenue(
                 field="revenue",
                 value=record.revenue,
                 message=(
-                    f"Revenue is above the product-level IQR upper bound "
-                    f"for {product}."
+                    f"Revenue is above the product-level IQR upper bound for {product}."
                 ),
                 method="segment_iqr",
                 threshold=bounds.upper_bound,

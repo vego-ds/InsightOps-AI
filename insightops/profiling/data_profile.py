@@ -54,9 +54,7 @@ def build_sales_data_profile(
         revenue_summary=_numeric_summary([record.revenue for record in records]),
         quantity_summary=_numeric_summary([record.quantity for record in records]),
         discount_summary=_numeric_summary([record.discount for record in records]),
-        unit_price_summary=_numeric_summary(
-            [record.unit_price for record in records]
-        ),
+        unit_price_summary=_numeric_summary([record.unit_price for record in records]),
     )
 
 

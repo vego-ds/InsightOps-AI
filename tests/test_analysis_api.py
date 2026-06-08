@@ -36,20 +36,20 @@ def test_analysis_sample_returns_validation_and_kpis() -> None:
 
     source_metadata = payload["source_metadata"]
     assert source_metadata["source_type"] == "sample_csv"
-    assert source_metadata["record_count"] == 5
+    assert source_metadata["record_count"] == 200
 
     validation = payload["validation"]
-    assert validation["total_rows"] == 5
-    assert validation["valid_rows"] == 3
+    assert validation["total_rows"] == 200
+    assert validation["valid_rows"] == 198
     assert validation["invalid_rows"] == 2
 
     data_profile = payload["data_profile"]
-    assert data_profile["total_rows"] == 5
-    assert data_profile["unique_customers"] == 3
+    assert data_profile["total_rows"] == 200
+    assert data_profile["unique_customers"] == 85
     assert "revenue_summary" in data_profile
 
     quality_score = payload["quality_score"]
-    assert quality_score["score"] == 70
+    assert quality_score["score"] == 60
     assert quality_score["grade"] == "fair"
 
     quality_gate = payload["quality_gate"]
@@ -60,7 +60,7 @@ def test_analysis_sample_returns_validation_and_kpis() -> None:
     assert "can_generate_reports" in quality_gate
     assert "can_generate_llm_narrative" in quality_gate
 
-    assert payload["preparation"]["total_records"] == 3
+    assert payload["preparation"]["total_records"] == 198
     assert len(payload["transformation_log"]["entries"]) >= 2
     assert "monthly_revenue" in payload["manipulation_summary"]
 
@@ -78,7 +78,7 @@ def test_analysis_sample_returns_validation_and_kpis() -> None:
     assert isinstance(forecast["recommended_actions"], list)
 
     kpis = payload["kpis"]
-    assert kpis["total_orders"] == 3
+    assert kpis["total_orders"] == 198
     assert kpis["total_revenue"] > 0
 
     security = payload["security"]
@@ -121,7 +121,4 @@ def test_analysis_sample_returns_validation_and_kpis() -> None:
 
     audit_events = payload["audit_events"]
     assert len(audit_events) >= 1
-    assert any(
-        event["event_type"] == "insights_generated"
-        for event in audit_events
-    )
+    assert any(event["event_type"] == "insights_generated" for event in audit_events)

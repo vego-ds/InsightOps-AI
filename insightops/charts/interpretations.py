@@ -40,10 +40,7 @@ def trend_direction_interpretation(points: list[tuple[str, float]]) -> str:
     else:
         direction = "flat"
 
-    return (
-        f"Monthly net revenue is {direction} from {first_label} to "
-        f"{last_label}."
-    )
+    return f"Monthly net revenue is {direction} from {first_label} to {last_label}."
 
 
 def discount_concentration_interpretation(
@@ -56,10 +53,7 @@ def discount_concentration_interpretation(
         product_discounts,
         key=lambda item: (-item[1], item[0]),
     )[0]
-    return (
-        f"{product} has the highest average discount at "
-        f"{average_discount:.2f}."
-    )
+    return f"{product} has the highest average discount at {average_discount:.2f}."
 
 
 def anomaly_severity_interpretation(

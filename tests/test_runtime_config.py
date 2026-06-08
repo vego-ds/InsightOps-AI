@@ -1,12 +1,12 @@
 from insightops.config import load_app_settings
 
 
-def test_default_max_upload_bytes_is_one_mb(monkeypatch) -> None:
+def test_default_max_upload_bytes_is_100_mb(monkeypatch) -> None:
     monkeypatch.delenv("INSIGHTOPS_MAX_UPLOAD_BYTES", raising=False)
 
     settings = load_app_settings()
 
-    assert settings.max_upload_bytes == 1_000_000
+    assert settings.max_upload_bytes == 104_857_600
 
 
 def test_environment_override_for_max_upload_bytes(monkeypatch) -> None:

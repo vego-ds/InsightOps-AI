@@ -184,14 +184,9 @@ def test_quality_score_and_discount_charts_exist() -> None:
         forecast_analysis=_forecast_analysis(),
     )
 
+    assert _chart_by_id(chart_data.charts, "data_quality_score").data[0].value == 70
     assert (
-        _chart_by_id(chart_data.charts, "data_quality_score").data[0].value
-        == 70
-    )
-    assert (
-        _chart_by_id(chart_data.charts, "discount_summary_by_product")
-        .data[0]
-        .label
+        _chart_by_id(chart_data.charts, "discount_summary_by_product").data[0].label
         == "Insights Basic"
     )
 

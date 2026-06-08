@@ -67,9 +67,7 @@ def evaluate_forecast_readiness(
         )
     elif quality_gate.status == "warning":
         confidence_level = "medium" if status == "ready" else "low"
-        limitations.append(
-            "Quality gate warnings limit forecast confidence."
-        )
+        limitations.append("Quality gate warnings limit forecast confidence.")
         required_actions.append(
             "Review quality gate warnings before using baseline forecasts."
         )

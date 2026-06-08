@@ -9,8 +9,8 @@ def test_sample_sales_csv_loads_with_validation_report() -> None:
 
     report = load_sales_csv(str(sample_path))
 
-    assert report.total_rows == 5
-    assert report.valid_rows == 3
+    assert report.total_rows == 200
+    assert report.valid_rows == 198
     assert report.invalid_rows == 2
     assert report.errors
     assert report.records

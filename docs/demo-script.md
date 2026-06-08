@@ -51,20 +51,20 @@ http://127.0.0.1:8000/docs
 ## 4. Dashboard Walkthrough
 
 1. Open `http://127.0.0.1:8000/`.
-2. Click `Analyze Sample Data`.
-3. Start with the Executive Summary panel: revenue, orders, anomalies, confidence, forecast readiness, recommendations, and workflow counts.
-4. Explain the Quality Gate status card: whether the analysis is pass, warning, or blocked and whether human review is needed.
-5. Explain the Forecast Readiness card: readiness status, confidence level, and next forecast period.
-6. Review the top Business Actions: high-priority recommendations first, with owner roles, expected impact, and follow-up metrics.
-7. Explain the Forecast and Trend Snapshot: revenue/order baselines, forecast warnings, and trend directions.
-8. Explain Visual Analytics as evidence: each chart has a business question, interpretation, related insights, and recommended actions.
-9. Expand Technical Evidence only when needed for reviewers: validation, profile, quality score, preparation, lineage, KPIs, anomalies, workflows, audit events, and raw JSON.
-10. Generate a sample PDF report from the dashboard.
-11. Switch the report format selector to Markdown and generate a sample Markdown report.
-12. Upload `data/sample/sales_sample.csv` and show the same response contract with the same stakeholder-first layout.
-13. Generate a PDF report from the uploaded CSV.
-14. Explain that report generation respects the quality gate; blocked datasets return a report-generation error instead of a low-confidence report.
-15. Explain that uploaded files and generated reports are temporary per-request artifacts, not persistent user storage.
+2. Observe the state-aware command suggestion chips (e.g. *Run sample analysis*).
+3. Click `Analyze Sample Data` (or the chip) to load analysis.
+4. Try typing guided analytics commands into the **Ask** bar:
+   * **Data Credibility**: Type `"can I trust this data"` or click the chip. The screen scrolls to and highlights the **Quality Gate** card.
+   * **Planning aids**: Type `"show forecast"`. The screen highlights the **Trends and Forecasts** card.
+   * **Visual Evidence**: Type `"show charts"`. The screen highlights the **Visual Analytics** card. Use the live search field to look for "region", and click filter buttons to cycle categories.
+   * **Business Decisions**: Type `"what should we do"`. The screen highlights the **Recommendations & Action Center** card.
+   * **Report Export**: Type `"download pdf"`. The browser compiles and starts downloading the PDF executive report.
+   * **Compliance Audit**: Type `"show technical evidence"`. The screen highlights the **Technical Evidence Drawer**.
+   * **Help fallback**: Type an arbitrary phrase (e.g. `"test"`) to view the inline command guide list.
+5. In Visual Analytics, toggle a chart card to its table format (e.g., Regional Revenue Share table) and expand the interpretation details.
+6. Verify the diagnostics shape check logs are clean in the Technical Evidence Drawer.
+7. Upload `data/sample/sales_sample.csv` and verify the status indicators transition from *"Uploading file"* to *"Ready (upload mode)"*.
+8. Export report outputs to verify that blocked states prevent report compilation.
 
 ## 5. Artifact And Operations Talking Points
 

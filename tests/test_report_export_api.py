@@ -101,7 +101,11 @@ def test_upload_report_rejects_empty_csv_file() -> None:
     assert response.status_code == 400
 
 
-def test_upload_report_rejects_oversized_csv_file() -> None:
+def test_upload_report_rejects_oversized_csv_file(monkeypatch) -> None:
+    from app.main import settings
+
+    monkeypatch.setattr(settings, "max_upload_bytes", 1_000_000)
+
     client = TestClient(app)
     oversized_content = b"a" * 1_000_001
 

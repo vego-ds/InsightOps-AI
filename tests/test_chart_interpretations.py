@@ -29,9 +29,7 @@ def test_trend_direction_interpretation_is_deterministic() -> None:
     assert "increasing" in trend_direction_interpretation(
         [("2026-01", 100.0), ("2026-02", 200.0)]
     )
-    assert "Insufficient" in trend_direction_interpretation(
-        [("2026-01", 100.0)]
-    )
+    assert "Insufficient" in trend_direction_interpretation([("2026-01", 100.0)])
 
 
 def test_discount_concentration_interpretation_identifies_top_discount() -> None:
@@ -53,9 +51,7 @@ def test_anomaly_and_quality_interpretations_are_explicit() -> None:
 
 
 def test_pareto_interpretation_mentions_cumulative_revenue_share() -> None:
-    interpretation = pareto_concentration_interpretation(
-        {"A": 80.0, "B": 20.0}
-    )
+    interpretation = pareto_concentration_interpretation({"A": 80.0, "B": 20.0})
 
     assert "80.00%" in interpretation
     assert "80% cumulative" in interpretation

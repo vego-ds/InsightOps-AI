@@ -44,7 +44,7 @@ FastAPI routes
 - `GET /`: lightweight static dashboard.
 - `GET /health`: service health.
 - `GET /analysis/sample`: analyze bundled sample CSV.
-- `POST /analysis/upload`: analyze uploaded `.csv` files up to 1 MB.
+- `POST /analysis/upload`: analyze uploaded `.csv` files up to 100 MB.
 - `POST /analysis/sample/report`: download sample analysis report.
 - `POST /analysis/upload/report`: download uploaded CSV analysis report.
 - `GET /docs`: interactive API docs.
@@ -130,7 +130,13 @@ regression, or advanced forecasting models.
 
 ## Dashboard
 
-The dashboard is a lightweight static demo UI built with HTML, CSS, and vanilla JavaScript. It now presents an executive summary, decision status cards, top business actions, forecast and trend snapshot, visual analytics, and report downloads before collapsible technical evidence. It is not a production frontend and does not use a frontend framework or chart library.
+The dashboard is a governed sales analytics workspace built with vanilla HTML, CSS, and JavaScript. It features:
+* **Ask Guided Analytics**: A client-side deterministic command router supporting synonym grouping, auto-scrolling, brief card highlights, and report triggers. No `eval` or arbitrary code execution is performed, maintaining full security.
+* **Dynamic Suggestion Chips**: State-aware action buttons that adapt based on whether a dataset has been analyzed.
+* **No-Library Visual Analytics**: Fully responsive, dependency-free visualizations rendered via CSS bar gauges, inline SVG line charts, donut/pie charts, and half-donut metric gauges, with interactive live search and category filtering controls.
+* **Technical Evidence Drawer**: Collapsible sections for all underlying API fields, protected by a centralized render error guard and featuring an automatic validation diagnostics shape checker.
+
+It does not use external frontend frameworks (React, Vue, etc.) or visual libraries (Chart.js, D3.js).
 
 ## CI And Deployment
 

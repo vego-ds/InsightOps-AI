@@ -29,7 +29,7 @@ Sales leaders need trustworthy analysis from messy CSV data. This project demons
 - Chart-ready data and PNG artifact generation.
 - Markdown and PDF executive report export endpoints.
 - Optional guarded narrative writer foundation.
-- Stakeholder-oriented static dashboard demo with collapsible technical evidence.
+- Stakeholder-oriented governed workspace dashboard featuring guided plain-English commands (no-eval router), no-library responsive SVG visualizations, gallery filters, and collapsible technical evidence protected by render guards and diagnostics.
 
 ## Architecture Highlights
 
@@ -71,8 +71,8 @@ This project shows backend engineering judgment: deterministic business logic, t
 
 - Built a FastAPI sales analytics platform that validates CSV data, tracks source metadata and lineage, gates analysis confidence, computes KPIs, summarizes monthly trends, generates deterministic baseline forecasts, ties visual analytics to recommendations, generates workflow improvements, detects anomalies, and returns typed audit-ready analysis responses.
 - Implemented prompt-injection guardrails and deterministic fallback for optional narrative generation.
-- Added CI, Docker deployment support, static dashboard demo, and Markdown/PDF report export workflow.
+- Added CI, Docker deployment support, governed workspace dashboard with guided commands and inline SVG charts, and Markdown/PDF report export workflow.
 
 ## LinkedIn/GitHub Description
 
-InsightOps-AI is a production-style sales analytics automation API with deterministic data collection metadata, validation, preparation, profiling, quality gates, KPI computation, monthly trend analysis, baseline forecasts, visual analytics tied to insights, business recommendations, workflow improvements, security guardrails, anomaly detection, executive insights, report exports, CI, Docker support, and a lightweight static dashboard.
+InsightOps-AI is a production-style sales analytics automation API with deterministic data collection metadata, validation, preparation, profiling, quality gates, KPI computation, monthly trend analysis, baseline forecasts, visual analytics tied to insights, business recommendations, workflow improvements, security guardrails, anomaly detection, executive insights, report exports, CI, Docker support, and a governed workspace dashboard with guided commands and responsive SVG visualizations.

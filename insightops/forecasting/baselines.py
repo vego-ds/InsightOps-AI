@@ -44,7 +44,9 @@ def generate_forecast_analysis(
     quality_gate: QualityGateResult,
 ) -> ForecastAnalysis:
     readiness = evaluate_forecast_readiness(trend_analysis, quality_gate)
-    next_period = _next_period(trend_analysis.data[-1].period) if trend_analysis.data else None
+    next_period = (
+        _next_period(trend_analysis.data[-1].period) if trend_analysis.data else None
+    )
     warnings = _analysis_warnings(readiness.status, quality_gate.status, trend_analysis)
 
     if next_period is None:
@@ -108,7 +110,9 @@ def _metric_forecast(
     confidence = "medium" if readiness_status == "ready" else "low"
     last_period = _last_period_forecast(metric, values, next_period, confidence)
     moving_average = _moving_average_forecast(metric, values, next_period, confidence)
-    trend_projection = _trend_projection_forecast(metric, values, next_period, confidence)
+    trend_projection = _trend_projection_forecast(
+        metric, values, next_period, confidence
+    )
     selected_method = _selected_method(readiness_status)
     selected_point = {
         "moving_average": moving_average,
@@ -187,10 +191,7 @@ def _trend_projection_forecast(
             "to the last observed value."
         )
     else:
-        changes = [
-            values[index] - values[index - 1]
-            for index in range(1, len(values))
-        ]
+        changes = [values[index] - values[index - 1] for index in range(1, len(values))]
         average_change = sum(changes) / len(changes)
         value = round(values[-1] + average_change, 2)
         method_confidence = confidence

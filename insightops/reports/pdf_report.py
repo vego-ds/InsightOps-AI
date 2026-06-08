@@ -36,10 +36,129 @@ def _build_report_story(analysis: AnalysisResponse) -> list:
     story: list = []
 
     _add_heading(story, styles, "Executive Sales Report", level=1)
+
     _add_heading(story, styles, "Executive Summary")
     _add_paragraph(story, styles, analysis.insights.summary)
 
-    _add_heading(story, styles, "Source Metadata")
+    _add_heading(story, styles, "Decision Readiness")
+    _add_bullets(
+        story,
+        styles,
+        [
+            f"Quality Gate Status: {analysis.quality_gate.status.upper()}",
+            f"Analysis Confidence Level: {analysis.quality_gate.confidence_level.upper()}",
+            f"Forecast Readiness Status: {analysis.forecast_analysis.readiness_status.upper()}",
+            f"Human Auditor Oversight Required: {analysis.quality_gate.human_review_required}",
+        ],
+    )
+
+    _add_heading(story, styles, "KPI Snapshot")
+    _add_bullets(
+        story,
+        styles,
+        [
+            f"Total Net Sales Revenue: ${analysis.kpis.total_revenue:,.2f}",
+            f"Total Valid Orders: {analysis.kpis.total_orders}",
+            f"Total Units Sold: {analysis.kpis.total_units_sold}",
+            f"Average Order Value (AOV): ${analysis.kpis.average_order_value:,.2f}",
+        ],
+    )
+
+    _add_heading(story, styles, "Top Findings")
+    top_insights = analysis.insights.insights[:3]
+    if top_insights:
+        for insight in top_insights:
+            _add_paragraph(story, styles, insight.title, style_name="Heading3")
+            _add_bullets(
+                story,
+                styles,
+                [
+                    f"Message: {insight.message}",
+                    f"Severity: {insight.severity}",
+                ],
+            )
+    else:
+        _add_bullets(story, styles, ["No critical findings generated."])
+
+    _add_heading(story, styles, "Top Business Actions")
+    top_actions = analysis.insights.recommended_actions[:3]
+    _add_bullets(
+        story,
+        styles,
+        top_actions or ["No recommended actions."],
+    )
+
+    _add_heading(story, styles, "Primary Visual Evidence")
+    primary_ids = [
+        "revenue_by_region",
+        "revenue_by_product",
+        "revenue_by_sales_rep",
+        "pareto_revenue_by_product",
+        "data_quality_score",
+    ]
+    primary_charts = [
+        c for c in (analysis.charts.charts or []) if c.chart_id in primary_ids
+    ]
+    if primary_charts:
+        for chart in primary_charts:
+            _add_paragraph(story, styles, chart.title, style_name="Heading3")
+            actions = chart.recommended_actions
+            single_action = (
+                actions[0]
+                if (actions and len(actions) > 0)
+                else "Use this visual as supporting evidence for the related business recommendation."
+            )
+            _add_bullets(
+                story,
+                styles,
+                [
+                    f"Business Question: {chart.business_question}",
+                    f"Concise Finding: {chart.interpretation}",
+                    f"Recommended Next Action: {single_action}",
+                ],
+            )
+    else:
+        _add_bullets(story, styles, ["No primary visual evidence charts generated."])
+
+    _add_heading(story, styles, "Forecast Readiness")
+    total_periods = analysis.trend_analysis.total_periods
+    readiness_status = analysis.forecast_analysis.readiness_status
+    if total_periods < 2 or readiness_status == "not_ready":
+        _add_paragraph(
+            story,
+            styles,
+            f"Warning: Historical data is insufficient for reliable trend and forecast projections. Total periods: {total_periods} (minimum 2 periods required). Forecast readiness status: {readiness_status.upper()}.",
+        )
+    else:
+        _add_bullets(
+            story,
+            styles,
+            [
+                f"Historical Monthly Periods: {total_periods}",
+                f"Forecast Grain: {analysis.trend_analysis.period_grain}",
+                f"Forecast Confidence Level: {analysis.forecast_analysis.confidence_level.upper()}",
+                f"Next Period Projected: {analysis.forecast_analysis.next_period or 'none'}",
+                f"Revenue Forecast: {_format_metric_forecast(analysis.forecast_analysis.revenue_forecast)}",
+            ],
+        )
+
+    _add_heading(story, styles, "Data Quality and Limitations")
+    _add_bullets(
+        story,
+        styles,
+        [
+            f"Total rows: {analysis.validation.total_rows}",
+            f"Valid rows: {analysis.validation.valid_rows}",
+            f"Invalid rows: {analysis.validation.invalid_rows}",
+            f"Duplicate order IDs: {analysis.data_profile.duplicate_order_ids}",
+            f"Missing fields: {_format_mapping(analysis.data_profile.missing_field_counts)}",
+        ],
+    )
+
+    # TECHNICAL APPENDIX
+    _add_heading(story, styles, "Technical Appendix")
+
+    _add_heading(story, styles, "Source Metadata", level=3)
     _add_bullets(
         story,
         styles,
@@ -53,7 +172,7 @@ def _build_report_story(analysis: AnalysisResponse) -> list:
         ],
     )
 
-    _add_heading(story, styles, "Validation")
+    _add_heading(story, styles, "Validation Details", level=3)
     _add_bullets(
         story,
         styles,
@@ -64,7 +183,7 @@ def _build_report_story(analysis: AnalysisResponse) -> list:
         ],
     )
 
-    _add_heading(story, styles, "Data Profile")
+    _add_heading(story, styles, "Data Profile Details", level=3)
     _add_bullets(
         story,
         styles,
@@ -75,30 +194,15 @@ def _build_report_story(analysis: AnalysisResponse) -> list:
             f"Unique products: {analysis.data_profile.unique_products}",
             f"Unique sales reps: {analysis.data_profile.unique_sales_reps}",
             f"Duplicate order IDs: {analysis.data_profile.duplicate_order_ids}",
-            (
-                "Missing fields: "
-                f"{_format_mapping(analysis.data_profile.missing_field_counts)}"
-            ),
-            (
-                "Revenue summary: "
-                f"{_format_numeric_summary(analysis.data_profile.revenue_summary)}"
-            ),
-            (
-                "Quantity summary: "
-                f"{_format_numeric_summary(analysis.data_profile.quantity_summary)}"
-            ),
-            (
-                "Discount summary: "
-                f"{_format_numeric_summary(analysis.data_profile.discount_summary)}"
-            ),
-            (
-                "Unit price summary: "
-                f"{_format_numeric_summary(analysis.data_profile.unit_price_summary)}"
-            ),
+            f"Missing fields: {_format_mapping(analysis.data_profile.missing_field_counts)}",
+            f"Revenue summary: {_format_numeric_summary(analysis.data_profile.revenue_summary)}",
+            f"Quantity summary: {_format_numeric_summary(analysis.data_profile.quantity_summary)}",
+            f"Discount summary: {_format_numeric_summary(analysis.data_profile.discount_summary)}",
+            f"Unit price summary: {_format_numeric_summary(analysis.data_profile.unit_price_summary)}",
         ],
     )
 
-    _add_heading(story, styles, "Quality Score")
+    _add_heading(story, styles, "Quality Score Details", level=3)
     _add_bullets(
         story,
         styles,
@@ -106,177 +210,27 @@ def _build_report_story(analysis: AnalysisResponse) -> list:
             f"Score: {analysis.quality_score.score}",
             f"Grade: {analysis.quality_score.grade}",
             f"Issues: {_format_list(analysis.quality_score.issues)}",
-            (
-                "Recommendations: "
-                f"{_format_list(analysis.quality_score.recommendations)}"
-            ),
+            f"Recommendations: {_format_list(analysis.quality_score.recommendations)}",
         ],
     )
 
-    _add_heading(story, styles, "Quality Gate and Analysis Confidence")
-    _add_bullets(
-        story,
-        styles,
-        [
-            f"Status: {analysis.quality_gate.status}",
-            f"Confidence level: {analysis.quality_gate.confidence_level}",
-            (
-                "Human review required: "
-                f"{analysis.quality_gate.human_review_required}"
-            ),
-            f"Reasons: {_format_list(analysis.quality_gate.reasons)}",
-            (
-                "Required actions: "
-                f"{_format_list(analysis.quality_gate.required_actions)}"
-            ),
-        ],
-    )
-
-    _add_heading(story, styles, "KPI Summary")
-    _add_bullets(
-        story,
-        styles,
-        [
-            f"Total revenue: ${analysis.kpis.total_revenue:.2f}",
-            f"Total orders: {analysis.kpis.total_orders}",
-            f"Total units sold: {analysis.kpis.total_units_sold}",
-            (
-                "Average order value: "
-                f"${analysis.kpis.average_order_value:.2f}"
-            ),
-        ],
-    )
-
-    _add_heading(story, styles, "Data Preparation")
-    _add_bullets(
-        story,
-        styles,
-        [
-            f"Prepared records: {analysis.preparation.total_records}",
-            (
-                "Derived fields: gross_revenue, discount_amount, net_revenue, "
-                "average_unit_revenue, order_year, order_month, order_quarter, "
-                "is_discounted, is_high_value_order, "
-                "revenue_reconciliation_difference"
-            ),
-        ],
-    )
-
-    _add_heading(story, styles, "Transformation Lineage")
+    _add_heading(story, styles, "Transformation Lineage", level=3)
     _add_bullets(story, styles, _format_transformation_items(analysis))
 
-    _add_heading(story, styles, "Manipulation Summary")
+    _add_heading(story, styles, "Manipulation Summary", level=3)
     _add_bullets(
         story,
         styles,
         [
-            (
-                "Monthly revenue: "
-                f"{_format_points(analysis.manipulation_summary.monthly_revenue)}"
-            ),
-            (
-                "Ranked regions: "
-                f"{_format_points(analysis.manipulation_summary.ranked_regions)}"
-            ),
-            (
-                "Ranked products: "
-                f"{_format_points(analysis.manipulation_summary.ranked_products)}"
-            ),
-            (
-                "Ranked sales reps: "
-                f"{_format_points(analysis.manipulation_summary.ranked_sales_reps)}"
-            ),
-            (
-                "Discount summary by product: "
-                f"{_format_discount_summary(analysis)}"
-            ),
+            f"Monthly revenue: {_format_points(analysis.manipulation_summary.monthly_revenue)}",
+            f"Ranked regions: {_format_points(analysis.manipulation_summary.ranked_regions)}",
+            f"Ranked products: {_format_points(analysis.manipulation_summary.ranked_products)}",
+            f"Ranked sales reps: {_format_points(analysis.manipulation_summary.ranked_sales_reps)}",
+            f"Discount summary by product: {_format_discount_summary(analysis)}",
         ],
     )
 
-    _add_heading(story, styles, "Trend Analysis")
-    _add_bullets(
-        story,
-        styles,
-        [
-            f"Period grain: {analysis.trend_analysis.period_grain}",
-            f"Total periods: {analysis.trend_analysis.total_periods}",
-            f"Monthly performance: {_format_trend_points(analysis)}",
-            (
-                "Revenue trend: "
-                f"{_format_trend_summary(analysis.trend_analysis.revenue_trend)}"
-            ),
-            (
-                "Order count trend: "
-                f"{_format_trend_summary(analysis.trend_analysis.order_count_trend)}"
-            ),
-            (
-                "Average order value trend: "
-                f"{_format_trend_summary(analysis.trend_analysis.average_order_value_trend)}"
-            ),
-            (
-                "Units sold trend: "
-                f"{_format_trend_summary(analysis.trend_analysis.units_sold_trend)}"
-            ),
-            (
-                "Average discount trend: "
-                f"{_format_trend_summary(analysis.trend_analysis.average_discount_trend)}"
-            ),
-            f"Warnings: {_format_list(analysis.trend_analysis.warnings)}",
-        ],
-    )
-
-    _add_heading(story, styles, "Forecasting Readiness and Baseline Forecasts")
-    _add_bullets(
-        story,
-        styles,
-        [
-            "Forecast type: deterministic baseline forecasts, not ML forecasts.",
-            f"Readiness status: {analysis.forecast_analysis.readiness_status}",
-            f"Confidence level: {analysis.forecast_analysis.confidence_level}",
-            f"Next period: {analysis.forecast_analysis.next_period or 'none'}",
-            (
-                "Revenue forecast: "
-                f"{_format_metric_forecast(analysis.forecast_analysis.revenue_forecast)}"
-            ),
-            (
-                "Order count forecast: "
-                f"{_format_metric_forecast(analysis.forecast_analysis.order_count_forecast)}"
-            ),
-            (
-                "Average order value forecast: "
-                f"{_format_metric_forecast(analysis.forecast_analysis.average_order_value_forecast)}"
-            ),
-            (
-                "Units sold forecast: "
-                f"{_format_metric_forecast(analysis.forecast_analysis.units_sold_forecast)}"
-            ),
-            (
-                "Average discount forecast: "
-                f"{_format_metric_forecast(analysis.forecast_analysis.average_discount_forecast)}"
-            ),
-            f"Warnings: {_format_list(analysis.forecast_analysis.warnings)}",
-            (
-                "Recommended actions: "
-                f"{_format_list(analysis.forecast_analysis.recommended_actions)}"
-            ),
-        ],
-    )
-
-    _add_heading(story, styles, "Security")
-    security_items = [
-        (
-            "prompt_injection_detected: "
-            f"{analysis.security.prompt_injection_detected}"
-        ),
-        f"human_review_required: {analysis.security.human_review_required}",
-    ]
-    if analysis.security.flagged_fields:
-        security_items.append(
-            "flagged fields: " + ", ".join(analysis.security.flagged_fields)
-        )
-    _add_bullets(story, styles, security_items)
-
-    _add_heading(story, styles, "Anomalies")
+    _add_heading(story, styles, "Anomalies", level=3)
     anomaly_items = [f"Total anomalies: {analysis.anomalies.total_anomalies}"]
     if analysis.anomalies.anomalies:
         anomaly_items.extend(
@@ -294,109 +248,12 @@ def _build_report_story(analysis: AnalysisResponse) -> list:
         anomaly_items.append("No anomalies detected.")
     _add_bullets(story, styles, anomaly_items)
 
-    _add_heading(story, styles, "Visual Analytics")
-    if analysis.charts.charts:
-        for chart in analysis.charts.charts:
-            _add_paragraph(story, styles, chart.title, style_name="Heading3")
-            _add_bullets(
-                story,
-                styles,
-                [
-                    f"Business question: {chart.business_question}",
-                    f"Interpretation: {chart.interpretation}",
-                    (
-                        "Related insight IDs: "
-                        f"{_format_list(chart.related_insight_ids)}"
-                    ),
-                    (
-                        "Recommended actions: "
-                        f"{_format_list(chart.recommended_actions)}"
-                    ),
-                ],
-            )
-    else:
-        _add_bullets(story, styles, ["No visual analytics charts generated."])
-
-    _add_heading(story, styles, "Executive Insights")
-    if analysis.insights.insights:
-        for insight in analysis.insights.insights:
-            _add_paragraph(story, styles, insight.title, style_name="Heading3")
-            _add_bullets(
-                story,
-                styles,
-                [
-                    f"Insight ID: {insight.insight_id}",
-                    f"Severity: {insight.severity}",
-                    f"Message: {insight.message}",
-                    f"Evidence: {_format_evidence(insight.evidence)}",
-                ],
-            )
-    else:
-        _add_bullets(story, styles, ["No executive insights generated."])
-
-    _add_heading(story, styles, "Recommended Actions")
-    _add_bullets(
-        story,
-        styles,
-        analysis.insights.recommended_actions or ["No recommended actions."],
-    )
-
-    _add_heading(story, styles, "Business Recommendations")
-    if analysis.recommendation_plan.recommendations:
-        for recommendation in analysis.recommendation_plan.recommendations:
-            _add_paragraph(
-                story,
-                styles,
-                recommendation.title,
-                style_name="Heading3",
-            )
-            _add_bullets(
-                story,
-                styles,
-                [
-                    f"Priority: {recommendation.priority}",
-                    f"Business area: {recommendation.business_area}",
-                    f"Problem: {recommendation.problem}",
-                    f"Evidence: {_format_evidence(recommendation.evidence)}",
-                    (
-                        "Recommended action: "
-                        f"{recommendation.recommended_action}"
-                    ),
-                    f"Expected impact: {recommendation.expected_impact}",
-                    f"Owner role: {recommendation.owner_role}",
-                    f"Follow-up metric: {recommendation.follow_up_metric}",
-                ],
-            )
-    else:
-        _add_bullets(story, styles, ["No business recommendations generated."])
-
-    _add_heading(story, styles, "Workflow Improvements")
-    if analysis.workflow_improvement_plan.workflows:
-        for workflow in analysis.workflow_improvement_plan.workflows:
-            _add_paragraph(story, styles, workflow.workflow_name, style_name="Heading3")
-            _add_bullets(
-                story,
-                styles,
-                [
-                    f"Current issue: {workflow.current_issue}",
-                    f"Proposed change: {workflow.proposed_change}",
-                    f"Expected benefit: {workflow.expected_benefit}",
-                    f"Owner role: {workflow.owner_role}",
-                    f"Follow-up metric: {workflow.follow_up_metric}",
-                ],
-            )
-    else:
-        _add_bullets(story, styles, ["No workflow improvements generated."])
-
-    _add_heading(story, styles, "Audit Events")
+    _add_heading(story, styles, "Audit Events", level=3)
     if analysis.audit_events:
         _add_bullets(
             story,
             styles,
-            [
-                f"{event.event_type}: {event.message}"
-                for event in analysis.audit_events
-            ],
+            [f"{event.event_type}: {event.message}" for event in analysis.audit_events],
         )
     else:
         _add_bullets(story, styles, ["No audit events."])
@@ -472,9 +329,7 @@ def _format_mapping(values: dict[str, int]) -> str:
     if not values:
         return "none"
 
-    return ", ".join(
-        f"{key}={value}" for key, value in sorted(values.items())
-    )
+    return ", ".join(f"{key}={value}" for key, value in sorted(values.items()))
 
 
 def _format_list(values: list[str]) -> str:
@@ -510,8 +365,7 @@ def _format_points(points) -> str:
         return "none"
 
     return ", ".join(
-        f"{point.label}={_format_evidence_value(point.value)}"
-        for point in points
+        f"{point.label}={_format_evidence_value(point.value)}" for point in points
     )
 
 

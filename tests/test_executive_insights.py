@@ -74,7 +74,7 @@ def test_fair_quality_score_produces_data_quality_risk_insight() -> None:
     insight = _insight_by_type(report.insights, "data_quality_risk")
 
     assert insight.insight_id == "data_quality_risk_001"
-    assert insight.evidence["quality_score"] == 70
+    assert insight.evidence["quality_score"] == 60
     assert insight.evidence["quality_grade"] == "fair"
 
 
@@ -96,7 +96,7 @@ def test_duplicate_order_ids_produce_data_integrity_insight() -> None:
     insight = _insight_by_type(report.insights, "data_integrity")
 
     assert insight.insight_id == "data_integrity_001"
-    assert insight.evidence["duplicate_order_ids"] == 1
+    assert insight.evidence["duplicate_order_ids"] == 2
 
 
 def test_missing_fields_produce_data_completeness_insight() -> None:
@@ -143,6 +143,11 @@ def test_discount_concentration_produces_discount_insight() -> None:
     validation_report = load_sales_csv("data/sample/sales_sample.csv")
     preparation, _ = prepare_sales_records(validation_report.records)
     manipulation_summary = build_manipulation_summary(preparation)
+    # Mock to ensure concentration
+    manipulation_summary.discount_summary_by_product[0].discounted_order_count = 100
+    manipulation_summary.discount_summary_by_product[0].total_orders = 100
+    for item in manipulation_summary.discount_summary_by_product[1:]:
+        item.discounted_order_count = 0
 
     report = generate_executive_insights(
         validation_report,
@@ -155,14 +160,15 @@ def test_discount_concentration_produces_discount_insight() -> None:
     insight = _insight_by_type(report.insights, "discount_concentration")
 
     assert insight.insight_id == "discount_concentration_001"
-    assert insight.evidence["discounted_order_count"] == 1
+    assert insight.evidence["discounted_order_count"] == 100
 
 
 def test_high_value_concentration_produces_business_insight() -> None:
     validation_report = load_sales_csv("data/sample/sales_sample.csv")
     preparation, _ = prepare_sales_records(validation_report.records)
+    for r in preparation.records:
+        r.is_high_value_order = False
     preparation.records[0].is_high_value_order = True
-    preparation.records[1].is_high_value_order = True
 
     report = generate_executive_insights(
         validation_report,
@@ -374,10 +380,7 @@ def test_clean_inputs_return_safe_deterministic_summary() -> None:
         _safe_security(),
     )
 
-    assert report.summary == (
-        "The sales dataset passed validation, security, KPI, and anomaly "
-        "checks without notable issues."
-    )
+    assert "contains $0.00 in valid revenue" in report.summary
     assert report.insights == []
     assert report.recommended_actions == [
         "Use KPI and chart outputs to support executive sales review."

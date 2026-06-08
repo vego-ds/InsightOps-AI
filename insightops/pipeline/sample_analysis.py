@@ -73,9 +73,7 @@ def analyze_sales_csv_file(
         quality_score,
         security,
     )
-    preparation, transformation_log = prepare_sales_records(
-        validation_report.records
-    )
+    preparation, transformation_log = prepare_sales_records(validation_report.records)
     manipulation_summary = build_manipulation_summary(preparation)
     trend_analysis = analyze_time_series_trends(preparation)
     forecast_analysis = generate_forecast_analysis(trend_analysis, quality_gate)
@@ -122,9 +120,7 @@ def analyze_sales_csv_file(
             insights=insights,
         )
     )
-    workflow_improvement_plan = generate_workflow_improvement_plan(
-        recommendation_plan
-    )
+    workflow_improvement_plan = generate_workflow_improvement_plan(recommendation_plan)
     audit_events = [
         create_source_metadata_collected_event(
             source_metadata.source_type,

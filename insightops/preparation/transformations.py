@@ -36,9 +36,7 @@ def prepare_sales_records(
     records: list[SalesRecord],
 ) -> tuple[PreparedSalesDataset, TransformationLog]:
     cleaned_records = [clean_sales_record(record) for record in records]
-    prepared_records = [
-        _build_prepared_record(record) for record in cleaned_records
-    ]
+    prepared_records = [_build_prepared_record(record) for record in cleaned_records]
     transformation_log = create_transformation_log(
         [
             TransformationLogEntry(
@@ -76,9 +74,7 @@ def _build_prepared_record(record: SalesRecord) -> PreparedSalesRecord:
     discount_amount = round(gross_revenue * record.discount, 2)
     net_revenue = round(gross_revenue - discount_amount, 2)
     average_unit_revenue = (
-        round(record.revenue / record.quantity, 2)
-        if record.quantity > 0
-        else 0.0
+        round(record.revenue / record.quantity, 2) if record.quantity > 0 else 0.0
     )
 
     return PreparedSalesRecord(
