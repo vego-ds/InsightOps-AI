@@ -71,6 +71,11 @@ def test_dashboard_static_assets_are_served() -> None:
 
     # Verify styles.css contains layout classes
     css_content = style_response.text
+    assert "brand-link" in css_content
+    assert "display: inline-flex" in css_content
+    assert "text-decoration: none" in css_content
+    assert "brand-icon" in css_content
+    assert "brand-name" in css_content
     assert "app-layout" in css_content  # workspace layout
     assert "sidebar" in css_content
     assert "command-panel" in css_content
