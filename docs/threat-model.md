@@ -35,6 +35,7 @@
 - External provider outage or malformed response.
 - Low-quality data being presented as high-confidence executive output.
 - Missing data, duplicate order IDs, or invalid rows causing misleading analysis.
+- Schema mapping injection or formatting manipulation (e.g., malformed external formats causing parsing crashes).
 
 ## Mitigations Implemented
 
@@ -57,6 +58,8 @@
 - `.gitignore` and `.dockerignore` for cache, env, and generated files.
 - Dependency verification script.
 - CI with dependency verification, Ruff, and pytest.
+- Strict backend schema validation: Mapped CSV structures are fully validated against the canonical schema immediately. The backend remains the absolute source of truth.
+- Ephemeral mapping processing: Mapped canonical files are stored in temporary paths and unlinked in `finally` blocks to prevent data persistence.
 
 ## Remaining Risks
 

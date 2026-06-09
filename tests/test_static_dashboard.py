@@ -15,6 +15,8 @@ def test_dashboard_root_returns_html() -> None:
     # Verify index.html contains workspace-oriented sections
     html_content = response.text
     assert "InsightOps-AI" in html_content
+    assert 'href="/"' in html_content
+    assert 'aria-label="Go to InsightOps-AI home"' in html_content
     assert "Data" in html_content
     assert "Ask" in html_content
     assert "Executive Summary" in html_content

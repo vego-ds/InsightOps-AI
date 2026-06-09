@@ -41,6 +41,8 @@ It should ingest sales data, validate schemas, compute sales KPIs, detect anomal
 - Keep technical details in the appendix.
 - Use richer sample data for demos.
 - Do not commit large mock files (e.g., > 1 MB) to test large upload size limits; use monkeypatching to set smaller runtime limits during testing instead.
+- New upload schema mappings must be explicit, deterministic, tested, and documented. Do not silently infer arbitrary schemas.
+- Do not use errors="ignore" or errors="replace" for CSV decoding. Encoding fallbacks must be explicit and tested to ensure data integrity.
 
 ## Commands
 

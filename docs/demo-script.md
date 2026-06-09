@@ -63,8 +63,11 @@ http://127.0.0.1:8000/docs
    * **Help fallback**: Type an arbitrary phrase (e.g. `"test"`) to view the inline command guide list.
 5. In Visual Analytics, toggle a chart card to its table format (e.g., Regional Revenue Share table) and expand the interpretation details.
 6. Verify the diagnostics shape check logs are clean in the Technical Evidence Drawer.
-7. Upload `data/sample/sales_sample.csv` and verify the status indicators transition from *"Uploading file"* to *"Ready (upload mode)"*.
-8. Export report outputs to verify that blocked states prevent report compilation.
+7. Preview a canonical CSV: Select `data/sample/sales_sample.csv` (or drag it). Verify that the upload preview panel displays `compatible=true`, detects the canonical schema, lists column headers, and enables the `Run Full Analysis` button.
+8. Preview a legacy encoded classic_sales_sample CSV (e.g. Windows-1252): Select a legacy classic sales CSV. Verify that the preview displays `compatible=true`, `detected_schema=classic_sales_sample`, and `Encoding: cp1252`.
+9. Show mapping & encoding warnings: Verify the panel displays: *"CSV was decoded using cp1252. For best compatibility, export future files as CSV UTF-8."* and *"This file was decoded as Windows-1252 and will be mapped into the InsightOps canonical schema."*
+10. Run mapped upload analysis: Click `Run Full Analysis` for the legacy preview. Verify that the analysis succeeds, visual analytics render, and source metadata notes capture both encoding and schema mapping details.
+11. Generate report from mapped upload: Click `Download PDF Report` or type `"download pdf"` in the Ask bar. Verify the PDF report generates and downloads successfully.
 
 ## 5. Artifact And Operations Talking Points
 

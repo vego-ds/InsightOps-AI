@@ -108,6 +108,18 @@ curl -X POST "http://127.0.0.1:8000/analysis/upload" \
   -F "file=@data/sample/sales_sample.csv"
 ```
 
+## CSV Schema Compatibility And Mapping
+
+InsightOps-AI enforces strict schema verification on uploaded CSV files to guarantee data governance and prevent processing failures:
+
+- **Canonical Sales Schema**: The governed pipeline expects:
+  - `order_id`, `order_date`, `customer_id`, `region`, `product`, `sales_rep`, `quantity`, `unit_price`, `discount`, `revenue`.
+- **Header Normalization**: Headers are automatically trimmed, lowercased, spaces replaced with underscores, and punctuation removed.
+- **Supported Schema Mapping (`classic_sales_sample`)**: External schemas matching classic sample layouts are automatically mapped to canonical fields (e.g., `ORDERNUMBER` -> `order_id`, first and last names concatenated into `sales_rep`, and `discount` defaulted to `0` with a warning).
+- **Upload Preview**: The `POST /analysis/upload/preview` endpoint allows inspecting headers, detecting schemas, listing missing columns, and checking compatibility without executing full analysis.
+- **Supported Encodings**: While UTF-8 and UTF-8 BOM are recommended for best compatibility, the application also safely supports common legacy encodings like Windows-1252 (cp1252) and ISO-8859-1. Legacy encodings trigger warning messages in the preview panel. Truly unreadable or binary-like files will return a controlled HTTP 400.
+- **100 MB Limit**: Max upload size limit is strictly set to 100 MB (104,857,600 bytes).
+
 ## Security And Guardrails
 
 InsightOps-AI keeps deterministic logic as the source of truth. Uploaded files are CSV-only, size-limited, validated row by row, scanned for prompt-injection style text, and routed through typed response contracts.

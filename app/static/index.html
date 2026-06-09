@@ -16,8 +16,10 @@
     <!-- WORKSPACE HEADER -->
     <header class="workspace-header">
       <div class="header-brand">
-        <span class="logo-icon">🛡️</span>
-        <h1 class="logo-title">InsightOps-AI</h1>
+        <a class="brand-link" href="/" aria-label="Go to InsightOps-AI home">
+          <span class="logo-icon">🛡️</span>
+          <h1 class="logo-title">InsightOps-AI</h1>
+        </a>
         <span class="logo-divider">|</span>
         <span class="logo-tagline">Governed sales analytics workspace</span>
       </div>
@@ -97,6 +99,29 @@
               </div>
             </div>
             <button class="clear-file-btn" type="button" id="clear-file-btn" title="Remove loaded file">Reset</button>
+          </div>
+
+          <!-- Upload Preview Panel -->
+          <div id="upload-preview-panel" class="upload-preview-panel" style="display: none; margin-top: 15px; padding: 15px; border-radius: 6px; background: var(--bg-card-hover); border: 1px solid rgba(255,255,255,0.05);">
+            <div id="preview-status-box" style="margin-bottom: 12px; font-weight: bold; font-size: 1.05rem;"></div>
+            <div style="font-size: 0.9em; margin-bottom: 8px;">
+              <strong>Detected Schema:</strong> <span id="preview-detected-schema" style="color: var(--accent);"></span>
+            </div>
+            <div style="font-size: 0.9em; margin-bottom: 8px;">
+              <strong>Encoding:</strong> <span id="preview-detected-encoding" style="color: var(--accent);"></span>
+            </div>
+            <div style="font-size: 0.9em; margin-bottom: 8px; max-height: 80px; overflow-y: auto;">
+              <strong>Columns Found:</strong> <span id="preview-detected-columns" style="color: var(--muted);"></span>
+            </div>
+            <div id="preview-missing-box" style="display: none; font-size: 0.9em; margin-bottom: 8px; color: var(--danger);">
+              <strong>Missing Columns:</strong> <span id="preview-missing-columns"></span>
+            </div>
+            <div id="preview-warnings-box" style="display: none; font-size: 0.9em; margin-bottom: 8px; color: var(--warning); padding: 8px; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25); border-radius: 4px;">
+              <strong>Warnings:</strong> <span id="preview-warnings-text"></span>
+            </div>
+            <div id="preview-actions-box" style="margin-top: 15px; display: flex; gap: 10px;">
+              <button id="run-full-analysis-btn" class="upload-action-btn" style="background: var(--success); cursor: pointer;" type="button">Run Full Analysis</button>
+            </div>
           </div>
         </section>
 

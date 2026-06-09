@@ -1,15 +1,8 @@
-from pathlib import Path
-
-from fastapi.testclient import TestClient
-
 import app.main as app_main
-from app.main import app
 from insightops.pipeline.sample_analysis import analyze_sample_sales_data
 
 
-def test_sample_report_returns_pdf() -> None:
-    client = TestClient(app)
-
+def test_sample_report_returns_pdf(client) -> None:
     response = client.post("/analysis/sample/report")
 
     assert response.status_code == 200
@@ -18,9 +11,7 @@ def test_sample_report_returns_pdf() -> None:
     assert_report_headers(response, "pdf", "executive_sales_report.pdf")
 
 
-def test_sample_report_returns_markdown() -> None:
-    client = TestClient(app)
-
+def test_sample_report_returns_markdown(client) -> None:
     response = client.post("/analysis/sample/report?format=markdown")
 
     assert response.status_code == 200
@@ -29,29 +20,22 @@ def test_sample_report_returns_markdown() -> None:
     assert_report_headers(response, "markdown", "executive_sales_report.md")
 
 
-def test_sample_report_accepts_markdown_alias() -> None:
-    client = TestClient(app)
-
+def test_sample_report_accepts_markdown_alias(client) -> None:
     response = client.post("/analysis/sample/report?format=md")
 
     assert response.status_code == 200
     assert response.headers["x-report-format"] == "markdown"
 
 
-def test_sample_report_rejects_invalid_format() -> None:
-    client = TestClient(app)
-
+def test_sample_report_rejects_invalid_format(client) -> None:
     response = client.post("/analysis/sample/report?format=xlsx")
 
     assert response.status_code == 400
     assert "Unsupported report format" in response.json()["detail"]
 
 
-def test_upload_report_returns_pdf_for_valid_csv() -> None:
-    client = TestClient(app)
-    sample_csv = Path("data/sample/sales_sample.csv")
-
-    with sample_csv.open("rb") as csv_file:
+def test_upload_report_returns_pdf_for_valid_csv(client, sample_csv_path) -> None:
+    with sample_csv_path.open("rb") as csv_file:
         response = client.post(
             "/analysis/upload/report?format=pdf",
             files={"file": ("sales_sample.csv", csv_file, "text/csv")},
@@ -63,11 +47,8 @@ def test_upload_report_returns_pdf_for_valid_csv() -> None:
     assert_report_headers(response, "pdf", "executive_sales_report.pdf")
 
 
-def test_upload_report_returns_markdown_for_valid_csv() -> None:
-    client = TestClient(app)
-    sample_csv = Path("data/sample/sales_sample.csv")
-
-    with sample_csv.open("rb") as csv_file:
+def test_upload_report_returns_markdown_for_valid_csv(client, sample_csv_path) -> None:
+    with sample_csv_path.open("rb") as csv_file:
         response = client.post(
             "/analysis/upload/report?format=markdown",
             files={"file": ("sales_sample.csv", csv_file, "text/csv")},
@@ -79,9 +60,7 @@ def test_upload_report_returns_markdown_for_valid_csv() -> None:
     assert_report_headers(response, "markdown", "executive_sales_report.md")
 
 
-def test_upload_report_rejects_non_csv_file() -> None:
-    client = TestClient(app)
-
+def test_upload_report_rejects_non_csv_file(client) -> None:
     response = client.post(
         "/analysis/upload/report",
         files={"file": ("sales.txt", b"hello", "text/plain")},
@@ -90,9 +69,7 @@ def test_upload_report_rejects_non_csv_file() -> None:
     assert response.status_code == 400
 
 
-def test_upload_report_rejects_empty_csv_file() -> None:
-    client = TestClient(app)
-
+def test_upload_report_rejects_empty_csv_file(client) -> None:
     response = client.post(
         "/analysis/upload/report",
         files={"file": ("empty.csv", b"", "text/csv")},
@@ -101,12 +78,11 @@ def test_upload_report_rejects_empty_csv_file() -> None:
     assert response.status_code == 400
 
 
-def test_upload_report_rejects_oversized_csv_file(monkeypatch) -> None:
+def test_upload_report_rejects_oversized_csv_file(monkeypatch, client) -> None:
     from app.main import settings
 
     monkeypatch.setattr(settings, "max_upload_bytes", 1_000_000)
 
-    client = TestClient(app)
     oversized_content = b"a" * 1_000_001
 
     response = client.post(
@@ -117,11 +93,10 @@ def test_upload_report_rejects_oversized_csv_file(monkeypatch) -> None:
     assert response.status_code == 413
 
 
-def test_upload_report_rejects_invalid_format_before_generation() -> None:
-    client = TestClient(app)
-    sample_csv = Path("data/sample/sales_sample.csv")
-
-    with sample_csv.open("rb") as csv_file:
+def test_upload_report_rejects_invalid_format_before_generation(
+    client, sample_csv_path
+) -> None:
+    with sample_csv_path.open("rb") as csv_file:
         response = client.post(
             "/analysis/upload/report?format=docx",
             files={"file": ("sales_sample.csv", csv_file, "text/csv")},
@@ -130,8 +105,9 @@ def test_upload_report_rejects_invalid_format_before_generation() -> None:
     assert response.status_code == 400
 
 
-def test_sample_report_returns_422_when_quality_gate_blocks(monkeypatch) -> None:
-    client = TestClient(app)
+def test_sample_report_returns_422_when_quality_gate_blocks(
+    monkeypatch, client
+) -> None:
     analysis = analyze_sample_sales_data()
     analysis.quality_gate.can_generate_reports = False
 

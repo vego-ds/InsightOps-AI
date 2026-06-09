@@ -4,8 +4,20 @@ from fastapi import FastAPI, File, HTTPException, Query, Response, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from insightops.api.contracts import AnalysisResponse, ErrorResponse, HealthResponse
+from insightops.api.contracts import (
+    AnalysisResponse,
+    ErrorResponse,
+    HealthResponse,
+    CsvUploadPreviewResponse,
+)
 from insightops.config import load_app_settings
+from insightops.validation.schema import (
+    CsvSchemaError,
+    CsvDecodeError,
+    CsvIncompatibleSchemaError,
+    inspect_sales_csv_schema,
+)
+from insightops.io.csv_compatibility import prepare_csv_for_analysis
 from insightops.pipeline.sample_analysis import (
     analyze_sales_csv_file,
     analyze_sample_sales_data,
@@ -213,19 +225,40 @@ async def api_upload_dataset(
     session_id: str = Query(...), file: UploadFile | None = File(default=None)
 ):
     uploaded_file = await persist_upload_temporarily(file, settings.max_upload_bytes)
+    prepared = None
     try:
+        try:
+            prepared = prepare_csv_for_analysis(uploaded_file.path)
+        except CsvDecodeError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except CsvIncompatibleSchemaError as e:
+            detail = (
+                f"{str(e)}\n"
+                "Supported schemas:\n"
+                "- canonical InsightOps sales schema\n"
+                "- classic_sales_sample mapping"
+            )
+            raise HTTPException(status_code=400, detail=detail)
+        except CsvSchemaError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
         # Initialize sandbox and pre-load dataframe
         sandbox = sessions.setdefault(session_id, PythonInterpreterSandbox())
-        sandbox.load_dataframe(str(uploaded_file.path))
+        sandbox.load_dataframe(str(prepared.analysis_path))
 
         # Run standard validation pipeline
         analysis = analyze_sales_csv_file(
-            str(uploaded_file.path),
+            str(prepared.analysis_path),
             uploaded_file_name=uploaded_file.original_filename,
             uploaded_file_size_bytes=uploaded_file.size_bytes,
         )
+        if prepared.was_mapped:
+            warnings_str = "; ".join(prepared.warnings)
+            analysis.source_metadata.notes = f"Schema mapped from {prepared.detected_schema}. Warnings: {warnings_str}"
         return analysis
     finally:
+        if prepared and prepared.was_mapped and prepared.analysis_path.exists():
+            prepared.analysis_path.unlink(missing_ok=True)
         if uploaded_file.path.exists():
             uploaded_file.path.unlink(missing_ok=True)
 
@@ -314,15 +347,37 @@ async def analyze_uploaded_sales(
     file: UploadFile | None = File(default=None),
 ) -> AnalysisResponse:
     uploaded_file = await persist_upload_temporarily(file, settings.max_upload_bytes)
+    prepared = None
     try:
-        return analyze_sales_csv_file(
-            str(uploaded_file.path),
+        try:
+            prepared = prepare_csv_for_analysis(uploaded_file.path)
+        except CsvDecodeError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except CsvIncompatibleSchemaError as e:
+            detail = (
+                f"{str(e)}\n"
+                "Supported schemas:\n"
+                "- canonical InsightOps sales schema\n"
+                "- classic_sales_sample mapping"
+            )
+            raise HTTPException(status_code=400, detail=detail)
+        except CsvSchemaError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+        analysis = analyze_sales_csv_file(
+            str(prepared.analysis_path),
             uploaded_file_name=uploaded_file.original_filename,
             uploaded_file_size_bytes=uploaded_file.size_bytes,
         )
+        if prepared.was_mapped:
+            warnings_str = "; ".join(prepared.warnings)
+            analysis.source_metadata.notes = f"Schema mapped from {prepared.detected_schema}. Warnings: {warnings_str}"
+        return analysis
     except FileNotFoundError as error:
         raise HTTPException(status_code=500, detail=str(error)) from error
     finally:
+        if prepared and prepared.was_mapped and prepared.analysis_path.exists():
+            prepared.analysis_path.unlink(missing_ok=True)
         if uploaded_file.path.exists():
             uploaded_file.path.unlink(missing_ok=True)
 
@@ -389,15 +444,80 @@ async def export_uploaded_report(
 ) -> Response:
     normalized_format = _normalize_report_format_for_request(report_format)
     uploaded_file = await persist_upload_temporarily(file, settings.max_upload_bytes)
+    prepared = None
     try:
+        try:
+            prepared = prepare_csv_for_analysis(uploaded_file.path)
+        except CsvDecodeError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except CsvIncompatibleSchemaError as e:
+            detail = (
+                f"{str(e)}\n"
+                "Supported schemas:\n"
+                "- canonical InsightOps sales schema\n"
+                "- classic_sales_sample mapping"
+            )
+            raise HTTPException(status_code=400, detail=detail)
+        except CsvSchemaError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
         analysis = analyze_sales_csv_file(
-            str(uploaded_file.path),
+            str(prepared.analysis_path),
             uploaded_file_name=uploaded_file.original_filename,
             uploaded_file_size_bytes=uploaded_file.size_bytes,
         )
+        if prepared.was_mapped:
+            warnings_str = "; ".join(prepared.warnings)
+            analysis.source_metadata.notes = f"Schema mapped from {prepared.detected_schema}. Warnings: {warnings_str}"
         return _report_response(analysis, normalized_format)
     except FileNotFoundError as error:
         raise HTTPException(status_code=500, detail=str(error)) from error
+    finally:
+        if prepared and prepared.was_mapped and prepared.analysis_path.exists():
+            prepared.analysis_path.unlink(missing_ok=True)
+        if uploaded_file.path.exists():
+            uploaded_file.path.unlink(missing_ok=True)
+
+
+@app.post(
+    "/analysis/upload/preview",
+    response_model=CsvUploadPreviewResponse,
+    summary="Preview uploaded sales CSV schema",
+    description="Inspects the CSV file schema and returns metadata for layout previews.",
+    tags=["analysis"],
+    responses={
+        400: {"model": ErrorResponse},
+        413: {"model": ErrorResponse},
+    },
+)
+async def preview_uploaded_sales(
+    file: UploadFile | None = File(default=None),
+) -> CsvUploadPreviewResponse:
+    uploaded_file = await persist_upload_temporarily(file, settings.max_upload_bytes)
+    try:
+        try:
+            inspection = inspect_sales_csv_schema(uploaded_file.path)
+        except CsvDecodeError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except CsvSchemaError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+        compatible = inspection.is_canonical or inspection.is_mappable
+
+        return CsvUploadPreviewResponse(
+            filename=uploaded_file.original_filename,
+            size_bytes=uploaded_file.size_bytes,
+            detected_schema=inspection.detected_schema,
+            original_headers=inspection.original_headers,
+            normalized_headers=inspection.normalized_headers,
+            is_canonical=inspection.is_canonical,
+            is_mappable=inspection.is_mappable,
+            mapped_columns=inspection.mapped_columns,
+            missing_required_columns=inspection.missing_required_columns,
+            warnings=inspection.warnings,
+            compatible=compatible,
+            detected_encoding=inspection.detected_encoding,
+        )
     finally:
         if uploaded_file.path.exists():
             uploaded_file.path.unlink(missing_ok=True)

@@ -49,3 +49,18 @@ class ErrorResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     service: str
+
+
+class CsvUploadPreviewResponse(BaseModel):
+    filename: str
+    size_bytes: int
+    detected_schema: str
+    original_headers: list[str]
+    normalized_headers: list[str]
+    is_canonical: bool
+    is_mappable: bool
+    mapped_columns: dict[str, str]
+    missing_required_columns: list[str]
+    warnings: list[str]
+    compatible: bool
+    detected_encoding: str

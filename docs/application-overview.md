@@ -28,9 +28,18 @@ InsightOps-AI helps convert raw sales CSVs into structured, audit-ready analytic
 - Produce executive-ready summaries with evidence and audit events.
 - Identify workflow improvements such as required-field validation, discount approval review, and anomaly review processes.
 
+## Core Ingestion Schema Compatibility
+
+To maximize upload friendliness without violating data governance rules, the application supports:
+- **Strict Canonical Validation**: Ensures all 10 required sales fields are present in the CSV file before entering downstream calculations.
+- **Header Normalization**: Tolerates minor spelling/spacing variations by formatting column names (e.g., lowercasing, converting spaces to underscores, stripping special characters).
+- **Deterministic Schema Mapping**: Detects and maps known external schemas (such as the `classic_sales_sample` layout) to the internal canonical schema, allowing users to upload legacy reports without manual formatting.
+- **Incompatibility Safeguards**: Rejects incompatible files with explicit error messages listing missing and detected columns. 
+- **CSV-Only Ingestion**: The pipeline does not support Excel, PDF, images, database connectors, or arbitrary schema inference.
+
 ## Core Capabilities
 
-- CSV ingestion and row-level validation.
+- CSV ingestion with row-level validation and header normalization.
 - Source metadata capture for sample and uploaded datasets.
 - Data profiling with row counts, date range, unique entity counts, missing fields, duplicates, and numeric summaries.
 - Deterministic quality scoring and quality gate decisions.

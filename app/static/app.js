@@ -422,7 +422,7 @@ function setupDragAndDropIngestion() {
       const dt = e.dataTransfer;
       const files = dt.files;
       if (files.length > 0) {
-        uploadSalesCSV(files[0]);
+        previewSalesCSV(files[0]);
       }
     });
   }
@@ -430,7 +430,16 @@ function setupDragAndDropIngestion() {
   if (csvFileInputInput) {
     csvFileInputInput.addEventListener("change", (e) => {
       if (e.target.files.length > 0) {
-        uploadSalesCSV(e.target.files[0]);
+        previewSalesCSV(e.target.files[0]);
+      }
+    });
+  }
+
+  const runFullAnalysisBtn = document.querySelector("#run-full-analysis-btn");
+  if (runFullAnalysisBtn) {
+    runFullAnalysisBtn.addEventListener("click", () => {
+      if (currentFile) {
+        uploadSalesCSV(currentFile);
       }
     });
   }
@@ -529,6 +538,145 @@ async function runSampleAnalysis() {
 
 const loadSampleAnalysis = runSampleAnalysis;
 const fetchSampleAnalysis = runSampleAnalysis;
+
+// Preview a CSV file and check Schema compatibility
+async function previewSalesCSV(file) {
+  if (!file) {
+    showDashboardError("No File Selected", "Please select a file to upload.", "Click browse or drag a file to the dropzone.");
+    return;
+  }
+  
+  if (!file.name.toLowerCase().endsWith(".csv")) {
+    showDashboardError("Invalid File Format", `Blocked non-CSV upload: "${file.name}"`, "Please select a standard sales transaction file ending in .csv");
+    return;
+  }
+  
+  if (file.size === 0) {
+    showDashboardError("Empty File Uploaded", `The selected file "${file.name}" contains 0 bytes.`, "Select a valid, non-empty CSV spreadsheet.");
+    return;
+  }
+  
+  const maxLimit = 100 * 1024 * 1024;
+  const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+  if (file.size > maxLimit) {
+    showDashboardError("Oversized Upload Blocked", `File size is ${fileSizeMB} MB, exceeding the 100 MB maximum limit.`, "Filter, aggregate, or split your spreadsheet data before upload.");
+    return;
+  }
+  
+  currentFile = file;
+  clearDashboardError();
+  
+  // Show file meta
+  if (displayFilename) displayFilename.textContent = file.name;
+  if (displayFilesize) displayFilesize.textContent = `${fileSizeMB} MB`;
+  if (selectedFileDisplay) selectedFileDisplay.style.display = "flex";
+  
+  // Reset preview panel
+  const previewPanel = document.querySelector("#upload-preview-panel");
+  if (previewPanel) previewPanel.style.display = "none";
+  
+  // Hide main results container
+  if (emptyStateCard) emptyStateCard.style.display = "flex";
+  if (resultsContainer) resultsContainer.style.display = "none";
+  
+  setLoadingState(true, `Inspecting CSV schema for ${file.name}...`);
+  
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    const res = await fetch("/analysis/upload/preview", {
+      method: "POST",
+      body: formData
+    });
+    
+    if (!res.ok) {
+      const errMsg = await parseErrorResponse(res);
+      showDashboardError("Schema Inspection Failed", errMsg, "Confirm the file is a readable UTF-8 CSV with column headers.");
+      setWorkspaceStatus("Ready (schema error)", "error");
+      setLoadingState(false);
+      return;
+    }
+    
+    const preview = await res.json();
+    setLoadingState(false);
+    setWorkspaceStatus("Ready (schema inspected)", "ready");
+    
+    // Render preview panel
+    if (previewPanel) {
+      previewPanel.style.display = "block";
+      
+      const statusBox = document.querySelector("#preview-status-box");
+      const detectedSchema = document.querySelector("#preview-detected-schema");
+      const detectedEncoding = document.querySelector("#preview-detected-encoding");
+      const detectedColumns = document.querySelector("#preview-detected-columns");
+      const missingBox = document.querySelector("#preview-missing-box");
+      const missingColumns = document.querySelector("#preview-missing-columns");
+      const warningsBox = document.querySelector("#preview-warnings-box");
+      const warningsText = document.querySelector("#preview-warnings-text");
+      const runBtn = document.querySelector("#run-full-analysis-btn");
+      
+      if (detectedSchema) detectedSchema.textContent = preview.detected_schema;
+      if (detectedEncoding) detectedEncoding.textContent = preview.detected_encoding;
+      if (detectedColumns) detectedColumns.textContent = preview.original_headers.join(", ");
+      
+      if (preview.compatible) {
+        if (statusBox) {
+          statusBox.style.color = "var(--success)";
+          if (preview.detected_schema === "classic_sales_sample") {
+            if (preview.detected_encoding === "cp1252") {
+              statusBox.innerHTML = `✅ Mappable Schema Detected (${preview.detected_schema})<br/><span style="font-size: 0.85em; font-weight: normal; color: var(--muted);">This file was decoded as Windows-1252 and will be mapped into the InsightOps canonical schema.</span>`;
+            } else {
+              statusBox.innerHTML = `✅ Mappable Schema Detected (${preview.detected_schema})<br/><span style="font-size: 0.85em; font-weight: normal; color: var(--muted);">This file will be mapped from classic_sales_sample into the InsightOps canonical schema.</span>`;
+            }
+          } else {
+            if (preview.detected_encoding === "cp1252") {
+              statusBox.innerHTML = `✅ Compatible Canonical Schema Detected<br/><span style="font-size: 0.85em; font-weight: normal; color: var(--muted);">This file was decoded as Windows-1252.</span>`;
+            } else {
+              statusBox.textContent = `✅ Compatible Canonical Schema Detected`;
+            }
+          }
+        }
+        if (missingBox) missingBox.style.display = "none";
+        if (runBtn) {
+          runBtn.style.display = "block";
+          runBtn.disabled = false;
+        }
+      } else {
+        if (statusBox) {
+          statusBox.style.color = "var(--danger)";
+          statusBox.textContent = `❌ Incompatible Schema`;
+        }
+        if (missingBox) {
+          missingBox.style.display = "block";
+          if (missingColumns) {
+            missingColumns.textContent = preview.missing_required_columns.join(", ");
+          }
+        }
+        if (runBtn) {
+          runBtn.style.display = "none";
+          runBtn.disabled = true;
+        }
+      }
+      
+      if (preview.warnings && preview.warnings.length > 0) {
+        if (warningsBox) {
+          warningsBox.style.display = "block";
+          if (warningsText) {
+            warningsText.innerHTML = preview.warnings.map(w => `• ${w}`).join("<br/>");
+          }
+        }
+      } else {
+        if (warningsBox) warningsBox.style.display = "none";
+      }
+    }
+    
+  } catch (err) {
+    showDashboardError("Preview Connection Error", `Failed to inspect file schema: ${err.message}`, "Verify the backend server is running.");
+    setWorkspaceStatus("Offline", "error");
+    setLoadingState(false);
+  }
+}
 
 // Upload a CSV file and execute Ingestion analysis
 async function uploadSalesCSV(file) {
@@ -1480,10 +1628,11 @@ function renderLinePreview(chart) {
   `;
 }
 
-// SVG Pie chart visual preview
-function renderPiePreview(items, options = {}) {
+// Shared renderer for SVG Pie or Donut chart previews
+function _renderPieOrDonut(items, options = {}, isDonut = false) {
   const data = asArray(items);
-  if (data.length === 0) return `<div class="empty-preview-msg">No data for pie preview</div>`;
+  const typeName = isDonut ? "donut" : "pie";
+  if (data.length === 0) return `<div class="empty-preview-msg">No data for ${typeName} preview</div>`;
   
   const total = data.reduce((sum, d) => sum + safeNumber(d.value), 0) || 1;
   const radius = 40;
@@ -1523,6 +1672,7 @@ function renderPiePreview(items, options = {}) {
               <title>${sl.label}: ${formatNumber(sl.value)} (${sl.percentage.toFixed(1)}%)</title>
             </path>
           `).join("")}
+          ${isDonut ? `<circle cx="${center}" cy="${center}" r="22" fill="#141b2f"></circle>` : ""}
         </svg>
       </div>
       <div class="pie-legend">
@@ -1538,63 +1688,14 @@ function renderPiePreview(items, options = {}) {
   `;
 }
 
+// SVG Pie chart visual preview
+function renderPiePreview(items, options = {}) {
+  return _renderPieOrDonut(items, options, false);
+}
+
 // SVG Donut chart visual preview
 function renderDonutPreview(items, options = {}) {
-  const data = asArray(items);
-  if (data.length === 0) return `<div class="empty-preview-msg">No data for donut preview</div>`;
-  
-  const total = data.reduce((sum, d) => sum + safeNumber(d.value), 0) || 1;
-  const radius = 40;
-  const center = 50;
-  let currentAngle = 0;
-  
-  const colors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
-  
-  const slices = data.map((pt, i) => {
-    const val = safeNumber(pt.value);
-    const lbl = safeText(pt.label);
-    const percentage = (val / total) * 100;
-    const angle = (val / total) * 360;
-    
-    const x1 = center + radius * Math.cos((Math.PI * currentAngle) / 180);
-    const y1 = center + radius * Math.sin((Math.PI * currentAngle) / 180);
-    currentAngle += angle;
-    const x2 = center + radius * Math.cos((Math.PI * currentAngle) / 180);
-    const y2 = center + radius * Math.sin((Math.PI * currentAngle) / 180);
-    
-    const largeArcFlag = angle > 180 ? 1 : 0;
-    const pathData = `
-      M ${center} ${center}
-      L ${x1.toFixed(2)} ${y1.toFixed(2)}
-      A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}
-      Z
-    `;
-    return { pathData, color: colors[i % colors.length], label: lbl, percentage, value: val };
-  });
-  
-  return `
-    <div class="pie-preview-wrapper">
-      <div class="pie-svg-container">
-        <svg class="pie-svg" width="120" height="120" viewBox="0 0 100 100">
-          ${slices.map(sl => `
-            <path d="${sl.pathData}" fill="${sl.color}" stroke="#101524" stroke-width="1.5">
-              <title>${sl.label}: ${formatNumber(sl.value)} (${sl.percentage.toFixed(1)}%)</title>
-            </path>
-          `).join("")}
-          <circle cx="${center}" cy="${center}" r="22" fill="#141b2f"></circle>
-        </svg>
-      </div>
-      <div class="pie-legend">
-        ${slices.map(sl => `
-          <div class="pie-legend-item">
-            <span class="legend-color-dot" style="background-color: ${sl.color}"></span>
-            <span class="legend-label" title="${sl.label}">${sl.label}</span>
-            <span class="legend-val">${sl.percentage.toFixed(1)}%</span>
-          </div>
-        `).join("")}
-      </div>
-    </div>
-  `;
+  return _renderPieOrDonut(items, options, true);
 }
 
 // Compact chart data table rendering
@@ -2164,6 +2265,9 @@ function resetSessionState() {
   
   if (emptyStateCard) emptyStateCard.style.display = "block";
   if (selectedFileDisplay) selectedFileDisplay.style.display = "none";
+  
+  const previewPanel = document.querySelector("#upload-preview-panel");
+  if (previewPanel) previewPanel.style.display = "none";
   
   const selectorBar = document.querySelector("#view-mode-selector-bar");
   if (selectorBar) selectorBar.style.display = "none";

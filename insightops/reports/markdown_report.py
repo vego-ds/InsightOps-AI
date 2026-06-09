@@ -2,6 +2,17 @@ from pathlib import Path
 
 from insightops.api.contracts import AnalysisResponse
 from insightops.reports.artifacts import ReportArtifact
+from insightops.reports.formatting import (
+    format_date_range,
+    format_discount_summary,
+    format_list,
+    format_mapping,
+    format_metric_forecast,
+    format_numeric_summary,
+    format_optional_float,
+    format_points,
+    format_transformation_items,
+)
 
 
 def generate_executive_markdown_report(
@@ -124,7 +135,7 @@ def _build_report_markdown(analysis: AnalysisResponse) -> str:
         )
         if analysis.forecast_analysis.revenue_forecast:
             lines.append(
-                f"- Revenue Forecast: {_format_metric_forecast(analysis.forecast_analysis.revenue_forecast)}"
+                f"- Revenue Forecast: {format_metric_forecast(analysis.forecast_analysis.revenue_forecast)}"
             )
         lines.append("")
 
@@ -135,7 +146,7 @@ def _build_report_markdown(analysis: AnalysisResponse) -> str:
     lines.append(f"- Invalid rows: {analysis.validation.invalid_rows}")
     lines.append(f"- Duplicate order IDs: {analysis.data_profile.duplicate_order_ids}")
     lines.append(
-        f"- Missing fields: {_format_mapping(analysis.data_profile.missing_field_counts)}"
+        f"- Missing fields: {format_mapping(analysis.data_profile.missing_field_counts)}"
     )
     lines.append("")
 
@@ -162,36 +173,41 @@ def _build_report_markdown(analysis: AnalysisResponse) -> str:
             "",
             "### Data Profile Details",
             "",
-            f"- Date range: {_format_date_range(analysis)}",
+            f"- Date range: {format_date_range(analysis)}",
             f"- Unique customers: {analysis.data_profile.unique_customers}",
             f"- Unique regions: {analysis.data_profile.unique_regions}",
             f"- Unique products: {analysis.data_profile.unique_products}",
             f"- Unique sales reps: {analysis.data_profile.unique_sales_reps}",
             f"- Duplicate order IDs: {analysis.data_profile.duplicate_order_ids}",
-            f"- Missing fields: {_format_mapping(analysis.data_profile.missing_field_counts)}",
-            f"- Revenue summary: {_format_numeric_summary(analysis.data_profile.revenue_summary)}",
-            f"- Quantity summary: {_format_numeric_summary(analysis.data_profile.quantity_summary)}",
-            f"- Discount summary: {_format_numeric_summary(analysis.data_profile.discount_summary)}",
-            f"- Unit price summary: {_format_numeric_summary(analysis.data_profile.unit_price_summary)}",
+            f"- Missing fields: {format_mapping(analysis.data_profile.missing_field_counts)}",
+            f"- Revenue summary: {format_numeric_summary(analysis.data_profile.revenue_summary)}",
+            f"- Quantity summary: {format_numeric_summary(analysis.data_profile.quantity_summary)}",
+            f"- Discount summary: {format_numeric_summary(analysis.data_profile.discount_summary)}",
+            f"- Unit price summary: {format_numeric_summary(analysis.data_profile.unit_price_summary)}",
             "",
             "### Quality Score Details",
             "",
             f"- Score: {analysis.quality_score.score}",
             f"- Grade: {analysis.quality_score.grade}",
-            f"- Issues: {_format_list(analysis.quality_score.issues)}",
-            f"- Recommendations: {_format_list(analysis.quality_score.recommendations)}",
+            f"- Issues: {format_list(analysis.quality_score.issues)}",
+            f"- Recommendations: {format_list(analysis.quality_score.recommendations)}",
             "",
             "### Transformation Lineage",
             "",
-            *_format_transformation_lines(analysis),
+        ]
+    )
+
+    lines.extend([f"- {item}" for item in format_transformation_items(analysis)])
+    lines.extend(
+        [
             "",
             "### Manipulation Summary",
             "",
-            f"- Monthly revenue: {_format_points(analysis.manipulation_summary.monthly_revenue)}",
-            f"- Ranked regions: {_format_points(analysis.manipulation_summary.ranked_regions)}",
-            f"- Ranked products: {_format_points(analysis.manipulation_summary.ranked_products)}",
-            f"- Ranked sales reps: {_format_points(analysis.manipulation_summary.ranked_sales_reps)}",
-            f"- Discount summary by product: {_format_discount_summary(analysis)}",
+            f"- Monthly revenue: {format_points(analysis.manipulation_summary.monthly_revenue)}",
+            f"- Ranked regions: {format_points(analysis.manipulation_summary.ranked_regions)}",
+            f"- Ranked products: {format_points(analysis.manipulation_summary.ranked_products)}",
+            f"- Ranked sales reps: {format_points(analysis.manipulation_summary.ranked_sales_reps)}",
+            f"- Discount summary by product: {format_discount_summary(analysis)}",
             "",
         ]
     )
@@ -211,7 +227,7 @@ def _build_report_markdown(analysis: AnalysisResponse) -> str:
                 f"order_id={anomaly.order_id} | field={anomaly.field} | "
                 f"value={anomaly.value} | "
                 f"method={anomaly.method or 'rule'} | "
-                f"threshold={_format_optional_float(anomaly.threshold)} | "
+                f"threshold={format_optional_float(anomaly.threshold)} | "
                 f"comparison={anomaly.comparison or 'none'} | "
                 f"{anomaly.message}"
             )
@@ -228,135 +244,3 @@ def _build_report_markdown(analysis: AnalysisResponse) -> str:
 
     lines.append("")
     return "\n".join(lines)
-
-
-def _format_evidence(evidence: dict[str, str | int | float | bool]) -> str:
-    if not evidence:
-        return "none"
-
-    return ", ".join(
-        f"{key}={_format_evidence_value(value)}"
-        for key, value in sorted(evidence.items())
-    )
-
-
-def _format_evidence_value(value: str | int | float | bool) -> str:
-    if isinstance(value, float):
-        return f"{value:.2f}"
-    return str(value)
-
-
-def _format_optional_float(value: float | None) -> str:
-    if value is None:
-        return "none"
-    return f"{value:.2f}"
-
-
-def _format_optional_percent(value: float | None) -> str:
-    if value is None:
-        return "none"
-    return f"{value:.2f}%"
-
-
-def _format_date_range(analysis: AnalysisResponse) -> str:
-    if not analysis.data_profile.date_start or not analysis.data_profile.date_end:
-        return "none"
-    return (
-        f"{analysis.data_profile.date_start.isoformat()} to "
-        f"{analysis.data_profile.date_end.isoformat()}"
-    )
-
-
-def _format_mapping(values: dict[str, int]) -> str:
-    if not values:
-        return "none"
-
-    return ", ".join(f"{key}={value}" for key, value in sorted(values.items()))
-
-
-def _format_list(values: list[str]) -> str:
-    if not values:
-        return "none"
-
-    return "; ".join(values)
-
-
-def _format_numeric_summary(summary) -> str:
-    return (
-        f"min={summary.minimum:.2f}, max={summary.maximum:.2f}, "
-        f"mean={summary.mean:.2f}, median={summary.median:.2f}, "
-        f"std_dev={summary.standard_deviation:.2f}"
-    )
-
-
-def _format_transformation_lines(analysis: AnalysisResponse) -> list[str]:
-    if not analysis.transformation_log.entries:
-        return ["- No transformation steps."]
-
-    return [
-        (
-            f"- {entry.step_name}: {entry.description} "
-            f"(records affected: {entry.records_affected})"
-        )
-        for entry in analysis.transformation_log.entries
-    ]
-
-
-def _format_points(points) -> str:
-    if not points:
-        return "none"
-
-    return ", ".join(
-        f"{point.label}={_format_evidence_value(point.value)}" for point in points
-    )
-
-
-def _format_trend_points(analysis: AnalysisResponse) -> str:
-    if not analysis.trend_analysis.data:
-        return "none"
-
-    return "; ".join(
-        (
-            f"{point.period}: revenue=${point.revenue:.2f}, "
-            f"orders={point.order_count}, units={point.units_sold}, "
-            f"aov=${point.average_order_value:.2f}, "
-            f"avg_discount={point.average_discount:.2f}"
-        )
-        for point in analysis.trend_analysis.data
-    )
-
-
-def _format_trend_summary(summary) -> str:
-    return (
-        f"start={summary.start_value:.2f}, end={summary.end_value:.2f}, "
-        f"change={summary.absolute_change:.2f}, "
-        f"percent_change={_format_optional_percent(summary.percent_change)}, "
-        f"direction={summary.direction}, "
-        f"interpretation={summary.interpretation}"
-    )
-
-
-def _format_metric_forecast(forecast) -> str:
-    if forecast is None:
-        return "none"
-
-    return (
-        f"next_period={forecast.next_period}, "
-        f"selected_method={forecast.selected_baseline_method}, "
-        f"selected_value={forecast.selected_forecast_value:.2f}, "
-        f"confidence={forecast.confidence}"
-    )
-
-
-def _format_discount_summary(analysis: AnalysisResponse) -> str:
-    if not analysis.manipulation_summary.discount_summary_by_product:
-        return "none"
-
-    return "; ".join(
-        (
-            f"{item.product}: average_discount={item.average_discount:.2f}, "
-            f"discounted_orders={item.discounted_order_count}, "
-            f"total_orders={item.total_orders}"
-        )
-        for item in analysis.manipulation_summary.discount_summary_by_product
-    )
