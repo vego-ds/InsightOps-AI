@@ -49,6 +49,7 @@ from insightops.reports.export_service import (
     normalize_report_format,
 )
 from insightops.runtime import (
+    DockerRuntimeAdapter,
     LocalPythonRuntimeAdapter,
     MockRuntimeAdapter,
     RunContext,
@@ -118,6 +119,8 @@ class ScheduleRequest(BaseModel):
 
 
 def _select_runtime_adapter(runtime_name: str) -> RuntimeAdapter:
+    if runtime_name == "docker":
+        return DockerRuntimeAdapter()
     if runtime_name == "local_python":
         return LocalPythonRuntimeAdapter()
     return MockRuntimeAdapter()

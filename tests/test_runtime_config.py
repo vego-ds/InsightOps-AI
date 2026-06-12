@@ -1,5 +1,9 @@
 from insightops.config import load_app_settings
-from insightops.runtime import LocalPythonRuntimeAdapter, MockRuntimeAdapter
+from insightops.runtime import (
+    DockerRuntimeAdapter,
+    LocalPythonRuntimeAdapter,
+    MockRuntimeAdapter,
+)
 from app.main import _select_runtime_adapter
 
 
@@ -66,3 +70,12 @@ def test_local_python_runtime_can_be_enabled(monkeypatch) -> None:
         _select_runtime_adapter(settings.runtime),
         LocalPythonRuntimeAdapter,
     )
+
+
+def test_docker_runtime_can_be_enabled(monkeypatch) -> None:
+    monkeypatch.setenv("INSIGHTOPS_RUNTIME", "docker")
+
+    settings = load_app_settings()
+
+    assert settings.runtime == "docker"
+    assert isinstance(_select_runtime_adapter(settings.runtime), DockerRuntimeAdapter)
