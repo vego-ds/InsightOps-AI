@@ -19,10 +19,14 @@ from insightops.api.contracts import (
     ErrorResponse,
     HealthResponse,
     CsvUploadPreviewResponse,
+    ChartArtifact,
+    MarkdownArtifact,
+    RunArtifactEvent,
     RunCodeEvent,
     RunFinalEvent,
     RunStdoutEvent,
     RunStatusEvent,
+    TableArtifact,
 )
 from insightops.config import load_app_settings
 from insightops.validation.schema import (
@@ -710,10 +714,60 @@ def _mock_analysis_run_event_stream(run_id: str):
             type="run.status",
             status="rendering_view",
         ),
-        RunFinalEvent(
+        RunArtifactEvent(
             version="insightops.run-event.v1",
             runId=run_id,
             sequence=5,
+            type="artifact",
+            artifact=TableArtifact(
+                id=f"{run_id}-table-summary",
+                kind="table",
+                title="Mock KPI Summary",
+                columns=["metric", "value"],
+                rows=[
+                    {"metric": "Preview rows inspected", "value": 50},
+                    {"metric": "Mock quality status", "value": "ready"},
+                ],
+            ),
+        ),
+        RunArtifactEvent(
+            version="insightops.run-event.v1",
+            runId=run_id,
+            sequence=6,
+            type="artifact",
+            artifact=ChartArtifact(
+                id=f"{run_id}-chart-revenue",
+                kind="chart",
+                title="Mock Revenue Trend",
+                chartType="bar",
+                xKey="period",
+                yKey="revenue",
+                data=[
+                    {"period": "Jan", "revenue": 1350},
+                    {"period": "Feb", "revenue": 2100},
+                    {"period": "Mar", "revenue": 1800},
+                ],
+            ),
+        ),
+        RunArtifactEvent(
+            version="insightops.run-event.v1",
+            runId=run_id,
+            sequence=7,
+            type="artifact",
+            artifact=MarkdownArtifact(
+                id=f"{run_id}-markdown-note",
+                kind="markdown",
+                title="Mock Analysis Note",
+                text=(
+                    "This is a deterministic placeholder artifact. "
+                    "No runtime execution or model inference was performed."
+                ),
+            ),
+        ),
+        RunFinalEvent(
+            version="insightops.run-event.v1",
+            runId=run_id,
+            sequence=8,
             type="run.final",
             assistantMessage=(
                 "Deterministic mock analysis complete. Streaming execution events "
@@ -723,7 +777,8 @@ def _mock_analysis_run_event_stream(run_id: str):
     ]
 
     for event in events:
-        yield f"event: {event.type}\n"
+        event_name = "run.artifact" if event.type == "artifact" else event.type
+        yield f"event: {event_name}\n"
         yield f"data: {json.dumps(event.model_dump(), separators=(',', ':'))}\n\n"
 
 

@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from insightops.anomalies.detector import AnomalyDetectionResult
@@ -164,6 +166,38 @@ class RunStdoutEvent(RunEventBase):
 
 class RunErrorEvent(RunEventBase):
     errorMessage: str
+
+
+ArtifactKind = Literal["table", "chart", "markdown"]
+
+
+class TableArtifact(BaseModel):
+    id: str
+    kind: Literal["table"]
+    title: str
+    columns: list[str]
+    rows: list[dict[str, object | None]]
+
+
+class ChartArtifact(BaseModel):
+    id: str
+    kind: Literal["chart"]
+    title: str
+    chartType: Literal["bar", "line"]
+    xKey: str
+    yKey: str
+    data: list[dict[str, str | int | float]]
+
+
+class MarkdownArtifact(BaseModel):
+    id: str
+    kind: Literal["markdown"]
+    title: str
+    text: str
+
+
+class RunArtifactEvent(RunEventBase):
+    artifact: TableArtifact | ChartArtifact | MarkdownArtifact
 
 
 class RunFinalEvent(RunEventBase):

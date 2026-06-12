@@ -4,6 +4,7 @@ import type React from "react";
 import { useState } from "react";
 import { AlertCircle, Database, Rows3, Table2 } from "lucide-react";
 
+import { ArtifactGallery } from "@/components/artifacts/artifact-gallery";
 import {
   DatasetPreviewTable,
   FileUploadPreviewGrid,
@@ -13,14 +14,17 @@ import {
   CanvasModeTabs,
   type CanvasMode,
 } from "@/components/workspace/canvas-mode-tabs";
+import { useArtifactStore } from "@/stores/artifact-store";
 import { useDatasetStore } from "@/stores/dataset-store";
 
 export function DataCanvas() {
   const activeDataset = useDatasetStore((store) => store.activeDataset);
   const errorMessage = useDatasetStore((store) => store.errorMessage);
   const uploadStatus = useDatasetStore((store) => store.uploadStatus);
+  const artifactCount = useArtifactStore((store) => store.artifacts.length);
   const [mode, setMode] = useState<CanvasMode>("preview");
-  const visibleMode: CanvasMode = activeDataset ? mode : "preview";
+  const visibleMode: CanvasMode =
+    activeDataset && (mode !== "artifacts" || artifactCount > 0) ? mode : "preview";
 
   if (!activeDataset) {
     return (
@@ -28,6 +32,7 @@ export function DataCanvas() {
         <CanvasModeTabs
           mode={visibleMode}
           schemaDisabled
+          artifactsDisabled
           onModeChange={setMode}
         />
         {errorMessage ? <RuntimeErrorPanel message={errorMessage} /> : null}
@@ -42,14 +47,17 @@ export function DataCanvas() {
       <CanvasModeTabs
         mode={visibleMode}
         schemaDisabled={false}
+        artifactsDisabled={artifactCount === 0}
         onModeChange={setMode}
       />
 
       {visibleMode === "preview" ? (
         <DatasetPreviewTable dataset={activeDataset} />
-      ) : (
+      ) : null}
+      {visibleMode === "schema" ? (
         <SchemaInspector />
-      )}
+      ) : null}
+      {visibleMode === "artifacts" ? <ArtifactGallery /> : null}
 
       {uploadStatus === "runtime_error" && errorMessage ? (
         <RuntimeErrorPanel message={errorMessage} />

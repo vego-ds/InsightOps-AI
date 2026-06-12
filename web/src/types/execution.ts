@@ -3,6 +3,7 @@ import type {
   FilePreviewDataset,
   PreviewRow,
 } from "@/types/dataset";
+import type { InsightArtifact } from "@/types/artifact";
 
 export type AnalysisRunCreateColumn = {
   key: string;
@@ -58,11 +59,17 @@ export type RunFinalEvent = RunEventBase & {
   assistantMessage: string;
 };
 
+export type RunArtifactEvent = RunEventBase & {
+  type: "artifact";
+  artifact: InsightArtifact;
+};
+
 export type AnalysisRunEvent =
   | RunStatusEvent
   | RunCodeEvent
   | RunStdoutEvent
   | RunErrorEvent
+  | RunArtifactEvent
   | RunFinalEvent;
 
 export function buildAnalysisRunCreateRequest(

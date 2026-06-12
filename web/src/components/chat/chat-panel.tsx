@@ -6,6 +6,7 @@ import { ChatInput } from "@/components/chat/chat-input";
 import { ChatMessageList } from "@/components/chat/chat-message-list";
 import { SuggestedPrompts } from "@/components/chat/suggested-prompts";
 import { createAnalysisRun, parseRunEvent } from "@/lib/execution-client";
+import { useArtifactStore } from "@/stores/artifact-store";
 import { useChatStore } from "@/stores/chat-store";
 import { useDatasetStore } from "@/stores/dataset-store";
 import { useExecutionStore } from "@/stores/execution-store";
@@ -32,6 +33,7 @@ export function ChatPanel() {
   );
   const clearMessages = useChatStore((store) => store.clearMessages);
   const appendRunEvent = useExecutionStore((store) => store.appendRunEvent);
+  const addArtifact = useArtifactStore((store) => store.addArtifact);
   const hasDataset = Boolean(activeDataset);
 
   const sendMessage = async (content: string) => {
@@ -70,6 +72,10 @@ export function ChatPanel() {
 
         appendRunEvent(parsed);
 
+        if (parsed.type === "artifact") {
+          addArtifact(parsed.artifact);
+        }
+
         if (parsed.type === "run.error") {
           eventSource.close();
           failAssistantMessage(pendingMessage.id, parsed.errorMessage);
@@ -86,6 +92,7 @@ export function ChatPanel() {
       eventSource.addEventListener("run.code", handleRawEvent);
       eventSource.addEventListener("run.stdout", handleRawEvent);
       eventSource.addEventListener("run.error", handleRawEvent);
+      eventSource.addEventListener("run.artifact", handleRawEvent);
       eventSource.addEventListener("run.final", handleRawEvent);
       eventSource.onerror = closeWithFailure;
     } catch {

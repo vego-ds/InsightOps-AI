@@ -3,6 +3,7 @@ import type {
   AnalysisRunCreateRequest,
   AnalysisRunEvent,
 } from "@/types/execution";
+import { parseArtifact } from "@/lib/artifact-validators";
 
 export async function createAnalysisRun(
   body: AnalysisRunCreateRequest,
@@ -114,6 +115,20 @@ export function parseRunEvent(payload: unknown): AnalysisRunEvent | null {
       sequence: payload.sequence,
       type: "run.final",
       assistantMessage: payload.assistantMessage,
+    };
+  }
+
+  if (payload.type === "artifact") {
+    const artifact = parseArtifact(payload.artifact);
+    if (!artifact) {
+      return null;
+    }
+    return {
+      version: "insightops.run-event.v1",
+      runId: payload.runId,
+      sequence: payload.sequence,
+      type: "artifact",
+      artifact,
     };
   }
 

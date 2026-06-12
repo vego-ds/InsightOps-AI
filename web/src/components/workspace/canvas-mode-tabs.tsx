@@ -1,19 +1,21 @@
 "use client";
 
 import type React from "react";
-import { Columns3, Lock, Table2 } from "lucide-react";
+import { Archive, Columns3, Lock, Table2 } from "lucide-react";
 
-export type CanvasMode = "preview" | "schema";
+export type CanvasMode = "preview" | "schema" | "artifacts";
 
 type CanvasModeTabsProps = {
   mode: CanvasMode;
   schemaDisabled: boolean;
+  artifactsDisabled: boolean;
   onModeChange: (mode: CanvasMode) => void;
 };
 
 export function CanvasModeTabs({
   mode,
   schemaDisabled,
+  artifactsDisabled,
   onModeChange,
 }: CanvasModeTabsProps) {
   return (
@@ -36,6 +38,19 @@ export function CanvasModeTabs({
         }
         label="Schema"
         onClick={() => onModeChange("schema")}
+      />
+      <ModeButton
+        active={mode === "artifacts"}
+        disabled={artifactsDisabled}
+        icon={
+          artifactsDisabled ? (
+            <Lock className="h-4 w-4" />
+          ) : (
+            <Archive className="h-4 w-4" />
+          )
+        }
+        label="Artifacts"
+        onClick={() => onModeChange("artifacts")}
       />
     </div>
   );
