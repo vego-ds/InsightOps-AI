@@ -21,6 +21,14 @@ from insightops.api.contracts import (
     HealthResponse,
 )
 from insightops.config import load_app_settings
+from insightops.datasets import (
+    DatasetMetadata,
+    get_dataset,
+    get_dataset_path,
+    register_dataset,
+    save_dataset_file,
+)
+from insightops.datasets.storage import DATASET_STORAGE_ROOT
 from insightops.validation.schema import (
     CsvSchemaError,
     CsvDecodeError,
@@ -50,7 +58,7 @@ from app.chat_agent import ChatAgentCodeGenerator
 # Create generated directory for dynamic charts
 STATIC_DIR = Path(__file__).parent / "static"
 os.makedirs(STATIC_DIR / "generated", exist_ok=True)
-DATASET_STORAGE_DIR = STATIC_DIR / "generated" / "datasets"
+DATASET_STORAGE_DIR = DATASET_STORAGE_ROOT
 os.makedirs(DATASET_STORAGE_DIR, exist_ok=True)
 
 sessions: dict[str, PythonInterpreterSandbox] = {}
@@ -179,11 +187,11 @@ def request_analysis(
     "/api/analysis/runs",
     response_model=AnalysisRunCreatedResponse,
     tags=["analysis"],
-    responses={400: {"model": ErrorResponse}},
+    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
 )
 def create_analysis_run(
     request: AnalysisRunCreateRequest,
-) -> AnalysisRunCreatedResponse:
+) -> AnalysisRunCreatedResponse | JSONResponse:
     if request.version != "insightops.analysis-run-create.v1":
         raise HTTPException(
             status_code=400,
@@ -194,6 +202,17 @@ def create_analysis_run(
     if not request.message.strip():
         raise HTTPException(status_code=400, detail="message must be a non-empty string.")
 
+    dataset_metadata = get_dataset(request.datasetId)
+    dataset_path = get_dataset_path(request.datasetId)
+    if dataset_metadata is None or dataset_path is None:
+        return JSONResponse(
+            status_code=404,
+            content={
+                "detail": "Unknown datasetId.",
+                "error_code": "UNKNOWN_DATASET",
+            },
+        )
+
     run_id = uuid4().hex
     analysis_run_contexts[run_id] = RunContext(
         run_id=run_id,
@@ -201,6 +220,8 @@ def create_analysis_run(
         message=request.message,
         schema=[column.model_dump() for column in request.schema_],
         preview_rows=request.previewRows,
+        dataset_metadata=dataset_metadata,
+        dataset_path=dataset_path,
     )
     return AnalysisRunCreatedResponse(
         version="insightops.analysis-run-created.v1",
@@ -367,11 +388,27 @@ async def upload_dataset_preview(
 
     uploaded_file = await persist_upload_temporarily(file, settings.max_upload_bytes)
     try:
-        dataset = build_dataset_preview(
+        dataset_id = uuid4().hex
+        stored_path = save_dataset_file(
             uploaded_file.path,
+            dataset_id=dataset_id,
+            storage_root=DATASET_STORAGE_DIR,
+        )
+        dataset = build_dataset_preview(
+            stored_path,
+            dataset_id=dataset_id,
             original_filename=uploaded_file.original_filename,
             size_bytes=uploaded_file.size_bytes,
-            storage_dir=DATASET_STORAGE_DIR,
+        )
+        register_dataset(
+            DatasetMetadata(
+                dataset_id=dataset_id,
+                file_name=uploaded_file.original_filename,
+                mime_type="text/csv",
+                size_bytes=uploaded_file.size_bytes,
+                path=stored_path,
+                storage_root=DATASET_STORAGE_DIR,
+            )
         )
     finally:
         if uploaded_file.path.exists():

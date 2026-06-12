@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from uuid import uuid4
 
 import math
-import shutil
 
 import pandas as pd
 from pandas.api.types import (
@@ -38,16 +36,11 @@ def is_supported_csv_upload(filename: str, content_type: str | None) -> bool:
 def build_dataset_preview(
     source_path: Path,
     *,
+    dataset_id: str,
     original_filename: str,
     size_bytes: int,
-    storage_dir: Path,
 ) -> DatasetPreview:
-    dataset_id = uuid4().hex
-    storage_dir.mkdir(parents=True, exist_ok=True)
-    stored_path = storage_dir / f"{dataset_id}.csv"
-    shutil.copyfile(source_path, stored_path)
-
-    dataframe = pd.read_csv(stored_path)
+    dataframe = pd.read_csv(source_path)
     preview_frame = dataframe.head(PREVIEW_ROW_LIMIT)
 
     return DatasetPreview(

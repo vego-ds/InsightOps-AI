@@ -2,11 +2,26 @@ import json
 
 from fastapi.testclient import TestClient
 
+from insightops.datasets import DatasetMetadata, register_dataset
+from insightops.datasets.storage import DATASET_STORAGE_ROOT
+
 
 def _valid_payload(message: str = "Summarize revenue.") -> dict:
+    dataset_id = "dataset-123"
+    storage_root = DATASET_STORAGE_ROOT.resolve()
+    register_dataset(
+        DatasetMetadata(
+            dataset_id=dataset_id,
+            file_name="sales.csv",
+            mime_type="text/csv",
+            size_bytes=16,
+            path=storage_root / "dataset-123.csv",
+            storage_root=storage_root,
+        )
+    )
     return {
         "version": "insightops.analysis-run-create.v1",
-        "datasetId": "dataset-123",
+        "datasetId": dataset_id,
         "message": message,
         "schema": [
             {

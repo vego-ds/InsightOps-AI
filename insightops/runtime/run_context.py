@@ -1,5 +1,8 @@
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
+
+from insightops.datasets.models import DatasetMetadata
 
 
 @dataclass(frozen=True)
@@ -9,3 +12,5 @@ class RunContext:
     message: str
     schema: list[Any]
     preview_rows: list[Any]
+    dataset_metadata: DatasetMetadata | None = None
+    dataset_path: Path | None = None
