@@ -13,6 +13,7 @@ class AppSettings(BaseModel):
     openrouter_api_key: str | None = None
     openrouter_model: str = "openrouter/auto"
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    runtime: str = "mock"
 
 
 def load_app_settings() -> AppSettings:
@@ -37,6 +38,7 @@ def load_app_settings() -> AppSettings:
             "INSIGHTOPS_OPENROUTER_BASE_URL",
             "https://openrouter.ai/api/v1",
         ),
+        runtime=os.getenv("INSIGHTOPS_RUNTIME", "mock"),
     )
 
 

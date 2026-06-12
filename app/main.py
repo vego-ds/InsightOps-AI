@@ -48,7 +48,12 @@ from insightops.reports.export_service import (
     export_analysis_report,
     normalize_report_format,
 )
-from insightops.runtime import MockRuntimeAdapter, RunContext
+from insightops.runtime import (
+    LocalPythonRuntimeAdapter,
+    MockRuntimeAdapter,
+    RunContext,
+    RuntimeAdapter,
+)
 
 import os
 from pydantic import BaseModel
@@ -63,7 +68,6 @@ os.makedirs(DATASET_STORAGE_DIR, exist_ok=True)
 
 sessions: dict[str, PythonInterpreterSandbox] = {}
 analysis_run_contexts: dict[str, RunContext] = {}
-runtime_adapter = MockRuntimeAdapter()
 code_generator = ChatAgentCodeGenerator()
 
 
@@ -113,7 +117,14 @@ class ScheduleRequest(BaseModel):
     email: str
 
 
+def _select_runtime_adapter(runtime_name: str) -> RuntimeAdapter:
+    if runtime_name == "local_python":
+        return LocalPythonRuntimeAdapter()
+    return MockRuntimeAdapter()
+
+
 settings = load_app_settings()
+runtime_adapter: RuntimeAdapter = _select_runtime_adapter(settings.runtime)
 app = FastAPI(
     title=settings.app_name,
     description=(

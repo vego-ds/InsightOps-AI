@@ -1,4 +1,6 @@
 from insightops.config import load_app_settings
+from insightops.runtime import LocalPythonRuntimeAdapter, MockRuntimeAdapter
+from app.main import _select_runtime_adapter
 
 
 def test_default_max_upload_bytes_is_100_mb(monkeypatch) -> None:
@@ -43,3 +45,24 @@ def test_default_port_is_8000(monkeypatch) -> None:
     settings = load_app_settings()
 
     assert settings.port == 8000
+
+
+def test_default_runtime_is_mock(monkeypatch) -> None:
+    monkeypatch.delenv("INSIGHTOPS_RUNTIME", raising=False)
+
+    settings = load_app_settings()
+
+    assert settings.runtime == "mock"
+    assert isinstance(_select_runtime_adapter(settings.runtime), MockRuntimeAdapter)
+
+
+def test_local_python_runtime_can_be_enabled(monkeypatch) -> None:
+    monkeypatch.setenv("INSIGHTOPS_RUNTIME", "local_python")
+
+    settings = load_app_settings()
+
+    assert settings.runtime == "local_python"
+    assert isinstance(
+        _select_runtime_adapter(settings.runtime),
+        LocalPythonRuntimeAdapter,
+    )
