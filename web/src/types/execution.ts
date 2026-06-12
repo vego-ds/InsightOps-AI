@@ -4,6 +4,7 @@ import type {
   PreviewRow,
 } from "@/types/dataset";
 import type { InsightArtifact } from "@/types/artifact";
+import type { NotebookRunEvent } from "@/types/notebook";
 
 export type AnalysisRunCreateColumn = {
   key: string;
@@ -70,6 +71,7 @@ export type AnalysisRunEvent =
   | RunStdoutEvent
   | RunErrorEvent
   | RunArtifactEvent
+  | NotebookRunEvent
   | RunFinalEvent;
 
 export function buildAnalysisRunCreateRequest(

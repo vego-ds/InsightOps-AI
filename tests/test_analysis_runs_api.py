@@ -1,12 +1,13 @@
-from fastapi.testclient import TestClient
 import json
 
+from fastapi.testclient import TestClient
 
-def _valid_payload() -> dict:
+
+def _valid_payload(message: str = "Summarize revenue.") -> dict:
     return {
         "version": "insightops.analysis-run-create.v1",
         "datasetId": "dataset-123",
-        "message": "Summarize revenue.",
+        "message": message,
         "schema": [
             {
                 "key": "revenue",
@@ -68,8 +69,69 @@ def test_analysis_run_events_contains_final_event(client: TestClient) -> None:
     assert "event: run.final" in content
     assert '"version":"insightops.run-event.v1"' in content
     assert f'"runId":"{run_id}"' in content
-    assert '"sequence":8' in content
     assert '"type":"run.final"' in content
+
+
+def test_analysis_run_events_contains_notebook_cell_started(client: TestClient) -> None:
+    create_response = client.post("/api/analysis/runs", json=_valid_payload())
+    run_id = create_response.json()["runId"]
+
+    response = client.get(f"/api/analysis/runs/{run_id}/events")
+
+    assert "event: run.cell.started" in response.text
+
+
+def test_analysis_run_events_contains_notebook_cell_completed(client: TestClient) -> None:
+    create_response = client.post("/api/analysis/runs", json=_valid_payload())
+    run_id = create_response.json()["runId"]
+
+    response = client.get(f"/api/analysis/runs/{run_id}/events")
+
+    assert "event: run.cell.completed" in response.text
+
+
+def test_analysis_run_failure_prompt_emits_cell_failed(client: TestClient) -> None:
+    create_response = client.post(
+        "/api/analysis/runs",
+        json=_valid_payload("Force an error in the mock notebook."),
+    )
+    run_id = create_response.json()["runId"]
+
+    response = client.get(f"/api/analysis/runs/{run_id}/events")
+
+    assert "event: run.cell.failed" in response.text
+
+
+def test_analysis_run_failure_prompt_emits_repair_events(client: TestClient) -> None:
+    create_response = client.post(
+        "/api/analysis/runs",
+        json=_valid_payload("Please fail and then repair."),
+    )
+    run_id = create_response.json()["runId"]
+
+    response = client.get(f"/api/analysis/runs/{run_id}/events")
+
+    assert "event: run.repair.started" in response.text
+    assert "event: run.repair.completed" in response.text
+
+
+def test_analysis_run_event_sequences_are_monotonic(client: TestClient) -> None:
+    create_response = client.post(
+        "/api/analysis/runs",
+        json=_valid_payload("Please fail and then repair."),
+    )
+    run_id = create_response.json()["runId"]
+
+    response = client.get(f"/api/analysis/runs/{run_id}/events")
+    payloads = [
+        _event_payload(line)
+        for line in response.text.splitlines()
+        if line.startswith("data: ")
+    ]
+    sequences = [payload["sequence"] for payload in payloads]
+
+    assert sequences == sorted(sequences)
+    assert len(sequences) == len(set(sequences))
 
 
 def test_analysis_run_events_contains_artifact_events(client: TestClient) -> None:

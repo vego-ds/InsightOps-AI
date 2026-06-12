@@ -22,9 +22,14 @@ from insightops.api.contracts import (
     ChartArtifact,
     MarkdownArtifact,
     RunArtifactEvent,
-    RunCodeEvent,
+    RunCellCompletedEvent,
+    RunCellFailedEvent,
+    RunCellStartedEvent,
+    RunCellStderrEvent,
+    RunCellStdoutEvent,
     RunFinalEvent,
-    RunStdoutEvent,
+    RunRepairCompletedEvent,
+    RunRepairStartedEvent,
     RunStatusEvent,
     TableArtifact,
 )
@@ -61,6 +66,7 @@ DATASET_STORAGE_DIR = STATIC_DIR / "generated" / "datasets"
 os.makedirs(DATASET_STORAGE_DIR, exist_ok=True)
 
 sessions: dict[str, PythonInterpreterSandbox] = {}
+analysis_run_messages: dict[str, str] = {}
 code_generator = ChatAgentCodeGenerator()
 
 
@@ -200,6 +206,7 @@ def create_analysis_run(
         raise HTTPException(status_code=400, detail="message must be a non-empty string.")
 
     run_id = uuid4().hex
+    analysis_run_messages[run_id] = request.message
     return AnalysisRunCreatedResponse(
         version="insightops.analysis-run-created.v1",
         status="created",
@@ -680,7 +687,19 @@ def _unsupported_dataset_file_type_response() -> JSONResponse:
 
 
 def _mock_analysis_run_event_stream(run_id: str):
-    events = [
+    message = analysis_run_messages.get(run_id, "")
+    failure_requested = any(token in message.casefold() for token in ("error", "fail"))
+    events = _mock_failure_notebook_events(run_id) if failure_requested else _mock_notebook_events(run_id)
+
+    for event in events:
+        event_name = "run.artifact" if event.type == "artifact" else event.type
+        yield f"event: {event_name}\n"
+        yield f"data: {json.dumps(event.model_dump(), separators=(',', ':'))}\n\n"
+
+
+def _mock_notebook_events(run_id: str):
+    cell_id = f"{run_id}-cell-profile"
+    return [
         RunStatusEvent(
             version="insightops.run-event.v1",
             runId=run_id,
@@ -688,36 +707,177 @@ def _mock_analysis_run_event_stream(run_id: str):
             type="run.status",
             status="agent_planning",
         ),
-        RunCodeEvent(
+        RunCellStartedEvent(
             version="insightops.run-event.v1",
             runId=run_id,
             sequence=2,
-            type="run.code",
+            type="run.cell.started",
+            cellId=cell_id,
+            title="Profile uploaded dataset",
             language="python",
             code=(
                 "import pandas as pd\n"
-                "# Mock deterministic analysis plan only; no code was executed.\n"
-                "print('Preparing dataset profile...')"
+                "# Deterministic notebook mock; no code is executed.\n"
+                "preview_rows = 50\n"
+                "print(f'Preview rows inspected: {preview_rows}')"
             ),
+            attempt=1,
         ),
-        RunStdoutEvent(
+        RunCellStdoutEvent(
             version="insightops.run-event.v1",
             runId=run_id,
             sequence=3,
-            type="run.stdout",
-            stdout="Mock stdout: dataset preview received; execution runtime not connected.",
+            type="run.cell.stdout",
+            cellId=cell_id,
+            stdout="Preview rows inspected: 50\nMock profiling completed.",
         ),
-        RunStatusEvent(
+        RunCellStderrEvent(
             version="insightops.run-event.v1",
             runId=run_id,
             sequence=4,
-            type="run.status",
-            status="rendering_view",
+            type="run.cell.stderr",
+            cellId=cell_id,
+            stderr="Mock warning: execution runtime not connected; using preview data only.",
         ),
-        RunArtifactEvent(
+        RunCellCompletedEvent(
             version="insightops.run-event.v1",
             runId=run_id,
             sequence=5,
+            type="run.cell.completed",
+            cellId=cell_id,
+            durationMs=184,
+        ),
+        *_mock_artifact_events(run_id, start_sequence=6),
+        RunFinalEvent(
+            version="insightops.run-event.v1",
+            runId=run_id,
+            sequence=9,
+            type="run.final",
+            assistantMessage=(
+                "Deterministic mock notebook analysis complete. Code cells, outputs, "
+                "and artifacts are rendered without running a sandbox."
+            ),
+        ),
+    ]
+
+
+def _mock_failure_notebook_events(run_id: str):
+    failed_cell_id = f"{run_id}-cell-failed-profile"
+    repair_cell_id = f"{run_id}-cell-repaired-profile"
+    return [
+        RunStatusEvent(
+            version="insightops.run-event.v1",
+            runId=run_id,
+            sequence=1,
+            type="run.status",
+            status="agent_planning",
+        ),
+        RunCellStartedEvent(
+            version="insightops.run-event.v1",
+            runId=run_id,
+            sequence=2,
+            type="run.cell.started",
+            cellId=failed_cell_id,
+            title="Profile uploaded dataset",
+            language="python",
+            code=(
+                "import pandas as pd\n"
+                "# Deterministic failure mock; no code is executed.\n"
+                "raise ValueError('mock schema mismatch')"
+            ),
+            attempt=1,
+        ),
+        RunCellStderrEvent(
+            version="insightops.run-event.v1",
+            runId=run_id,
+            sequence=3,
+            type="run.cell.stderr",
+            cellId=failed_cell_id,
+            stderr="ValueError: mock schema mismatch",
+        ),
+        RunCellFailedEvent(
+            version="insightops.run-event.v1",
+            runId=run_id,
+            sequence=4,
+            type="run.cell.failed",
+            cellId=failed_cell_id,
+            errorMessage="Mock schema mismatch detected.",
+            traceback=(
+                "Traceback (most recent call last):\n"
+                '  File "<mock-notebook-cell>", line 3, in <module>\n'
+                "ValueError: mock schema mismatch"
+            ),
+            durationMs=96,
+        ),
+        RunRepairStartedEvent(
+            version="insightops.run-event.v1",
+            runId=run_id,
+            sequence=5,
+            type="run.repair.started",
+            failedCellId=failed_cell_id,
+            repairCellId=repair_cell_id,
+            reason="Retry with deterministic guarded preview-only logic.",
+        ),
+        RunCellStartedEvent(
+            version="insightops.run-event.v1",
+            runId=run_id,
+            sequence=6,
+            type="run.cell.started",
+            cellId=repair_cell_id,
+            title="Repair profile step",
+            language="python",
+            code=(
+                "import pandas as pd\n"
+                "# Deterministic repaired mock; no code is executed.\n"
+                "print('Recovered with preview-safe profiling path')"
+            ),
+            attempt=2,
+        ),
+        RunCellStdoutEvent(
+            version="insightops.run-event.v1",
+            runId=run_id,
+            sequence=7,
+            type="run.cell.stdout",
+            cellId=repair_cell_id,
+            stdout="Recovered with preview-safe profiling path\nMock profiling completed.",
+        ),
+        RunCellCompletedEvent(
+            version="insightops.run-event.v1",
+            runId=run_id,
+            sequence=8,
+            type="run.cell.completed",
+            cellId=repair_cell_id,
+            durationMs=142,
+        ),
+        RunRepairCompletedEvent(
+            version="insightops.run-event.v1",
+            runId=run_id,
+            sequence=9,
+            type="run.repair.completed",
+            failedCellId=failed_cell_id,
+            repairCellId=repair_cell_id,
+            outcome="Mock self-healing completed; recovered cell output is available.",
+        ),
+        *_mock_artifact_events(run_id, start_sequence=10),
+        RunFinalEvent(
+            version="insightops.run-event.v1",
+            runId=run_id,
+            sequence=13,
+            type="run.final",
+            assistantMessage=(
+                "Deterministic mock analysis recovered from a simulated cell failure. "
+                "No sandbox, model, or real code execution was run."
+            ),
+        ),
+    ]
+
+
+def _mock_artifact_events(run_id: str, start_sequence: int) -> list[RunArtifactEvent]:
+    return [
+        RunArtifactEvent(
+            version="insightops.run-event.v1",
+            runId=run_id,
+            sequence=start_sequence,
             type="artifact",
             artifact=TableArtifact(
                 id=f"{run_id}-table-summary",
@@ -733,7 +893,7 @@ def _mock_analysis_run_event_stream(run_id: str):
         RunArtifactEvent(
             version="insightops.run-event.v1",
             runId=run_id,
-            sequence=6,
+            sequence=start_sequence + 1,
             type="artifact",
             artifact=ChartArtifact(
                 id=f"{run_id}-chart-revenue",
@@ -752,7 +912,7 @@ def _mock_analysis_run_event_stream(run_id: str):
         RunArtifactEvent(
             version="insightops.run-event.v1",
             runId=run_id,
-            sequence=7,
+            sequence=start_sequence + 2,
             type="artifact",
             artifact=MarkdownArtifact(
                 id=f"{run_id}-markdown-note",
@@ -764,22 +924,7 @@ def _mock_analysis_run_event_stream(run_id: str):
                 ),
             ),
         ),
-        RunFinalEvent(
-            version="insightops.run-event.v1",
-            runId=run_id,
-            sequence=8,
-            type="run.final",
-            assistantMessage=(
-                "Deterministic mock analysis complete. Streaming execution events "
-                "are connected; real sandbox execution will arrive in a later milestone."
-            ),
-        ),
     ]
-
-    for event in events:
-        event_name = "run.artifact" if event.type == "artifact" else event.type
-        yield f"event: {event_name}\n"
-        yield f"data: {json.dumps(event.model_dump(), separators=(',', ':'))}\n\n"
 
 
 def _normalize_report_format_for_request(report_format: str) -> str:

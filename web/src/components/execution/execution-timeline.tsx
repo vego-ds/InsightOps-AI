@@ -6,14 +6,29 @@ import { CodeExecutionCard } from "@/components/execution/code-execution-card";
 import { ExecutionStatusCard } from "@/components/execution/execution-status-card";
 import { RuntimeErrorCard } from "@/components/execution/runtime-error-card";
 import { StdoutCard } from "@/components/execution/stdout-card";
+import { NotebookCell } from "@/components/notebook/notebook-cell";
 import { useExecutionStore } from "@/stores/execution-store";
+import { useNotebookStore } from "@/stores/notebook-store";
 import type { AnalysisRunEvent } from "@/types/execution";
+import type { NotebookCellModel, NotebookRepairState } from "@/types/notebook";
 
 const EMPTY_EXECUTION_EVENTS: AnalysisRunEvent[] = [];
+const EMPTY_NOTEBOOK_CELL_IDS: string[] = [];
+const EMPTY_NOTEBOOK_CELLS: Record<string, NotebookCellModel> = {};
+const EMPTY_NOTEBOOK_REPAIRS: NotebookRepairState[] = [];
 
 export function ExecutionTimeline({ runId }: { runId: string }) {
   const events = useExecutionStore(
     (store) => store.eventsByRunId[runId] ?? EMPTY_EXECUTION_EVENTS,
+  );
+  const cellIds = useNotebookStore(
+    (store) => store.cellOrderByRunId[runId] ?? EMPTY_NOTEBOOK_CELL_IDS,
+  );
+  const cellsById = useNotebookStore(
+    (store) => store.cellsByRunId[runId] ?? EMPTY_NOTEBOOK_CELLS,
+  );
+  const repairs = useNotebookStore(
+    (store) => store.repairsByRunId[runId] ?? EMPTY_NOTEBOOK_REPAIRS,
   );
 
   if (events.length === 0) {
@@ -27,6 +42,33 @@ export function ExecutionTimeline({ runId }: { runId: string }) {
   return (
     <div className="mt-3 space-y-2">
       {events.map((event) => {
+        if (event.type === "run.cell.started") {
+          const cell = cellsById[event.cellId];
+          if (!cell || !cellIds.includes(event.cellId)) {
+            return null;
+          }
+          return (
+            <NotebookCell
+              key={event.sequence}
+              cell={cell}
+              repairs={repairs.filter(
+                (repair) =>
+                  repair.failedCellId === event.cellId ||
+                  repair.repairCellId === event.cellId,
+              )}
+            />
+          );
+        }
+        if (
+          event.type === "run.cell.stdout" ||
+          event.type === "run.cell.stderr" ||
+          event.type === "run.cell.completed" ||
+          event.type === "run.cell.failed" ||
+          event.type === "run.repair.started" ||
+          event.type === "run.repair.completed"
+        ) {
+          return null;
+        }
         if (event.type === "run.status") {
           return <ExecutionStatusCard key={event.sequence} event={event} />;
         }

@@ -10,7 +10,11 @@ import { useArtifactStore } from "@/stores/artifact-store";
 import { useChatStore } from "@/stores/chat-store";
 import { useDatasetStore } from "@/stores/dataset-store";
 import { useExecutionStore } from "@/stores/execution-store";
-import { buildAnalysisRunCreateRequest } from "@/types/execution";
+import { useNotebookStore } from "@/stores/notebook-store";
+import {
+  buildAnalysisRunCreateRequest,
+  type AnalysisRunEvent,
+} from "@/types/execution";
 
 const ANALYSIS_FAILURE_MESSAGE =
   "Streaming analysis failed safely. The backend event stream could not be accepted by the frontend contract.";
@@ -33,6 +37,9 @@ export function ChatPanel() {
   );
   const clearMessages = useChatStore((store) => store.clearMessages);
   const appendRunEvent = useExecutionStore((store) => store.appendRunEvent);
+  const appendNotebookEvent = useNotebookStore(
+    (store) => store.appendNotebookEvent,
+  );
   const addArtifact = useArtifactStore((store) => store.addArtifact);
   const hasDataset = Boolean(activeDataset);
 
@@ -72,6 +79,10 @@ export function ChatPanel() {
 
         appendRunEvent(parsed);
 
+        if (isNotebookRunEvent(parsed)) {
+          appendNotebookEvent(parsed);
+        }
+
         if (parsed.type === "artifact") {
           addArtifact(parsed.artifact);
         }
@@ -92,6 +103,13 @@ export function ChatPanel() {
       eventSource.addEventListener("run.code", handleRawEvent);
       eventSource.addEventListener("run.stdout", handleRawEvent);
       eventSource.addEventListener("run.error", handleRawEvent);
+      eventSource.addEventListener("run.cell.started", handleRawEvent);
+      eventSource.addEventListener("run.cell.stdout", handleRawEvent);
+      eventSource.addEventListener("run.cell.stderr", handleRawEvent);
+      eventSource.addEventListener("run.cell.completed", handleRawEvent);
+      eventSource.addEventListener("run.cell.failed", handleRawEvent);
+      eventSource.addEventListener("run.repair.started", handleRawEvent);
+      eventSource.addEventListener("run.repair.completed", handleRawEvent);
       eventSource.addEventListener("run.artifact", handleRawEvent);
       eventSource.addEventListener("run.final", handleRawEvent);
       eventSource.onerror = closeWithFailure;
@@ -142,6 +160,24 @@ export function ChatPanel() {
       </div>
     </div>
   );
+}
+
+function isNotebookRunEvent(
+  event: AnalysisRunEvent,
+): event is Extract<
+  AnalysisRunEvent,
+  {
+    type:
+      | "run.cell.started"
+      | "run.cell.stdout"
+      | "run.cell.stderr"
+      | "run.cell.completed"
+      | "run.cell.failed"
+      | "run.repair.started"
+      | "run.repair.completed";
+  }
+> {
+  return event.type.startsWith("run.cell.") || event.type.startsWith("run.repair.");
 }
 
 function ChatLockedState() {

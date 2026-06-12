@@ -105,6 +105,139 @@ export function parseRunEvent(payload: unknown): AnalysisRunEvent | null {
     };
   }
 
+  if (payload.type === "run.cell.started") {
+    if (
+      typeof payload.cellId !== "string" ||
+      typeof payload.title !== "string" ||
+      typeof payload.language !== "string" ||
+      typeof payload.code !== "string" ||
+      typeof payload.attempt !== "number" ||
+      !Number.isInteger(payload.attempt) ||
+      payload.attempt < 1
+    ) {
+      return null;
+    }
+    return {
+      version: "insightops.run-event.v1",
+      runId: payload.runId,
+      sequence: payload.sequence,
+      type: "run.cell.started",
+      cellId: payload.cellId,
+      title: payload.title,
+      language: payload.language,
+      code: payload.code,
+      attempt: payload.attempt,
+    };
+  }
+
+  if (payload.type === "run.cell.stdout") {
+    if (typeof payload.cellId !== "string" || typeof payload.stdout !== "string") {
+      return null;
+    }
+    return {
+      version: "insightops.run-event.v1",
+      runId: payload.runId,
+      sequence: payload.sequence,
+      type: "run.cell.stdout",
+      cellId: payload.cellId,
+      stdout: payload.stdout,
+    };
+  }
+
+  if (payload.type === "run.cell.stderr") {
+    if (typeof payload.cellId !== "string" || typeof payload.stderr !== "string") {
+      return null;
+    }
+    return {
+      version: "insightops.run-event.v1",
+      runId: payload.runId,
+      sequence: payload.sequence,
+      type: "run.cell.stderr",
+      cellId: payload.cellId,
+      stderr: payload.stderr,
+    };
+  }
+
+  if (payload.type === "run.cell.completed") {
+    if (
+      typeof payload.cellId !== "string" ||
+      typeof payload.durationMs !== "number" ||
+      !Number.isFinite(payload.durationMs) ||
+      payload.durationMs < 0
+    ) {
+      return null;
+    }
+    return {
+      version: "insightops.run-event.v1",
+      runId: payload.runId,
+      sequence: payload.sequence,
+      type: "run.cell.completed",
+      cellId: payload.cellId,
+      durationMs: payload.durationMs,
+    };
+  }
+
+  if (payload.type === "run.cell.failed") {
+    if (
+      typeof payload.cellId !== "string" ||
+      typeof payload.errorMessage !== "string" ||
+      typeof payload.traceback !== "string" ||
+      typeof payload.durationMs !== "number" ||
+      !Number.isFinite(payload.durationMs) ||
+      payload.durationMs < 0
+    ) {
+      return null;
+    }
+    return {
+      version: "insightops.run-event.v1",
+      runId: payload.runId,
+      sequence: payload.sequence,
+      type: "run.cell.failed",
+      cellId: payload.cellId,
+      errorMessage: payload.errorMessage,
+      traceback: payload.traceback,
+      durationMs: payload.durationMs,
+    };
+  }
+
+  if (payload.type === "run.repair.started") {
+    if (
+      typeof payload.failedCellId !== "string" ||
+      typeof payload.repairCellId !== "string" ||
+      typeof payload.reason !== "string"
+    ) {
+      return null;
+    }
+    return {
+      version: "insightops.run-event.v1",
+      runId: payload.runId,
+      sequence: payload.sequence,
+      type: "run.repair.started",
+      failedCellId: payload.failedCellId,
+      repairCellId: payload.repairCellId,
+      reason: payload.reason,
+    };
+  }
+
+  if (payload.type === "run.repair.completed") {
+    if (
+      typeof payload.failedCellId !== "string" ||
+      typeof payload.repairCellId !== "string" ||
+      typeof payload.outcome !== "string"
+    ) {
+      return null;
+    }
+    return {
+      version: "insightops.run-event.v1",
+      runId: payload.runId,
+      sequence: payload.sequence,
+      type: "run.repair.completed",
+      failedCellId: payload.failedCellId,
+      repairCellId: payload.repairCellId,
+      outcome: payload.outcome,
+    };
+  }
+
   if (payload.type === "run.final") {
     if (typeof payload.assistantMessage !== "string") {
       return null;

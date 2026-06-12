@@ -168,6 +168,48 @@ class RunErrorEvent(RunEventBase):
     errorMessage: str
 
 
+class RunCellStartedEvent(RunEventBase):
+    cellId: str
+    title: str
+    language: str
+    code: str
+    attempt: int
+
+
+class RunCellStdoutEvent(RunEventBase):
+    cellId: str
+    stdout: str
+
+
+class RunCellStderrEvent(RunEventBase):
+    cellId: str
+    stderr: str
+
+
+class RunCellCompletedEvent(RunEventBase):
+    cellId: str
+    durationMs: int
+
+
+class RunCellFailedEvent(RunEventBase):
+    cellId: str
+    errorMessage: str
+    traceback: str
+    durationMs: int
+
+
+class RunRepairStartedEvent(RunEventBase):
+    failedCellId: str
+    repairCellId: str
+    reason: str
+
+
+class RunRepairCompletedEvent(RunEventBase):
+    failedCellId: str
+    repairCellId: str
+    outcome: str
+
+
 ArtifactKind = Literal["table", "chart", "markdown"]
 
 
