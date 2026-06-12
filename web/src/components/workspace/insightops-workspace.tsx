@@ -1,7 +1,8 @@
 "use client";
 
-import { Bot, Database, MessageSquareText, ShieldCheck } from "lucide-react";
+import { Database, ShieldCheck } from "lucide-react";
 
+import { ChatPanel } from "@/components/chat/chat-panel";
 import { DataCanvas } from "@/components/workspace/data-canvas";
 import { useDatasetStore } from "@/stores/dataset-store";
 
@@ -33,7 +34,7 @@ export function InsightOpsWorkspace() {
 
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)]">
         <aside className="min-h-[280px] border-b border-white/10 bg-[#080A12] p-4 lg:min-h-0 lg:border-b-0 lg:border-r">
-          <ChatPanelPlaceholder />
+          <ChatPanel />
         </aside>
 
         <section className="min-w-0 overflow-auto p-4 sm:p-6">
@@ -41,40 +42,5 @@ export function InsightOpsWorkspace() {
         </section>
       </div>
     </main>
-  );
-}
-
-function ChatPanelPlaceholder() {
-  const activeDataset = useDatasetStore((store) => store.activeDataset);
-
-  return (
-    <div className="flex h-full min-h-[248px] flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-      <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
-        <MessageSquareText className="h-4 w-4 text-cyan-200" />
-        Analyst chat
-      </div>
-
-      <div className="mt-4 flex flex-1 flex-col justify-between rounded-xl border border-dashed border-white/10 bg-black/20 p-4">
-        <div>
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-cyan-100">
-            <Bot className="h-5 w-5" />
-          </div>
-          <p className="mt-4 text-sm font-medium text-white">
-            {activeDataset
-              ? "Dataset is ready for analysis"
-              : "Upload a dataset to begin analysis"}
-          </p>
-          <p className="mt-2 text-sm leading-6 text-slate-400">
-            {activeDataset
-              ? "The active dataset is now available globally for upcoming chat, execution, chart, and notebook features."
-              : "The workspace will activate once a CSV preview is parsed and saved into global dataset state."}
-          </p>
-        </div>
-
-        <div className="mt-6 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 text-xs text-slate-500">
-          Agent steps will appear here after runtime execution is connected.
-        </div>
-      </div>
-    </div>
   );
 }

@@ -1,22 +1,35 @@
 "use client";
 
 import type React from "react";
+import { useState } from "react";
 import { AlertCircle, Database, Rows3, Table2 } from "lucide-react";
 
 import {
   DatasetPreviewTable,
   FileUploadPreviewGrid,
 } from "@/components/datasets/file-upload-preview-grid";
+import { SchemaInspector } from "@/components/datasets/schema-inspector";
+import {
+  CanvasModeTabs,
+  type CanvasMode,
+} from "@/components/workspace/canvas-mode-tabs";
 import { useDatasetStore } from "@/stores/dataset-store";
 
 export function DataCanvas() {
   const activeDataset = useDatasetStore((store) => store.activeDataset);
   const errorMessage = useDatasetStore((store) => store.errorMessage);
   const uploadStatus = useDatasetStore((store) => store.uploadStatus);
+  const [mode, setMode] = useState<CanvasMode>("preview");
+  const visibleMode: CanvasMode = activeDataset ? mode : "preview";
 
   if (!activeDataset) {
     return (
       <div className="flex min-h-0 flex-1 flex-col gap-4">
+        <CanvasModeTabs
+          mode={visibleMode}
+          schemaDisabled
+          onModeChange={setMode}
+        />
         {errorMessage ? <RuntimeErrorPanel message={errorMessage} /> : null}
         <FileUploadPreviewGrid uploadUrl="/api/datasets/upload" />
       </div>
@@ -26,7 +39,17 @@ export function DataCanvas() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <DatasetSummaryBar />
-      <DatasetPreviewTable dataset={activeDataset} />
+      <CanvasModeTabs
+        mode={visibleMode}
+        schemaDisabled={false}
+        onModeChange={setMode}
+      />
+
+      {visibleMode === "preview" ? (
+        <DatasetPreviewTable dataset={activeDataset} />
+      ) : (
+        <SchemaInspector />
+      )}
 
       {uploadStatus === "runtime_error" && errorMessage ? (
         <RuntimeErrorPanel message={errorMessage} />
