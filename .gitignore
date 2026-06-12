@@ -10,3 +10,6 @@ venv/
 .venv/
 app/static/generated/
 
+
+# Runtime uploaded datasets
+scratch/datasets/
