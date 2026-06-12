@@ -27,7 +27,7 @@ class DockerRuntimeAdapter:
         *,
         docker_binary: str = "docker",
         image: str = "python:3.12-slim",
-        timeout_seconds: float = 10.0,
+        timeout_seconds: float = 30.0,
         memory_limit: str = "256m",
         cpus: str = "1",
     ) -> None:
@@ -99,7 +99,10 @@ class DockerRuntimeAdapter:
                 run_id=run_id,
                 sequence=sequence,
                 cell_id=cell_id,
-                error_message="Docker runtime timed out.",
+                error_message=(
+                    f"Docker runtime timed out after {self.timeout_seconds:g}s. "
+                    "The runtime container was stopped safely."
+                ),
                 traceback=str(error),
                 duration_ms=duration_ms,
             )
