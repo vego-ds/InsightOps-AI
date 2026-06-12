@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from insightops.anomalies.detector import AnomalyDetectionResult
 from insightops.audit.events import AuditEvent
@@ -103,3 +103,25 @@ class DatasetUploadErrorResponse(BaseModel):
     version: str
     status: str
     error: DatasetUploadErrorDetail
+
+
+class AnalysisRequestColumn(BaseModel):
+    key: str
+    label: str
+    dataType: str
+    nullable: bool
+
+
+class AnalysisRequest(BaseModel):
+    version: str
+    datasetId: str
+    message: str
+    schema_: list[AnalysisRequestColumn] = Field(alias="schema")
+    previewRows: list[dict[str, object | None]]
+
+
+class AnalysisRequestResponse(BaseModel):
+    version: str
+    status: str
+    runId: str
+    assistantMessage: str

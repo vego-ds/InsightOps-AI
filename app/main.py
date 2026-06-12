@@ -1,4 +1,5 @@
 from pathlib import Path
+from uuid import uuid4
 
 from fastapi import FastAPI, File, HTTPException, Query, Response, UploadFile
 from fastapi.responses import FileResponse
@@ -6,6 +7,8 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from insightops.api.contracts import (
+    AnalysisRequest,
+    AnalysisRequestResponse,
     AnalysisResponse,
     DatasetUploadErrorResponse,
     DatasetUploadSuccessResponse,
@@ -135,6 +138,33 @@ def api_chat(req: ChatRequest) -> ChatResponse:
         charts=res["charts"],
         attempts=res["attempts"],
         code_executed=res["code_executed"],
+    )
+
+
+@app.post(
+    "/api/analysis/request",
+    response_model=AnalysisRequestResponse,
+    tags=["analysis"],
+    responses={400: {"model": ErrorResponse}},
+)
+def request_analysis(
+    request: AnalysisRequest,
+) -> AnalysisRequestResponse:
+    if request.version != "insightops.analysis-request.v1":
+        raise HTTPException(status_code=400, detail="Unsupported analysis request version.")
+    if not request.datasetId.strip():
+        raise HTTPException(status_code=400, detail="datasetId must be a non-empty string.")
+    if not request.message.strip():
+        raise HTTPException(status_code=400, detail="message must be a non-empty string.")
+
+    return AnalysisRequestResponse(
+        version="insightops.analysis-response.v1",
+        status="accepted",
+        runId=uuid4().hex,
+        assistantMessage=(
+            "Analysis request accepted. Backend analysis execution will be "
+            "connected in Milestone 5; no AI, code execution, or streaming was run."
+        ),
     )
 
 
