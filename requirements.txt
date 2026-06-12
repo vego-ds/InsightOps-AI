@@ -7,3 +7,4 @@ httpx2
 python-multipart
 matplotlib
 reportlab
+pandas==2.3.0
