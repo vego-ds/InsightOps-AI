@@ -64,3 +64,42 @@ class CsvUploadPreviewResponse(BaseModel):
     warnings: list[str]
     compatible: bool
     detected_encoding: str
+
+
+class DatasetPreviewColumn(BaseModel):
+    key: str
+    label: str
+    dataType: str
+    nullable: bool
+    sampleValues: list[object | None]
+
+
+class DatasetPreview(BaseModel):
+    id: str
+    fileName: str
+    mimeType: str
+    sizeBytes: int
+    rowCount: int
+    previewRowCount: int
+    columnCount: int
+    columns: list[DatasetPreviewColumn]
+    previewRows: list[dict[str, object | None]]
+
+
+class DatasetUploadErrorDetail(BaseModel):
+    code: str
+    message: str
+    recoverable: bool
+
+
+class DatasetUploadSuccessResponse(BaseModel):
+    version: str
+    status: str
+    dataset: DatasetPreview
+    warnings: list[str]
+
+
+class DatasetUploadErrorResponse(BaseModel):
+    version: str
+    status: str
+    error: DatasetUploadErrorDetail

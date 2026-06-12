@@ -2,10 +2,13 @@ from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, Query, Response, UploadFile
 from fastapi.responses import FileResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from insightops.api.contracts import (
     AnalysisResponse,
+    DatasetUploadErrorResponse,
+    DatasetUploadSuccessResponse,
     ErrorResponse,
     HealthResponse,
     CsvUploadPreviewResponse,
@@ -18,6 +21,7 @@ from insightops.validation.schema import (
     inspect_sales_csv_schema,
 )
 from insightops.io.csv_compatibility import prepare_csv_for_analysis
+from insightops.io.dataset_preview import build_dataset_preview, is_supported_csv_upload
 from insightops.pipeline.sample_analysis import (
     analyze_sales_csv_file,
     analyze_sample_sales_data,
@@ -38,6 +42,8 @@ from app.chat_agent import ChatAgentCodeGenerator
 # Create generated directory for dynamic charts
 STATIC_DIR = Path(__file__).parent / "static"
 os.makedirs(STATIC_DIR / "generated", exist_ok=True)
+DATASET_STORAGE_DIR = STATIC_DIR / "generated" / "datasets"
+os.makedirs(DATASET_STORAGE_DIR, exist_ok=True)
 
 sessions: dict[str, PythonInterpreterSandbox] = {}
 code_generator = ChatAgentCodeGenerator()
@@ -261,6 +267,38 @@ async def api_upload_dataset(
             prepared.analysis_path.unlink(missing_ok=True)
         if uploaded_file.path.exists():
             uploaded_file.path.unlink(missing_ok=True)
+
+
+@app.post(
+    "/api/datasets/upload",
+    response_model=DatasetUploadSuccessResponse,
+    tags=["datasets"],
+    responses={400: {"model": DatasetUploadErrorResponse}},
+)
+async def upload_dataset_preview(
+    file: UploadFile | None = File(default=None),
+) -> DatasetUploadSuccessResponse | JSONResponse:
+    if file is None or not is_supported_csv_upload(file.filename or "", file.content_type):
+        return _unsupported_dataset_file_type_response()
+
+    uploaded_file = await persist_upload_temporarily(file, settings.max_upload_bytes)
+    try:
+        dataset = build_dataset_preview(
+            uploaded_file.path,
+            original_filename=uploaded_file.original_filename,
+            size_bytes=uploaded_file.size_bytes,
+            storage_dir=DATASET_STORAGE_DIR,
+        )
+    finally:
+        if uploaded_file.path.exists():
+            uploaded_file.path.unlink(missing_ok=True)
+
+    return DatasetUploadSuccessResponse(
+        version="insightops.file-preview.v1",
+        status="ok",
+        dataset=dataset,
+        warnings=[],
+    )
 
 
 @app.post("/api/sample_dataset", tags=["interpreter"])
@@ -544,6 +582,19 @@ def _report_response(
             "X-Report-Size-Bytes": str(report.size_bytes),
         },
     )
+
+
+def _unsupported_dataset_file_type_response() -> JSONResponse:
+    error = DatasetUploadErrorResponse(
+        version="insightops.file-preview.v1",
+        status="error",
+        error={
+            "code": "UNSUPPORTED_FILE_TYPE",
+            "message": "Only CSV files are supported.",
+            "recoverable": True,
+        },
+    )
+    return JSONResponse(status_code=400, content=error.model_dump())
 
 
 def _normalize_report_format_for_request(report_format: str) -> str:

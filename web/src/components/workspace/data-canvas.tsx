@@ -1,0 +1,108 @@
+"use client";
+
+import type React from "react";
+import { AlertCircle, Database, Rows3, Table2 } from "lucide-react";
+
+import {
+  DatasetPreviewTable,
+  FileUploadPreviewGrid,
+} from "@/components/datasets/file-upload-preview-grid";
+import { useDatasetStore } from "@/stores/dataset-store";
+
+export function DataCanvas() {
+  const activeDataset = useDatasetStore((store) => store.activeDataset);
+  const errorMessage = useDatasetStore((store) => store.errorMessage);
+  const uploadStatus = useDatasetStore((store) => store.uploadStatus);
+
+  if (!activeDataset) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
+        {errorMessage ? <RuntimeErrorPanel message={errorMessage} /> : null}
+        <FileUploadPreviewGrid uploadUrl="/api/datasets/upload" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
+      <DatasetSummaryBar />
+      <DatasetPreviewTable dataset={activeDataset} />
+
+      {uploadStatus === "runtime_error" && errorMessage ? (
+        <RuntimeErrorPanel message={errorMessage} />
+      ) : null}
+    </div>
+  );
+}
+
+function DatasetSummaryBar() {
+  const dataset = useDatasetStore((store) => store.activeDataset);
+  const selectedColumnKey = useDatasetStore((store) => store.selectedColumnKey);
+
+  if (!dataset) {
+    return null;
+  }
+
+  return (
+    <section className="grid gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 md:grid-cols-4">
+      <SummaryItem
+        icon={<Database className="h-4 w-4" />}
+        label="Active dataset"
+        value={dataset.fileName}
+      />
+      <SummaryItem
+        icon={<Rows3 className="h-4 w-4" />}
+        label="Rows"
+        value={formatNumber(dataset.rowCount)}
+      />
+      <SummaryItem
+        icon={<Table2 className="h-4 w-4" />}
+        label="Columns"
+        value={formatNumber(dataset.columnCount)}
+      />
+      <SummaryItem
+        icon={<Rows3 className="h-4 w-4" />}
+        label="Selected column"
+        value={selectedColumnKey ?? "None"}
+      />
+    </section>
+  );
+}
+
+function SummaryItem({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="min-w-0 rounded-xl border border-white/10 bg-black/20 px-3 py-3">
+      <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+        <span className="text-cyan-200">{icon}</span>
+        {label}
+      </div>
+      <div className="mt-2 truncate text-sm font-semibold text-slate-100">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function RuntimeErrorPanel({ message }: { message: string }) {
+  return (
+    <div className="flex items-start gap-3 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-red-100">
+      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />
+      <div>
+        <p className="text-sm font-medium">Runtime error</p>
+        <p className="mt-1 text-sm leading-5 text-red-200/80">{message}</p>
+      </div>
+    </div>
+  );
+}
+
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat("en").format(value);
+}
