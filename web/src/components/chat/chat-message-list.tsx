@@ -1,7 +1,14 @@
 "use client";
 
-import { Bot, Loader2, MessageSquareText, TriangleAlert, UserRound } from "lucide-react";
+import {
+  Bot,
+  Loader2,
+  MessageSquareText,
+  TriangleAlert,
+  UserRound,
+} from "lucide-react";
 
+import { ExecutionTimeline } from "@/components/execution/execution-timeline";
 import type { ChatMessage } from "@/types/chat";
 
 type ChatMessageListProps = {
@@ -87,6 +94,9 @@ function MessageBubble({ message }: { message: ChatMessage }) {
             {message.content}
           </p>
         </div>
+        {!isUser && message.runId ? (
+          <ExecutionTimeline runId={message.runId} />
+        ) : null}
       </div>
     </article>
   );

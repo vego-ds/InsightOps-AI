@@ -1,20 +1,28 @@
 from pathlib import Path
 from uuid import uuid4
 
+import json
 from fastapi import FastAPI, File, HTTPException, Query, Response, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.responses import JSONResponse
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from insightops.api.contracts import (
     AnalysisRequest,
     AnalysisRequestResponse,
+    AnalysisRunCreatedResponse,
+    AnalysisRunCreateRequest,
     AnalysisResponse,
     DatasetUploadErrorResponse,
     DatasetUploadSuccessResponse,
     ErrorResponse,
     HealthResponse,
     CsvUploadPreviewResponse,
+    RunCodeEvent,
+    RunFinalEvent,
+    RunStdoutEvent,
+    RunStatusEvent,
 )
 from insightops.config import load_app_settings
 from insightops.validation.schema import (
@@ -165,6 +173,46 @@ def request_analysis(
             "Analysis request accepted. Backend analysis execution will be "
             "connected in Milestone 6; no AI, code execution, or streaming was run."
         ),
+    )
+
+
+@app.post(
+    "/api/analysis/runs",
+    response_model=AnalysisRunCreatedResponse,
+    tags=["analysis"],
+    responses={400: {"model": ErrorResponse}},
+)
+def create_analysis_run(
+    request: AnalysisRunCreateRequest,
+) -> AnalysisRunCreatedResponse:
+    if request.version != "insightops.analysis-run-create.v1":
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported analysis run create version.",
+        )
+    if not request.datasetId.strip():
+        raise HTTPException(status_code=400, detail="datasetId must be a non-empty string.")
+    if not request.message.strip():
+        raise HTTPException(status_code=400, detail="message must be a non-empty string.")
+
+    run_id = uuid4().hex
+    return AnalysisRunCreatedResponse(
+        version="insightops.analysis-run-created.v1",
+        status="created",
+        runId=run_id,
+        streamUrl=f"/api/analysis/runs/{run_id}/events",
+    )
+
+
+@app.get("/api/analysis/runs/{run_id}/events", tags=["analysis"])
+def stream_analysis_run_events(run_id: str) -> StreamingResponse:
+    return StreamingResponse(
+        _mock_analysis_run_event_stream(run_id),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
     )
 
 
@@ -625,6 +673,58 @@ def _unsupported_dataset_file_type_response() -> JSONResponse:
         },
     )
     return JSONResponse(status_code=400, content=error.model_dump())
+
+
+def _mock_analysis_run_event_stream(run_id: str):
+    events = [
+        RunStatusEvent(
+            version="insightops.run-event.v1",
+            runId=run_id,
+            sequence=1,
+            type="run.status",
+            status="agent_planning",
+        ),
+        RunCodeEvent(
+            version="insightops.run-event.v1",
+            runId=run_id,
+            sequence=2,
+            type="run.code",
+            language="python",
+            code=(
+                "import pandas as pd\n"
+                "# Mock deterministic analysis plan only; no code was executed.\n"
+                "print('Preparing dataset profile...')"
+            ),
+        ),
+        RunStdoutEvent(
+            version="insightops.run-event.v1",
+            runId=run_id,
+            sequence=3,
+            type="run.stdout",
+            stdout="Mock stdout: dataset preview received; execution runtime not connected.",
+        ),
+        RunStatusEvent(
+            version="insightops.run-event.v1",
+            runId=run_id,
+            sequence=4,
+            type="run.status",
+            status="rendering_view",
+        ),
+        RunFinalEvent(
+            version="insightops.run-event.v1",
+            runId=run_id,
+            sequence=5,
+            type="run.final",
+            assistantMessage=(
+                "Deterministic mock analysis complete. Streaming execution events "
+                "are connected; real sandbox execution will arrive in a later milestone."
+            ),
+        ),
+    ]
+
+    for event in events:
+        yield f"event: {event.type}\n"
+        yield f"data: {json.dumps(event.model_dump(), separators=(',', ':'))}\n\n"
 
 
 def _normalize_report_format_for_request(report_format: str) -> str:

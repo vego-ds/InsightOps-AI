@@ -9,6 +9,7 @@ type ChatStoreState = {
   addUserMessage: (content: string) => ChatMessage;
   addAssistantMessage: (content: string) => ChatMessage;
   addPendingAssistantMessage: () => ChatMessage;
+  attachRunToAssistantMessage: (messageId: string, runId: string) => void;
   resolveAssistantMessage: (messageId: string, content: string) => void;
   failAssistantMessage: (messageId: string, errorMessage: string) => void;
   clearMessages: () => void;
@@ -44,6 +45,13 @@ export const useChatStore = create<ChatStoreState>((set) => ({
     }));
     return message;
   },
+
+  attachRunToAssistantMessage: (messageId, runId) =>
+    set((state) => ({
+      messages: state.messages.map((message) =>
+        message.id === messageId ? { ...message, runId } : message,
+      ),
+    })),
 
   resolveAssistantMessage: (messageId, content) =>
     set((state) => ({

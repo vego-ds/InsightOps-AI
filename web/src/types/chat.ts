@@ -8,6 +8,7 @@ export type ChatMessage = {
   content: string;
   createdAtIso: string;
   status: ChatMessageStatus;
+  runId?: string;
 };
 
 export type ChatDraft = {

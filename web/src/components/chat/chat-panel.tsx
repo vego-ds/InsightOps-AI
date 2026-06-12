@@ -5,13 +5,14 @@ import { Bot, MessageSquareText, Trash2 } from "lucide-react";
 import { ChatInput } from "@/components/chat/chat-input";
 import { ChatMessageList } from "@/components/chat/chat-message-list";
 import { SuggestedPrompts } from "@/components/chat/suggested-prompts";
-import { requestAnalysis } from "@/lib/analysis-client";
+import { createAnalysisRun, parseRunEvent } from "@/lib/execution-client";
 import { useChatStore } from "@/stores/chat-store";
 import { useDatasetStore } from "@/stores/dataset-store";
-import { buildAnalysisRequestBody } from "@/types/analysis";
+import { useExecutionStore } from "@/stores/execution-store";
+import { buildAnalysisRunCreateRequest } from "@/types/execution";
 
 const ANALYSIS_FAILURE_MESSAGE =
-  "Analysis request failed safely. The backend response could not be accepted by the frontend contract.";
+  "Streaming analysis failed safely. The backend event stream could not be accepted by the frontend contract.";
 
 export function ChatPanel() {
   const activeDataset = useDatasetStore((store) => store.activeDataset);
@@ -20,6 +21,9 @@ export function ChatPanel() {
   const addPendingAssistantMessage = useChatStore(
     (store) => store.addPendingAssistantMessage,
   );
+  const attachRunToAssistantMessage = useChatStore(
+    (store) => store.attachRunToAssistantMessage,
+  );
   const resolveAssistantMessage = useChatStore(
     (store) => store.resolveAssistantMessage,
   );
@@ -27,6 +31,7 @@ export function ChatPanel() {
     (store) => store.failAssistantMessage,
   );
   const clearMessages = useChatStore((store) => store.clearMessages);
+  const appendRunEvent = useExecutionStore((store) => store.appendRunEvent);
   const hasDataset = Boolean(activeDataset);
 
   const sendMessage = async (content: string) => {
@@ -38,10 +43,51 @@ export function ChatPanel() {
     const pendingMessage = addPendingAssistantMessage();
 
     try {
-      const response = await requestAnalysis(
-        buildAnalysisRequestBody(activeDataset, content),
+      const run = await createAnalysisRun(
+        buildAnalysisRunCreateRequest(activeDataset, content),
       );
-      resolveAssistantMessage(pendingMessage.id, response.assistantMessage);
+      attachRunToAssistantMessage(pendingMessage.id, run.runId);
+
+      const eventSource = new EventSource(run.streamUrl);
+      const closeWithFailure = () => {
+        eventSource.close();
+        failAssistantMessage(pendingMessage.id, ANALYSIS_FAILURE_MESSAGE);
+      };
+      const handleRawEvent = (event: MessageEvent<string>) => {
+        let payload: unknown;
+        try {
+          payload = JSON.parse(event.data);
+        } catch {
+          closeWithFailure();
+          return;
+        }
+
+        const parsed = parseRunEvent(payload);
+        if (!parsed || parsed.runId !== run.runId) {
+          closeWithFailure();
+          return;
+        }
+
+        appendRunEvent(parsed);
+
+        if (parsed.type === "run.error") {
+          eventSource.close();
+          failAssistantMessage(pendingMessage.id, parsed.errorMessage);
+          return;
+        }
+
+        if (parsed.type === "run.final") {
+          eventSource.close();
+          resolveAssistantMessage(pendingMessage.id, parsed.assistantMessage);
+        }
+      };
+
+      eventSource.addEventListener("run.status", handleRawEvent);
+      eventSource.addEventListener("run.code", handleRawEvent);
+      eventSource.addEventListener("run.stdout", handleRawEvent);
+      eventSource.addEventListener("run.error", handleRawEvent);
+      eventSource.addEventListener("run.final", handleRawEvent);
+      eventSource.onerror = closeWithFailure;
     } catch {
       failAssistantMessage(pendingMessage.id, ANALYSIS_FAILURE_MESSAGE);
     }

@@ -125,3 +125,46 @@ class AnalysisRequestResponse(BaseModel):
     status: str
     runId: str
     assistantMessage: str
+
+
+class AnalysisRunCreateRequest(BaseModel):
+    version: str
+    datasetId: str
+    message: str
+    schema_: list[AnalysisRequestColumn] = Field(alias="schema")
+    previewRows: list[dict[str, object | None]]
+
+
+class AnalysisRunCreatedResponse(BaseModel):
+    version: str
+    status: str
+    runId: str
+    streamUrl: str
+
+
+class RunEventBase(BaseModel):
+    version: str
+    runId: str
+    sequence: int
+    type: str
+
+
+class RunStatusEvent(RunEventBase):
+    status: str
+
+
+class RunCodeEvent(RunEventBase):
+    language: str
+    code: str
+
+
+class RunStdoutEvent(RunEventBase):
+    stdout: str
+
+
+class RunErrorEvent(RunEventBase):
+    errorMessage: str
+
+
+class RunFinalEvent(RunEventBase):
+    assistantMessage: str
