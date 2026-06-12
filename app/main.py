@@ -163,7 +163,7 @@ def request_analysis(
         runId=uuid4().hex,
         assistantMessage=(
             "Analysis request accepted. Backend analysis execution will be "
-            "connected in Milestone 5; no AI, code execution, or streaming was run."
+            "connected in Milestone 6; no AI, code execution, or streaming was run."
         ),
     )
 
