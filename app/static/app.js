@@ -216,7 +216,7 @@ function safeRenderSection(sectionId, renderFunction) {
           <div class="error-details">
             <strong>Section Render Failure:</strong>
             <p>An unexpected error occurred while rendering this card: ${err.message}</p>
-            <small>Context: section-id "${sectionId}". Check console.</small>
+            <small>Context: section-id "${sectionId}". Details were recorded in the technical session history.</small>
           </div>
         </div>
       `;
@@ -2402,10 +2402,9 @@ function validateDashboardBindings() {
   
   const missing = checks.filter(c => !c.el).map(c => c.name);
   if (missing.length > 0) {
-    console.warn("Sentryx Dashboard Bindings Warning: Missing elements in DOM:", missing.join(", "));
+    console.warn("InsightOps dashboard bindings warning: missing elements in DOM:", missing.join(", "));
     logSessionHistory("binding check failed", `Dashboard bindings initialized with missing elements: ${missing.join(", ")}`);
   } else {
-    console.log("Sentryx Dashboard Bindings verified successfully.");
     logSessionHistory("binding check passed", "All critical dashboard controls verified in DOM.");
   }
 }

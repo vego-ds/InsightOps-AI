@@ -2,8 +2,12 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .ruff_cache/
+.coverage
+coverage/
+htmlcov/
 .DS_Store
 .env
+.env.*
 
 # Virtual environments
 venv/
@@ -13,3 +17,10 @@ app/static/generated/
 
 # Runtime uploaded datasets
 scratch/datasets/
+
+# Frontend generated files and dependencies
+web/.next/
+web/node_modules/
+web/out/
+web/coverage/
+web/*.tsbuildinfo

@@ -1,171 +1,189 @@
 # InsightOps-AI
 
-InsightOps-AI is a production-style sales analytics automation platform. It collects source metadata, validates sales CSV data, prepares analysis-ready records, computes KPIs, scans for security risks, detects anomalies, prepares chart/report artifacts, and returns typed audit-ready analysis responses.
+InsightOps-AI is a local MVP for an AI-style data analysis workspace. It combines a chat panel, notebook-style execution timeline, and data canvas so a user can upload a CSV, inspect the schema, ask analysis questions, watch deterministic streaming execution events, review generated artifacts, export results, revisit run history, and clean up uploaded datasets.
 
-## Key Capabilities
+The current MVP is intentionally deterministic. It does not call an LLM, does not persist data to a database, and does not provide production auth or job queues.
 
-- CSV ingestion with row-level validation.
-- Data collection metadata and transformation lineage.
-- Data preparation with deterministic derived analytical fields.
-- Data profiling and quality scoring foundation.
-- Data quality gate with pass, warning, and blocked governance status.
-- Manipulation summaries for monthly revenue, rankings, and discount behavior.
-- Monthly trend analysis for revenue, order volume, units sold, average order value, and discount behavior.
-- Forecast readiness checks and deterministic baseline forecasts for planning.
-- KPI computation from valid records.
-- Prompt-injection guardrails and human-review flags.
-- Deterministic anomaly detection.
-- Visual analytics that pair chart data with business questions, interpretations, related insight IDs, and recommended actions.
-- Chart-ready data plus backend PNG chart artifacts.
-- Rule-based and statistical IQR outlier detection, including product-relative revenue outliers.
-- Deterministic executive insights.
-- Business recommendations with evidence, owner roles, expected impact, and follow-up metrics.
-- Workflow improvement plans that translate findings into operational process changes.
-- Markdown and PDF report artifact generation.
-- Optional guarded narrative writer foundation, disabled by default.
-- Lightweight static dashboard demo.
-- CI, Dockerfile, runtime config, and deployment guide.
+## What It Does
 
-## Architecture Overview
+- CSV upload and preview through `POST /api/datasets/upload`.
+- Typed schema preview with column details and sample values.
+- Chat-driven analysis requests.
+- Server-Sent Events streaming execution timeline.
+- Notebook-style code cells with stdout, stderr, failures, and repair states.
+- Table, chart, and markdown artifacts.
+- Artifact export to CSV or Markdown.
+- Run report export to Markdown.
+- In-memory run history for prompts, final answers, timelines, and artifacts.
+- Dataset deletion and cleanup so files in `scratch/datasets` do not accumulate.
+- Runtime modes for mock, local Python, and Docker-backed deterministic execution.
+- Zustand stores for dataset, chat, canvas, execution, notebook, artifact, and run-history state.
+
+## Architecture
 
 ```text
-FastAPI routes
-  -> analysis pipeline
-  -> collection / validation / profiling / quality gate
-  -> preparation / manipulation / trends / baseline forecasts / KPIs / anomalies
-  -> insights / visual analytics / recommendations / audit events
-  -> typed API response
+Next.js frontend
+  -> Zustand state stores for workspace UI state
+  -> FastAPI upload, run creation, SSE event stream, dataset delete APIs
+  -> dataset registry and local scratch storage
+  -> runtime adapter boundary
+  -> deterministic notebook events and artifact pipeline
+  -> chat, notebook timeline, artifact gallery, run history, exports
 ```
 
-`app/main.py` stays thin. Business logic lives in `insightops/` modules, and detailed design notes live in [docs/system-design.md](docs/system-design.md).
+Important local surfaces:
 
-## API Endpoints
+- Frontend workspace: `http://localhost:3000`
+- Backend API and OpenAPI docs: `http://127.0.0.1:8000`
+- Backend legacy static dashboard, if opened directly: `http://127.0.0.1:8000`
 
-- `GET /`: lightweight static dashboard.
-- `GET /health`: service health.
-- `GET /analysis/sample`: analyze bundled sample CSV.
-- `POST /analysis/upload`: analyze uploaded `.csv` files up to 100 MB.
-- `POST /analysis/sample/report`: download sample analysis report.
-- `POST /analysis/upload/report`: download uploaded CSV analysis report.
-- `GET /docs`: interactive API docs.
-- `GET /openapi.json`: OpenAPI schema.
+## Local Setup
 
-Both analysis endpoints return:
+Create and activate a Python virtual environment:
 
-- `source_metadata`
-- `validation`
-- `data_profile`
-- `quality_score`
-- `quality_gate`
-- `preparation`
-- `transformation_log`
-- `manipulation_summary`
-- `trend_analysis`
-- `forecast_analysis`
-- `kpis`
-- `security`
-- `anomalies`
-- `charts`
-- `insights`
-- `recommendation_plan`
-- `workflow_improvement_plan`
-- `audit_events`
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
 
-Phase 2 analytics depth now makes the data lifecycle explicit. Source metadata
-captures collection context, preparation creates deterministic derived fields,
-transformation lineage explains what changed, manipulation summaries expose
-monthly revenue, ranked entities, and discount behavior, trend analysis summarizes
-time-based business performance, baseline forecasting provides deterministic
-last-period, moving-average, and trend-projection planning aids, and quality scoring
-returns a deterministic 0-100 score with issues and recommendations.
-Visual analytics now make charts evidence objects: outputs explain the business
-question, interpretation, and recommendation linkage behind each chart.
-The quality gate assigns analysis confidence and makes sure low-quality data
-does not silently become confident executive output.
-The recommendation engine turns analytics into stakeholder-ready action plans
-and workflow improvements.
-
-## Quickstart
+Install backend dependencies:
 
 ```bash
 python3 -m pip install -r requirements.txt
 python3 scripts/verify_dependencies.py
-python3 -m pytest
-ruff check .
+```
+
+Install frontend dependencies:
+
+```bash
+cd web
+npm install
+cd ..
+```
+
+Run the backend:
+
+```bash
+source venv/bin/activate
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-Open the dashboard:
-
-```text
-http://127.0.0.1:8000/
-```
-
-Upload example:
+Run the frontend in a second terminal:
 
 ```bash
-curl -X POST "http://127.0.0.1:8000/analysis/upload" \
-  -F "file=@data/sample/sales_sample.csv"
+cd web
+npm run dev
 ```
 
-## CSV Schema Compatibility And Mapping
+Open:
 
-InsightOps-AI enforces strict schema verification on uploaded CSV files to guarantee data governance and prevent processing failures:
+```text
+http://localhost:3000
+```
 
-- **Canonical Sales Schema**: The governed pipeline expects:
-  - `order_id`, `order_date`, `customer_id`, `region`, `product`, `sales_rep`, `quantity`, `unit_price`, `discount`, `revenue`.
-- **Header Normalization**: Headers are automatically trimmed, lowercased, spaces replaced with underscores, and punctuation removed.
-- **Supported Schema Mapping (`classic_sales_sample`)**: External schemas matching classic sample layouts are automatically mapped to canonical fields (e.g., `ORDERNUMBER` -> `order_id`, first and last names concatenated into `sales_rep`, and `discount` defaulted to `0` with a warning).
-- **Upload Preview**: The `POST /analysis/upload/preview` endpoint allows inspecting headers, detecting schemas, listing missing columns, and checking compatibility without executing full analysis.
-- **Supported Encodings**: While UTF-8 and UTF-8 BOM are recommended for best compatibility, the application also safely supports common legacy encodings like Windows-1252 (cp1252) and ISO-8859-1. Legacy encodings trigger warning messages in the preview panel. Truly unreadable or binary-like files will return a controlled HTTP 400.
-- **100 MB Limit**: Max upload size limit is strictly set to 100 MB (104,857,600 bytes).
+## Runtime Modes
 
-## Security And Guardrails
+Runtime mode is selected with `INSIGHTOPS_RUNTIME`.
 
-InsightOps-AI keeps deterministic logic as the source of truth. Uploaded files are CSV-only, size-limited, validated row by row, scanned for prompt-injection style text, and routed through typed response contracts.
+### Mock
 
-The optional narrative layer defaults to disabled mode and requires no API key. OpenRouter can be enabled explicitly with `INSIGHTOPS_NARRATIVE_PROVIDER=openrouter` and `INSIGHTOPS_OPENROUTER_API_KEY`. Optional settings are `INSIGHTOPS_OPENROUTER_MODEL=openrouter/auto` and `INSIGHTOPS_OPENROUTER_BASE_URL=https://openrouter.ai/api/v1`. OpenRouter is only used for narrative writing; it never controls pipeline decisions, and deterministic fallback remains available.
+Default mode. Emits deterministic notebook, stdout, artifact, and final events without executing Python.
 
-## Artifacts
+```bash
+INSIGHTOPS_RUNTIME=mock uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
 
-- PNG chart artifacts can be generated from chart-ready data.
-- Markdown and PDF executive reports can be exported through report endpoints.
-- Supported report export formats are `pdf`, `markdown`, and `md`.
-- Report exports use temporary per-request files and do not persist uploaded user data or generated reports in the repository.
+### Local Python
 
-## Forecasting
+Runs a controlled deterministic Python template against the registered local dataset path. It does not execute user-provided code.
 
-Forecasting is deterministic and baseline-only. The platform checks forecast
-readiness, then calculates last-period, moving-average, and simple trend
-projection baselines. These outputs are planning aids, not ML predictions,
-regression, or advanced forecasting models.
+```bash
+INSIGHTOPS_RUNTIME=local_python uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
 
-## Dashboard
+### Docker
 
-The dashboard is a governed sales analytics workspace built with vanilla HTML, CSS, and JavaScript. It features:
-* **Ask Guided Analytics**: A client-side deterministic command router supporting synonym grouping, auto-scrolling, brief card highlights, and report triggers. No `eval` or arbitrary code execution is performed, maintaining full security.
-* **Dynamic Suggestion Chips**: State-aware action buttons that adapt based on whether a dataset has been analyzed.
-* **No-Library Visual Analytics**: Fully responsive, dependency-free visualizations rendered via CSS bar gauges, inline SVG line charts, donut/pie charts, and half-donut metric gauges, with interactive live search and category filtering controls.
-* **Technical Evidence Drawer**: Collapsible sections for all underlying API fields, protected by a centralized render error guard and featuring an automatic validation diagnostics shape checker.
+Runs the deterministic Python template in a local Docker container with read-only dataset mount, no network, read-only filesystem, and resource limits where available. It is a local prototype, not a production worker pool.
 
-It does not use external frontend frameworks (React, Vue, etc.) or visual libraries (Chart.js, D3.js).
+```bash
+INSIGHTOPS_RUNTIME=docker uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
 
-## CI And Deployment
+To warm the Docker image:
 
-GitHub Actions runs dependency verification, Ruff, and pytest on Python 3.12. The project includes a Dockerfile, runtime config, and [deployment guide](docs/deployment.md).
+```bash
+docker pull python:3.12-slim
+docker run --rm python:3.12-slim python --version
+```
 
-## Screenshots
+## Validation Commands
 
-- Dashboard home: placeholder.
-- Sample analysis result: placeholder.
-- CSV upload flow: placeholder.
-- OpenAPI docs: placeholder.
-- Generated report artifact: placeholder.
+Backend:
+
+```bash
+source venv/bin/activate
+ruff check .
+python3 -m pytest
+```
+
+Frontend:
+
+```bash
+cd web
+npm run lint
+npx tsc --noEmit
+```
+
+## Sample Smoke Flow
+
+1. Start the backend on `http://127.0.0.1:8000`.
+2. Start the frontend on `http://localhost:3000`.
+3. Upload `data/sample/sales_sample.csv`.
+4. Review the Preview tab.
+5. Open the Schema tab and select a few columns.
+6. Ask: `Summarize this dataset`
+7. Ask: `Show revenue by region`
+8. Ask the follow-up: `Now by product`
+9. Watch the streaming execution timeline and notebook cell.
+10. Open the Artifacts tab.
+11. Export an artifact.
+12. Export the run report from Run History.
+13. Click Clear dataset and confirm the workspace resets.
+
+## API Endpoints
+
+Current MVP endpoints include:
+
+- `GET /`: legacy static dashboard shell.
+- `GET /health`: service health.
+- `POST /api/datasets/upload`: CSV upload and preview.
+- `DELETE /api/datasets/{dataset_id}`: delete registered dataset and stored file.
+- `POST /api/analysis/request`: backward-compatible non-streaming placeholder.
+- `POST /api/analysis/runs`: create streaming analysis run.
+- `GET /api/analysis/runs/{run_id}/events`: Server-Sent Events stream.
+- `GET /docs`: FastAPI OpenAPI documentation.
+- `GET /openapi.json`: OpenAPI schema.
+
+The repository also contains older deterministic sales analysis/report endpoints used by backend tests and the legacy dashboard path.
+
+## Known Limitations
+
+- Local MVP only.
+- No user auth.
+- No persistent database.
+- No multi-user workspace isolation.
+- No production runtime worker pool.
+- No LLM planning integration yet.
+- No hosted deployment yet.
+- Uploaded datasets are local files in `scratch/datasets`.
+- Docker runtime is a local prototype.
 
 ## Documentation
 
-- [System design](docs/system-design.md)
+- [MVP regression checklist](docs/mvp-regression-checklist.md)
 - [Demo script](docs/demo-script.md)
+- [Troubleshooting](docs/troubleshooting.md)
+- [System design](docs/system-design.md)
 - [Application overview](docs/application-overview.md)
 - [Threat model](docs/threat-model.md)
 - [Deployment guide](docs/deployment.md)

@@ -17,7 +17,7 @@ import type { ChartArtifact } from "@/types/artifact";
 export function ChartArtifactView({ artifact }: { artifact: ChartArtifact }) {
   return (
     <div className="h-[360px] rounded-2xl border border-white/10 bg-black/20 p-4">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
         {artifact.chartType === "bar" ? (
           <BarChart data={artifact.data}>
             <CartesianGrid stroke="rgba(255,255,255,0.08)" vertical={false} />

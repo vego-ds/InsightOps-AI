@@ -1,85 +1,183 @@
 # Demo Script
 
-## 1. Install And Verify
+This is a 5 to 7 minute local MVP demo. It assumes the backend is running on `http://127.0.0.1:8000` and the frontend is running on `http://localhost:3000`.
+
+## Setup Before The Demo
+
+Terminal 1:
 
 ```bash
-python3 -m pip install -r requirements.txt
-python3 scripts/verify_dependencies.py
-python3 -m pytest
-ruff check .
+source venv/bin/activate
+INSIGHTOPS_RUNTIME=local_python uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-## 2. Start The API
+Terminal 2:
 
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+cd web
+npm run dev
 ```
 
-Open the dashboard:
+Open:
 
 ```text
-http://127.0.0.1:8000/
+http://localhost:3000
 ```
 
-## 3. API Smoke Checks
+Keep `data/sample/sales_sample.csv` ready for upload.
 
-Health:
+## Demo Timing
 
-```bash
-curl http://127.0.0.1:8000/health
-```
+### 0:00-0:45 - Position The Product
 
-Sample analysis:
+Narration:
 
-```bash
-curl http://127.0.0.1:8000/analysis/sample
-```
+> InsightOps-AI is a local AI-style data analysis workspace. The MVP combines three familiar analyst surfaces: chat, notebook execution, and a data canvas. The important part is that the current system is deterministic and auditable. We can upload a CSV, inspect the schema, ask analysis questions, watch execution events stream in, review artifacts, export results, and clean up the dataset.
 
-Upload analysis:
+Show:
 
-```bash
-curl -X POST "http://127.0.0.1:8000/analysis/upload" \
-  -F "file=@data/sample/sales_sample.csv"
-```
+- Header and no-dataset state.
+- Disabled chat input.
+- Empty run history.
+- Preview, Schema, and Artifacts tabs.
 
-Open API docs:
+### 0:45-1:30 - Upload And Preview
+
+Action:
+
+1. Upload `data/sample/sales_sample.csv`.
+2. Stay on the Preview tab.
+
+Narration:
+
+> I am uploading a sample sales CSV. The backend stores the file in controlled local scratch storage and returns a strict preview contract. The frontend renders the first rows, total row count, column count, and typed columns before any analysis happens.
+
+Show:
+
+- Dataset summary.
+- Preview table.
+- Clear Dataset button.
+
+### 1:30-2:10 - Schema Inspector
+
+Action:
+
+1. Click Schema.
+2. Select `region`, `product`, `revenue`, and `order_date` if visible.
+
+Narration:
+
+> The schema inspector is the bridge between raw data and analysis. It shows each column key, label, data type, nullability, and sample values. This is also what the analysis request sends as context, so the planner never has to invent columns.
+
+Show:
+
+- Column list.
+- Selected column details.
+- Recommended actions by data type.
+
+### 2:10-3:15 - First Chat Analysis
+
+Action:
+
+Ask:
 
 ```text
-http://127.0.0.1:8000/docs
+Summarize this dataset
 ```
 
-## 4. Dashboard Walkthrough
+Narration:
 
-1. Open `http://127.0.0.1:8000/`.
-2. Observe the state-aware command suggestion chips (e.g. *Run sample analysis*).
-3. Click `Analyze Sample Data` (or the chip) to load analysis.
-4. Try typing guided analytics commands into the **Ask** bar:
-   * **Data Credibility**: Type `"can I trust this data"` or click the chip. The screen scrolls to and highlights the **Quality Gate** card.
-   * **Planning aids**: Type `"show forecast"`. The screen highlights the **Trends and Forecasts** card.
-   * **Visual Evidence**: Type `"show charts"`. The screen highlights the **Visual Analytics** card. Use the live search field to look for "region", and click filter buttons to cycle categories.
-   * **Business Decisions**: Type `"what should we do"`. The screen highlights the **Recommendations & Action Center** card.
-   * **Report Export**: Type `"download pdf"`. The browser compiles and starts downloading the PDF executive report.
-   * **Compliance Audit**: Type `"show technical evidence"`. The screen highlights the **Technical Evidence Drawer**.
-   * **Help fallback**: Type an arbitrary phrase (e.g. `"test"`) to view the inline command guide list.
-5. In Visual Analytics, toggle a chart card to its table format (e.g., Regional Revenue Share table) and expand the interpretation details.
-6. Verify the diagnostics shape check logs are clean in the Technical Evidence Drawer.
-7. Preview a canonical CSV: Select `data/sample/sales_sample.csv` (or drag it). Verify that the upload preview panel displays `compatible=true`, detects the canonical schema, lists column headers, and enables the `Run Full Analysis` button.
-8. Preview a legacy encoded classic_sales_sample CSV (e.g. Windows-1252): Select a legacy classic sales CSV. Verify that the preview displays `compatible=true`, `detected_schema=classic_sales_sample`, and `Encoding: cp1252`.
-9. Show mapping & encoding warnings: Verify the panel displays: *"CSV was decoded using cp1252. For best compatibility, export future files as CSV UTF-8."* and *"This file was decoded as Windows-1252 and will be mapped into the InsightOps canonical schema."*
-10. Run mapped upload analysis: Click `Run Full Analysis` for the legacy preview. Verify that the analysis succeeds, visual analytics render, and source metadata notes capture both encoding and schema mapping details.
-11. Generate report from mapped upload: Click `Download PDF Report` or type `"download pdf"` in the Ask bar. Verify the PDF report generates and downloads successfully.
+> Now I can ask for a dataset summary. This is not calling an LLM yet. The backend creates an analysis run and streams deterministic events over Server-Sent Events. The UI turns those events into a notebook-style timeline.
 
-## 5. Artifact And Operations Talking Points
+Show:
 
-- Markdown and PDF reports can be generated from `AnalysisResponse`.
-- Report export endpoints can download generated Markdown and PDF reports.
-- PNG chart artifacts can be generated from chart-ready data.
-- Visual analytics connect charts to business questions, interpretations, insight IDs, and stakeholder actions.
-- Trend analysis summarizes historical monthly movement without forecasting.
-- Baseline forecasts use readiness checks, last-period values, moving averages, and simple trend projection without ML.
-- Quality gate decisions prevent low-quality data from becoming confident executive output.
-- Recommendations and workflow improvements move the platform from analytics to business action.
-- Data profile and quality score improve analytics credibility before deeper statistical modeling.
-- Source metadata, preparation, lineage, and manipulation summaries make the pipeline end-to-end analytics rather than only KPI reporting.
-- CI runs dependency verification, Ruff, and pytest.
-- Deployment is ready with Dockerfile, runtime config, and `docs/deployment.md`.
+- User message.
+- Pending assistant message.
+- Streaming status card.
+- Notebook cell.
+- Stdout/stderr panels if present.
+- Final assistant answer.
+
+### 3:15-4:20 - Intent Routing And Follow-Up Context
+
+Action:
+
+Ask:
+
+```text
+Show revenue by region
+```
+
+Then ask:
+
+```text
+Now by product
+```
+
+Narration:
+
+> The planner maps explicit prompts to deterministic intents and columns. In this case, revenue by region creates grouped metric artifacts. The follow-up question reuses the last metric, revenue, and swaps the grouping column to product. That gives us conversational continuity without relying on an LLM.
+
+Show:
+
+- New assistant runs.
+- Run history gaining entries.
+- Artifacts tab becoming active.
+
+### 4:20-5:20 - Artifacts And Data Canvas
+
+Action:
+
+1. Open Artifacts if it is not already focused.
+2. Click chart, table, and markdown artifacts if available.
+
+Narration:
+
+> Artifacts are safe frontend-rendered outputs. Tables only render flat scalar rows, charts use constrained bar or line specs, and markdown is rendered as plain text. The canvas automatically focuses useful artifacts while still letting the user manually choose another result.
+
+Show:
+
+- Artifact gallery.
+- Chart artifact.
+- Table artifact.
+- Markdown artifact.
+
+### 5:20-6:15 - Run History And Exports
+
+Action:
+
+1. Click a previous run in Run History.
+2. Export an artifact from the artifact card.
+3. Export the selected run report from Run History.
+
+Narration:
+
+> The MVP keeps in-memory run history. A user can revisit a prompt, final answer, execution timeline, and artifacts. Exports are frontend-only for now: table and chart data export as CSV, markdown exports as `.md`, and a run report exports as Markdown.
+
+Show:
+
+- Prior run selection.
+- Timeline restore.
+- Export button on artifact.
+- Export report button.
+
+### 6:15-7:00 - Dataset Cleanup
+
+Action:
+
+1. Click Clear dataset.
+
+Narration:
+
+> Finally, the workspace cleanup path removes the registered dataset file from local scratch storage and resets the frontend state. That clears the active dataset, chat, artifacts, run history, execution timeline, notebook cells, selected columns, and canvas mode.
+
+Show:
+
+- Return to no-dataset preview state.
+- Chat disabled.
+- Run History empty.
+- Artifacts disabled.
+
+Closing narration:
+
+> This freezes the local MVP: upload, inspect, ask, stream, review, export, revisit, and clean up. The next production steps would be persistence, auth, worker orchestration, and LLM integration behind the existing deterministic interfaces.
