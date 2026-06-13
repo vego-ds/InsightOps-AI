@@ -4,12 +4,14 @@ import {
   Archive,
   CheckCircle2,
   Clock3,
+  Download,
   History,
   Loader2,
   TriangleAlert,
 } from "lucide-react";
 
 import { ExecutionTimeline } from "@/components/execution/execution-timeline";
+import { exportRunReport } from "@/lib/export-artifacts";
 import { useArtifactStore } from "@/stores/artifact-store";
 import { useCanvasStore } from "@/stores/canvas-store";
 import {
@@ -35,8 +37,12 @@ export function RunHistoryPanel() {
   const selectBestArtifactForRun = useArtifactStore(
     (store) => store.selectBestArtifactForRun,
   );
+  const allArtifacts = useArtifactStore((store) => store.artifacts);
   const setActiveMode = useCanvasStore((store) => store.setActiveMode);
   const selectedRun = runs.find((run) => run.runId === selectedRunId) ?? null;
+  const selectedRunArtifacts = selectedRun
+    ? allArtifacts.filter((artifact) => selectedRun.artifactIds.includes(artifact.id))
+    : [];
 
   const handleSelectRun = (run: RunHistoryRecord) => {
     selectRun(run.runId);
@@ -110,9 +116,24 @@ export function RunHistoryPanel() {
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
               Selected timeline
             </p>
-            <span className="truncate text-[11px] text-slate-600">
-              {selectedRun.runId.slice(0, 8)}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="truncate text-[11px] text-slate-600">
+                {selectedRun.runId.slice(0, 8)}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  exportRunReport({
+                    run: selectedRun,
+                    artifacts: selectedRunArtifacts,
+                  })
+                }
+                className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/20 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 hover:text-cyan-100"
+              >
+                <Download className="h-3 w-3" />
+                Export report
+              </button>
+            </div>
           </div>
           <ExecutionTimeline runId={selectedRun.runId} />
           {selectedRun.finalAnswer ? (
