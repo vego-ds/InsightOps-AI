@@ -1,7 +1,6 @@
 "use client";
 
 import type React from "react";
-import { useState } from "react";
 import { AlertCircle, Database, Rows3, Table2 } from "lucide-react";
 
 import { ArtifactGallery } from "@/components/artifacts/artifact-gallery";
@@ -15,6 +14,7 @@ import {
   type CanvasMode,
 } from "@/components/workspace/canvas-mode-tabs";
 import { useArtifactStore } from "@/stores/artifact-store";
+import { useCanvasStore } from "@/stores/canvas-store";
 import { useDatasetStore } from "@/stores/dataset-store";
 
 export function DataCanvas() {
@@ -22,9 +22,14 @@ export function DataCanvas() {
   const errorMessage = useDatasetStore((store) => store.errorMessage);
   const uploadStatus = useDatasetStore((store) => store.uploadStatus);
   const artifactCount = useArtifactStore((store) => store.artifacts.length);
-  const [mode, setMode] = useState<CanvasMode>("preview");
+  const activeRunId = useArtifactStore((store) => store.activeRunId);
+  const mode = useCanvasStore((store) => store.activeMode);
+  const setActiveMode = useCanvasStore((store) => store.setActiveMode);
   const visibleMode: CanvasMode =
     activeDataset && (mode !== "artifacts" || artifactCount > 0) ? mode : "preview";
+  const handleModeChange = (nextMode: CanvasMode) => {
+    setActiveMode(nextMode, "user", activeRunId);
+  };
 
   if (!activeDataset) {
     return (
@@ -33,7 +38,7 @@ export function DataCanvas() {
           mode={visibleMode}
           schemaDisabled
           artifactsDisabled
-          onModeChange={setMode}
+          onModeChange={handleModeChange}
         />
         {errorMessage ? <RuntimeErrorPanel message={errorMessage} /> : null}
         <FileUploadPreviewGrid uploadUrl="/api/datasets/upload" />
@@ -48,7 +53,7 @@ export function DataCanvas() {
         mode={visibleMode}
         schemaDisabled={false}
         artifactsDisabled={artifactCount === 0}
-        onModeChange={setMode}
+        onModeChange={handleModeChange}
       />
 
       {visibleMode === "preview" ? (

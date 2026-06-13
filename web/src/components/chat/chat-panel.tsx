@@ -7,6 +7,7 @@ import { ChatMessageList } from "@/components/chat/chat-message-list";
 import { SuggestedPrompts } from "@/components/chat/suggested-prompts";
 import { createAnalysisRun, parseRunEvent } from "@/lib/execution-client";
 import { useArtifactStore } from "@/stores/artifact-store";
+import { useCanvasStore } from "@/stores/canvas-store";
 import { useChatStore } from "@/stores/chat-store";
 import { useDatasetStore } from "@/stores/dataset-store";
 import { useExecutionStore } from "@/stores/execution-store";
@@ -41,6 +42,12 @@ export function ChatPanel() {
     (store) => store.appendNotebookEvent,
   );
   const addArtifact = useArtifactStore((store) => store.addArtifact);
+  const setActiveRunId = useArtifactStore((store) => store.setActiveRunId);
+  const selectBestArtifactForRun = useArtifactStore(
+    (store) => store.selectBestArtifactForRun,
+  );
+  const resetRunFocusLock = useCanvasStore((store) => store.resetRunFocusLock);
+  const setActiveMode = useCanvasStore((store) => store.setActiveMode);
   const hasDataset = Boolean(activeDataset);
 
   const sendMessage = async (content: string) => {
@@ -56,6 +63,8 @@ export function ChatPanel() {
         buildAnalysisRunCreateRequest(activeDataset, content),
       );
       attachRunToAssistantMessage(pendingMessage.id, run.runId);
+      setActiveRunId(run.runId);
+      resetRunFocusLock(run.runId);
 
       const eventSource = new EventSource(run.streamUrl);
       const closeWithFailure = () => {
@@ -84,7 +93,16 @@ export function ChatPanel() {
         }
 
         if (parsed.type === "artifact") {
-          addArtifact(parsed.artifact);
+          addArtifact(parsed.artifact, run.runId);
+          const artifactState = useArtifactStore.getState();
+          const canvasState = useCanvasStore.getState();
+          if (
+            artifactState.activeRunId === run.runId &&
+            canvasState.userLockedModeForRunId !== run.runId
+          ) {
+            setActiveMode("artifacts", "system", run.runId);
+            selectBestArtifactForRun(run.runId, "system");
+          }
         }
 
         if (parsed.type === "run.error") {

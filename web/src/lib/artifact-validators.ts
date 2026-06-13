@@ -71,6 +71,7 @@ function parseTableArtifact(payload: Record<string, unknown>): TableArtifact | n
     id: payload.id as string,
     kind: "table",
     title: payload.title as string,
+    priority: parsePriority(payload.priority),
     columns: columns.filter((column) => column !== null),
     rows,
   };
@@ -136,6 +137,7 @@ function parseChartArtifact(payload: Record<string, unknown>): ChartArtifact | n
     id: payload.id as string,
     kind: "chart",
     title: payload.title as string,
+    priority: parsePriority(payload.priority),
     chartType: payload.chartType,
     xKey: payload.xKey,
     yKey: payload.yKey,
@@ -154,8 +156,13 @@ function parseMarkdownArtifact(
     id: payload.id as string,
     kind: "markdown",
     title: payload.title as string,
+    priority: parsePriority(payload.priority),
     text: payload.text,
   };
+}
+
+function parsePriority(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
 function isArtifactScalar(value: unknown): value is ArtifactScalar {

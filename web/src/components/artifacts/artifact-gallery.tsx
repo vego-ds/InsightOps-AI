@@ -7,9 +7,17 @@ import { useArtifactStore } from "@/stores/artifact-store";
 import type { InsightArtifact } from "@/types/artifact";
 
 export function ArtifactGallery() {
-  const artifacts = useArtifactStore((store) => store.artifacts);
+  const activeRunId = useArtifactStore((store) => store.activeRunId);
+  const allArtifacts = useArtifactStore((store) => store.artifacts);
   const selectedArtifactId = useArtifactStore((store) => store.selectedArtifactId);
   const selectArtifact = useArtifactStore((store) => store.selectArtifact);
+  const activeRunArtifacts = activeRunId
+    ? allArtifacts.filter((artifact) => artifact.runId === activeRunId)
+    : [];
+  const olderArtifacts = activeRunId
+    ? allArtifacts.filter((artifact) => artifact.runId !== activeRunId)
+    : allArtifacts;
+  const artifacts = [...activeRunArtifacts, ...olderArtifacts];
   const selectedArtifact =
     artifacts.find((artifact) => artifact.id === selectedArtifactId) ??
     artifacts[0] ??
@@ -33,7 +41,7 @@ export function ArtifactGallery() {
           <button
             key={artifact.id}
             type="button"
-            onClick={() => selectArtifact(artifact.id)}
+            onClick={() => selectArtifact(artifact.id, "user")}
             className={[
               "mb-2 flex w-full items-start gap-3 rounded-xl border px-3 py-3 text-left transition",
               artifact.id === selectedArtifact.id
@@ -48,6 +56,11 @@ export function ArtifactGallery() {
               </p>
               <p className="mt-1 text-xs uppercase tracking-wide text-slate-500">
                 {artifact.kind}
+                {artifact.runId === activeRunId ? (
+                  <span className="ml-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-100">
+                    New
+                  </span>
+                ) : null}
               </p>
             </div>
           </button>

@@ -4,37 +4,121 @@ import { create } from "zustand";
 
 import type { InsightArtifact } from "@/types/artifact";
 
-type ArtifactStoreState = {
-  artifacts: InsightArtifact[];
-  selectedArtifactId: string | null;
-  addArtifact: (artifact: InsightArtifact) => void;
-  selectArtifact: (artifactId: string) => void;
-  clearArtifacts: () => void;
+export type ArtifactSelectionSource = "system" | "user";
+
+export type StoredInsightArtifact = InsightArtifact & {
+  runId: string | null;
+  createdAtIso: string;
+  priority?: number;
 };
 
-export const useArtifactStore = create<ArtifactStoreState>((set) => ({
+type ArtifactStoreState = {
+  artifacts: StoredInsightArtifact[];
+  activeRunId: string | null;
+  selectedArtifactId: string | null;
+  userHasManuallySelectedArtifact: boolean;
+  setActiveRunId: (runId: string) => void;
+  addArtifact: (artifact: InsightArtifact, runId?: string | null) => StoredInsightArtifact;
+  selectArtifact: (artifactId: string, source: ArtifactSelectionSource) => void;
+  clearArtifacts: () => void;
+  getArtifactsForRun: (runId: string) => StoredInsightArtifact[];
+  selectBestArtifactForRun: (
+    runId: string,
+    source?: ArtifactSelectionSource,
+  ) => StoredInsightArtifact | null;
+};
+
+export const useArtifactStore = create<ArtifactStoreState>((set, get) => ({
   artifacts: [],
+  activeRunId: null,
   selectedArtifactId: null,
+  userHasManuallySelectedArtifact: false,
 
-  addArtifact: (artifact) =>
-    set((state) => {
-      if (state.artifacts.some((item) => item.id === artifact.id)) {
-        return state;
-      }
-
-      return {
-        artifacts: [...state.artifacts, artifact],
-        selectedArtifactId: state.selectedArtifactId ?? artifact.id,
-      };
+  setActiveRunId: (runId) =>
+    set({
+      activeRunId: runId,
+      userHasManuallySelectedArtifact: false,
     }),
 
-  selectArtifact: (artifactId) =>
+  addArtifact: (artifact, runId) => {
+    const effectiveRunId = runId ?? get().activeRunId;
+    const existing = get().artifacts.find((item) => item.id === artifact.id);
+    if (existing) {
+      return existing;
+    }
+
+    const storedArtifact: StoredInsightArtifact = {
+      ...artifact,
+      runId: effectiveRunId,
+      createdAtIso: new Date().toISOString(),
+    };
+
+    set((state) => ({
+      artifacts: [...state.artifacts, storedArtifact],
+      selectedArtifactId: state.selectedArtifactId ?? storedArtifact.id,
+    }));
+
+    return storedArtifact;
+  },
+
+  selectArtifact: (artifactId, source) =>
     set((state) => {
       if (!state.artifacts.some((artifact) => artifact.id === artifactId)) {
         return state;
       }
-      return { selectedArtifactId: artifactId };
+      return {
+        selectedArtifactId: artifactId,
+        userHasManuallySelectedArtifact:
+          source === "user" ? true : state.userHasManuallySelectedArtifact,
+      };
     }),
 
-  clearArtifacts: () => set({ artifacts: [], selectedArtifactId: null }),
+  clearArtifacts: () =>
+    set({
+      artifacts: [],
+      activeRunId: null,
+      selectedArtifactId: null,
+      userHasManuallySelectedArtifact: false,
+    }),
+
+  getArtifactsForRun: (runId) =>
+    get().artifacts.filter((artifact) => artifact.runId === runId),
+
+  selectBestArtifactForRun: (runId, source = "system") => {
+    if (source === "system" && get().userHasManuallySelectedArtifact) {
+      return null;
+    }
+    const bestArtifact = pickBestArtifact(get().getArtifactsForRun(runId));
+    if (!bestArtifact) {
+      return null;
+    }
+    get().selectArtifact(bestArtifact.id, source);
+    return bestArtifact;
+  },
 }));
+
+function pickBestArtifact(
+  artifacts: StoredInsightArtifact[],
+): StoredInsightArtifact | null {
+  if (artifacts.length === 0) {
+    return null;
+  }
+
+  return [...artifacts].sort((left, right) => {
+    const priorityDelta = (right.priority ?? 0) - (left.priority ?? 0);
+    if (priorityDelta !== 0) {
+      return priorityDelta;
+    }
+    return kindRank(left.kind) - kindRank(right.kind);
+  })[0];
+}
+
+function kindRank(kind: InsightArtifact["kind"]): number {
+  if (kind === "chart") {
+    return 0;
+  }
+  if (kind === "table") {
+    return 1;
+  }
+  return 2;
+}
