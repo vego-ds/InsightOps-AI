@@ -21,6 +21,7 @@ from insightops.api.contracts import (
     HealthResponse,
 )
 from insightops.config import load_app_settings
+from insightops.conversation import conversation_store
 from insightops.datasets import (
     DatasetMetadata,
     get_dataset,
@@ -228,12 +229,19 @@ def create_analysis_run(
         )
 
     run_id = uuid4().hex
+    conversation_id = request.conversationId or f"dataset:{request.datasetId}"
+    conversation_context = conversation_store.get_or_create(
+        conversation_id,
+        request.datasetId,
+    )
     analysis_run_contexts[run_id] = RunContext(
         run_id=run_id,
         dataset_id=request.datasetId,
         message=request.message,
         schema=[column.model_dump() for column in request.schema_],
         preview_rows=request.previewRows,
+        conversation_id=conversation_id,
+        conversation_context=conversation_context,
         dataset_metadata=dataset_metadata,
         dataset_path=dataset_path,
     )
@@ -741,6 +749,7 @@ async def _mock_analysis_run_event_stream(run_id: str):
             message="",
             schema=[],
             preview_rows=[],
+            conversation_id=f"dataset:{run_id}",
         )
 
     async for event in runtime_adapter.stream_events(context):

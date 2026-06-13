@@ -16,7 +16,7 @@ from insightops.api.contracts import (
 )
 from insightops.answers import synthesize_final_answer
 from insightops.artifacts.builders import build_artifacts_for_plan, get_dataset_shape
-from insightops.planning import build_analysis_plan
+from insightops.conversation import conversation_store, resolve_followup_plan
 from insightops.runtime.code_templates import build_dataset_profile_code
 from insightops.runtime.run_context import RunContext
 
@@ -29,7 +29,18 @@ class LocalPythonRuntimeAdapter:
         run_id = context.run_id
         cell_id = f"{run_id}-local-python-profile"
         sequence = 1
-        plan = build_analysis_plan(context.message, context.schema)
+        plan = resolve_followup_plan(
+            message=context.message,
+            schema=context.schema,
+            context=context.conversation_context,
+        )
+        if context.conversation_id:
+            conversation_store.update_after_plan(
+                conversation_id=context.conversation_id,
+                dataset_id=context.dataset_id,
+                run_id=run_id,
+                plan=plan,
+            )
 
         yield RunStatusEvent(
             version="insightops.run-event.v1",
@@ -140,6 +151,12 @@ class LocalPythonRuntimeAdapter:
                     artifact=artifact,
                 ).model_dump()
                 sequence += 1
+            if context.conversation_id:
+                conversation_store.update_after_artifacts(
+                    conversation_id=context.conversation_id,
+                    artifact_ids=[artifact["id"] for artifact in artifacts],
+                    artifact_kinds=[artifact["kind"] for artifact in artifacts],
+                )
             row_count, column_count = get_dataset_shape(context)
             yield _final_event(
                 run_id,

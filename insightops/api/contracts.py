@@ -135,6 +135,7 @@ class AnalysisRunCreateRequest(BaseModel):
     message: str
     schema_: list[AnalysisRequestColumn] = Field(alias="schema")
     previewRows: list[dict[str, object | None]]
+    conversationId: str | None = None
 
 
 class AnalysisRunCreatedResponse(BaseModel):
