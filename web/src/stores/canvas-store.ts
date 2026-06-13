@@ -15,6 +15,7 @@ type CanvasStoreState = {
     runId?: string | null,
   ) => void;
   resetRunFocusLock: (runId: string) => void;
+  resetCanvas: () => void;
 };
 
 export const useCanvasStore = create<CanvasStoreState>((set) => ({
@@ -41,4 +42,10 @@ export const useCanvasStore = create<CanvasStoreState>((set) => ({
         ? { userLockedModeForRunId: null }
         : state,
     ),
+
+  resetCanvas: () =>
+    set({
+      activeMode: "preview",
+      userLockedModeForRunId: null,
+    }),
 }));

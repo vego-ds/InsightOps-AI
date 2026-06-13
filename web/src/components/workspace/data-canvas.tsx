@@ -1,7 +1,7 @@
 "use client";
 
-import type React from "react";
-import { AlertCircle, Database, Rows3, Table2 } from "lucide-react";
+import * as React from "react";
+import { AlertCircle, Database, Loader2, Rows3, Table2, Trash2 } from "lucide-react";
 
 import { ArtifactGallery } from "@/components/artifacts/artifact-gallery";
 import {
@@ -13,9 +13,12 @@ import {
   CanvasModeTabs,
   type CanvasMode,
 } from "@/components/workspace/canvas-mode-tabs";
+import { deleteDataset } from "@/lib/dataset-client";
 import { useArtifactStore } from "@/stores/artifact-store";
 import { useCanvasStore } from "@/stores/canvas-store";
+import { useChatStore } from "@/stores/chat-store";
 import { useDatasetStore } from "@/stores/dataset-store";
+import { useRunHistoryStore } from "@/stores/run-history-store";
 
 export function DataCanvas() {
   const activeDataset = useDatasetStore((store) => store.activeDataset);
@@ -73,34 +76,81 @@ export function DataCanvas() {
 
 function DatasetSummaryBar() {
   const dataset = useDatasetStore((store) => store.activeDataset);
+  const clearActiveDataset = useDatasetStore((store) => store.clearActiveDataset);
+  const setErrorMessage = useDatasetStore((store) => store.setErrorMessage);
   const selectedColumnKey = useDatasetStore((store) => store.selectedColumnKey);
+  const clearMessages = useChatStore((store) => store.clearMessages);
+  const clearArtifacts = useArtifactStore((store) => store.clearArtifacts);
+  const clearHistory = useRunHistoryStore((store) => store.clearHistory);
+  const resetCanvas = useCanvasStore((store) => store.resetCanvas);
+  const [isClearing, setIsClearing] = React.useState(false);
+
+  const handleClearDataset = async () => {
+    if (!dataset || isClearing) {
+      return;
+    }
+
+    setIsClearing(true);
+    setErrorMessage(null);
+    try {
+      await deleteDataset(dataset.id);
+      clearMessages();
+      clearArtifacts();
+      clearHistory();
+      resetCanvas();
+      clearActiveDataset();
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Dataset deletion failed.";
+      setErrorMessage(message);
+    } finally {
+      setIsClearing(false);
+    }
+  };
 
   if (!dataset) {
     return null;
   }
 
   return (
-    <section className="grid gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 md:grid-cols-4">
-      <SummaryItem
-        icon={<Database className="h-4 w-4" />}
-        label="Active dataset"
-        value={dataset.fileName}
-      />
-      <SummaryItem
-        icon={<Rows3 className="h-4 w-4" />}
-        label="Rows"
-        value={formatNumber(dataset.rowCount)}
-      />
-      <SummaryItem
-        icon={<Table2 className="h-4 w-4" />}
-        label="Columns"
-        value={formatNumber(dataset.columnCount)}
-      />
-      <SummaryItem
-        icon={<Rows3 className="h-4 w-4" />}
-        label="Selected column"
-        value={selectedColumnKey ?? "None"}
-      />
+    <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+      <div className="grid gap-3 md:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
+        <SummaryItem
+          icon={<Database className="h-4 w-4" />}
+          label="Active dataset"
+          value={dataset.fileName}
+        />
+        <SummaryItem
+          icon={<Rows3 className="h-4 w-4" />}
+          label="Rows"
+          value={formatNumber(dataset.rowCount)}
+        />
+        <SummaryItem
+          icon={<Table2 className="h-4 w-4" />}
+          label="Columns"
+          value={formatNumber(dataset.columnCount)}
+        />
+        <SummaryItem
+          icon={<Rows3 className="h-4 w-4" />}
+          label="Selected column"
+          value={selectedColumnKey ?? "None"}
+        />
+        <button
+          type="button"
+          onClick={() => void handleClearDataset()}
+          disabled={isClearing}
+          className="inline-flex min-h-[68px] items-center justify-center gap-2 rounded-xl border border-red-300/20 bg-red-500/10 px-4 text-sm font-medium text-red-100 transition hover:border-red-300/35 hover:bg-red-500/15 disabled:cursor-wait disabled:opacity-70"
+        >
+          {isClearing ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Trash2 className="h-4 w-4" />
+          )}
+          Clear
+        </button>
+      </div>
     </section>
   );
 }

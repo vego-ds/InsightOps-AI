@@ -107,6 +107,12 @@ class DatasetUploadErrorResponse(BaseModel):
     error: DatasetUploadErrorDetail
 
 
+class DatasetDeleteResponse(BaseModel):
+    version: Literal["insightops.dataset-delete.v1"]
+    status: Literal["deleted"]
+    datasetId: str
+
+
 class AnalysisRequestColumn(BaseModel):
     key: str
     label: str

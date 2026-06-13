@@ -15,6 +15,7 @@ from insightops.api.contracts import (
     AnalysisRunCreateRequest,
     AnalysisResponse,
     CsvUploadPreviewResponse,
+    DatasetDeleteResponse,
     DatasetUploadErrorResponse,
     DatasetUploadSuccessResponse,
     ErrorResponse,
@@ -24,6 +25,7 @@ from insightops.config import load_app_settings
 from insightops.conversation import conversation_store
 from insightops.datasets import (
     DatasetMetadata,
+    delete_registered_dataset,
     get_dataset,
     get_dataset_path,
     register_dataset,
@@ -441,6 +443,40 @@ async def upload_dataset_preview(
         status="ok",
         dataset=dataset,
         warnings=[],
+    )
+
+
+@app.delete(
+    "/api/datasets/{dataset_id}",
+    response_model=DatasetDeleteResponse,
+    tags=["datasets"],
+    responses={404: {"model": ErrorResponse}, 400: {"model": ErrorResponse}},
+)
+def delete_dataset(dataset_id: str) -> DatasetDeleteResponse | JSONResponse:
+    try:
+        deleted = delete_registered_dataset(dataset_id)
+    except ValueError as error:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "detail": str(error),
+                "error_code": "UNSAFE_DATASET_PATH",
+            },
+        )
+
+    if deleted is None:
+        return JSONResponse(
+            status_code=404,
+            content={
+                "detail": "Unknown datasetId.",
+                "error_code": "UNKNOWN_DATASET",
+            },
+        )
+
+    return DatasetDeleteResponse(
+        version="insightops.dataset-delete.v1",
+        status="deleted",
+        datasetId=dataset_id,
     )
 
 
