@@ -33,6 +33,21 @@ export function SchemaInspector() {
     activeDataset.columns[0] ??
     null;
 
+  if (activeDataset.columns.length === 0) {
+    return (
+      <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+        <div className="flex items-center gap-2 text-sm font-semibold text-white">
+          <Columns3 className="h-4 w-4 text-cyan-200" />
+          No schema columns
+        </div>
+        <p className="mt-2 text-sm leading-6 text-slate-400">
+          The uploaded dataset did not expose any columns to inspect. Clear the
+          dataset and upload a CSV with a header row.
+        </p>
+      </section>
+    );
+  }
+
   return (
     <section className="grid min-h-0 gap-4 lg:grid-cols-[minmax(280px,380px)_minmax(0,1fr)]">
       <div className="min-h-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">

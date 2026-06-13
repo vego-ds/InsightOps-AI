@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import {
   Bot,
   Loader2,
@@ -17,6 +18,20 @@ type ChatMessageListProps = {
 };
 
 export function ChatMessageList({ messages, hasDataset }: ChatMessageListProps) {
+  const scrollRef = React.useRef<HTMLDivElement | null>(null);
+  const latestMessageContent = messages.at(-1)?.content;
+
+  React.useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) {
+      return;
+    }
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages.length, latestMessageContent]);
+
   if (messages.length === 0) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-black/20 px-5 py-8 text-center">
@@ -36,7 +51,10 @@ export function ChatMessageList({ messages, hasDataset }: ChatMessageListProps) 
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-3 overflow-y-auto pr-1">
+    <div
+      ref={scrollRef}
+      className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1"
+    >
       {messages.map((message) => (
         <MessageBubble key={message.id} message={message} />
       ))}

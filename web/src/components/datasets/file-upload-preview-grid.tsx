@@ -155,10 +155,7 @@ export function FileUploadPreviewGrid({
           return;
         }
 
-        const message =
-          error instanceof Error
-            ? error.message
-            : "An unknown upload error occurred.";
+        const message = getUploadErrorMessage(error);
         setState({
           status: "runtime_error",
           message,
@@ -636,4 +633,14 @@ function formatCellTitle(value: PreviewCellValue | undefined): string {
   }
 
   return String(value);
+}
+
+function getUploadErrorMessage(error: unknown): string {
+  if (error instanceof TypeError) {
+    return "Could not reach the backend upload service. Check that the API is running, then try again.";
+  }
+  if (error instanceof Error && error.message.trim()) {
+    return "Upload failed before the dataset preview could be created. Please try again with a valid CSV file.";
+  }
+  return "An unknown upload error occurred. Please try again.";
 }

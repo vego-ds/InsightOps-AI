@@ -8,12 +8,17 @@ import type {
   NotebookRunEvent,
 } from "@/types/notebook";
 
+const EMPTY_CELL_ORDER: string[] = [];
+const EMPTY_CELLS_BY_ID: Record<string, NotebookCellModel> = {};
+const EMPTY_REPAIRS: NotebookRepairState[] = [];
+
 type NotebookStoreState = {
   cellOrderByRunId: Record<string, string[]>;
   cellsByRunId: Record<string, Record<string, NotebookCellModel>>;
   repairsByRunId: Record<string, NotebookRepairState[]>;
   appendNotebookEvent: (event: NotebookRunEvent) => void;
   clearRunNotebook: (runId: string) => void;
+  clearAllNotebooks: () => void;
 };
 
 export const useNotebookStore = create<NotebookStoreState>((set) => ({
@@ -47,6 +52,13 @@ export const useNotebookStore = create<NotebookStoreState>((set) => ({
         repairsByRunId: nextRepairsByRunId,
       };
     }),
+
+  clearAllNotebooks: () =>
+    set({
+      cellOrderByRunId: {},
+      cellsByRunId: {},
+      repairsByRunId: {},
+    }),
 }));
 
 function appendCellEvent(
@@ -56,14 +68,14 @@ function appendCellEvent(
     { type: "run.repair.started" | "run.repair.completed" }
   >,
 ) {
-  const cellsForRun = state.cellsByRunId[event.runId] ?? {};
+  const cellsForRun = state.cellsByRunId[event.runId] ?? EMPTY_CELLS_BY_ID;
   const currentCell = cellsForRun[event.cellId];
   const nextCell = reduceCellEvent(currentCell, event);
   if (!nextCell) {
     return state;
   }
 
-  const existingOrder = state.cellOrderByRunId[event.runId] ?? [];
+  const existingOrder = state.cellOrderByRunId[event.runId] ?? EMPTY_CELL_ORDER;
   const nextOrder = existingOrder.includes(event.cellId)
     ? existingOrder
     : [...existingOrder, event.cellId];
@@ -147,7 +159,7 @@ function appendRepairStarted(
   state: NotebookStoreState,
   event: Extract<NotebookRunEvent, { type: "run.repair.started" }>,
 ) {
-  const repairs = state.repairsByRunId[event.runId] ?? [];
+  const repairs = state.repairsByRunId[event.runId] ?? EMPTY_REPAIRS;
   const existing = repairs.find(
     (repair) =>
       repair.failedCellId === event.failedCellId &&
@@ -180,7 +192,7 @@ function appendRepairCompleted(
   state: NotebookStoreState,
   event: Extract<NotebookRunEvent, { type: "run.repair.completed" }>,
 ) {
-  const repairs = state.repairsByRunId[event.runId] ?? [];
+  const repairs = state.repairsByRunId[event.runId] ?? EMPTY_REPAIRS;
   const nextRepairs = repairs.map((repair) =>
     repair.failedCellId === event.failedCellId &&
     repair.repairCellId === event.repairCellId

@@ -32,7 +32,7 @@ export function NotebookOutputPanel({ title, lines }: NotebookOutputPanelProps) 
         <TerminalSquare className="h-3.5 w-3.5" />
         {title}
       </div>
-      <pre className="mt-2 overflow-auto whitespace-pre-wrap text-xs leading-5 text-slate-200">
+      <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap break-words text-xs leading-5 text-slate-200">
         {lines.join("\n")}
       </pre>
     </section>

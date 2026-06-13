@@ -18,6 +18,8 @@ import { useArtifactStore } from "@/stores/artifact-store";
 import { useCanvasStore } from "@/stores/canvas-store";
 import { useChatStore } from "@/stores/chat-store";
 import { useDatasetStore } from "@/stores/dataset-store";
+import { useExecutionStore } from "@/stores/execution-store";
+import { useNotebookStore } from "@/stores/notebook-store";
 import { useRunHistoryStore } from "@/stores/run-history-store";
 
 export function DataCanvas() {
@@ -81,6 +83,8 @@ function DatasetSummaryBar() {
   const selectedColumnKey = useDatasetStore((store) => store.selectedColumnKey);
   const clearMessages = useChatStore((store) => store.clearMessages);
   const clearArtifacts = useArtifactStore((store) => store.clearArtifacts);
+  const clearAllRunEvents = useExecutionStore((store) => store.clearAllRunEvents);
+  const clearAllNotebooks = useNotebookStore((store) => store.clearAllNotebooks);
   const clearHistory = useRunHistoryStore((store) => store.clearHistory);
   const resetCanvas = useCanvasStore((store) => store.resetCanvas);
   const [isClearing, setIsClearing] = React.useState(false);
@@ -96,6 +100,8 @@ function DatasetSummaryBar() {
       await deleteDataset(dataset.id);
       clearMessages();
       clearArtifacts();
+      clearAllRunEvents();
+      clearAllNotebooks();
       clearHistory();
       resetCanvas();
       clearActiveDataset();

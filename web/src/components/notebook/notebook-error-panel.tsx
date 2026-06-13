@@ -17,15 +17,20 @@ export function NotebookErrorPanel({ cell }: NotebookErrorPanelProps) {
     <section className="rounded-lg border border-red-300/20 bg-red-500/10 px-3 py-2">
       <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-red-100">
         <TriangleAlert className="h-3.5 w-3.5" />
-        traceback
+        cell failed
       </div>
       <p className="mt-2 text-sm font-medium text-red-100">
         {cell.errorMessage ?? "Mock cell failure"}
       </p>
       {cell.traceback ? (
-        <pre className="mt-2 overflow-auto whitespace-pre-wrap rounded-lg border border-red-300/10 bg-black/25 p-2 text-xs leading-5 text-red-50/90">
-          {cell.traceback}
-        </pre>
+        <details className="mt-2 rounded-lg border border-red-300/10 bg-black/25">
+          <summary className="cursor-pointer px-2 py-2 text-xs font-medium text-red-100/90">
+            Technical details
+          </summary>
+          <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words px-2 pb-2 text-xs leading-5 text-red-50/90">
+            {cell.traceback}
+          </pre>
+        </details>
       ) : null}
     </section>
   );

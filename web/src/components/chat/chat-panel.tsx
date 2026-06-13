@@ -20,6 +20,10 @@ import {
 
 const ANALYSIS_FAILURE_MESSAGE =
   "Streaming analysis failed safely. The backend event stream could not be accepted by the frontend contract.";
+const ANALYSIS_CONNECTION_FAILURE_MESSAGE =
+  "Analysis could not start. Check that the backend is running, then try again.";
+const ARTIFACT_VALIDATION_FAILURE_MESSAGE =
+  "An artifact event was blocked because it did not match the expected safe rendering contract.";
 
 export function ChatPanel() {
   const activeDataset = useDatasetStore((store) => store.activeDataset);
@@ -82,10 +86,10 @@ export function ChatPanel() {
       resetRunFocusLock(run.runId);
 
       const eventSource = new EventSource(run.streamUrl);
-      const closeWithFailure = () => {
+      const closeWithFailure = (message = ANALYSIS_FAILURE_MESSAGE) => {
         eventSource.close();
-        markRunError(run.runId, ANALYSIS_FAILURE_MESSAGE);
-        failAssistantMessage(pendingMessage.id, ANALYSIS_FAILURE_MESSAGE);
+        markRunError(run.runId, message);
+        failAssistantMessage(pendingMessage.id, message);
       };
       const handleRawEvent = (event: MessageEvent<string>) => {
         let payload: unknown;
@@ -98,7 +102,11 @@ export function ChatPanel() {
 
         const parsed = parseRunEvent(payload);
         if (!parsed || parsed.runId !== run.runId) {
-          closeWithFailure();
+          closeWithFailure(
+            isArtifactPayload(payload)
+              ? ARTIFACT_VALIDATION_FAILURE_MESSAGE
+              : ANALYSIS_FAILURE_MESSAGE,
+          );
           return;
         }
 
@@ -150,9 +158,9 @@ export function ChatPanel() {
       eventSource.addEventListener("run.repair.completed", handleRawEvent);
       eventSource.addEventListener("run.artifact", handleRawEvent);
       eventSource.addEventListener("run.final", handleRawEvent);
-      eventSource.onerror = closeWithFailure;
+      eventSource.onerror = () => closeWithFailure(ANALYSIS_CONNECTION_FAILURE_MESSAGE);
     } catch {
-      failAssistantMessage(pendingMessage.id, ANALYSIS_FAILURE_MESSAGE);
+      failAssistantMessage(pendingMessage.id, ANALYSIS_CONNECTION_FAILURE_MESSAGE);
     }
   };
 
@@ -197,6 +205,15 @@ export function ChatPanel() {
         <ChatInput disabled={!activeDataset} onSend={sendMessage} />
       </div>
     </div>
+  );
+}
+
+function isArtifactPayload(payload: unknown): boolean {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "type" in payload &&
+    (payload as { type?: unknown }).type === "artifact"
   );
 }
 

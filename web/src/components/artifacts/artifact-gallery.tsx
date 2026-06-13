@@ -32,7 +32,8 @@ export function ArtifactGallery() {
       <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
         <p className="text-sm font-medium text-white">No artifacts yet</p>
         <p className="mt-2 text-sm text-slate-400">
-          Run a chat analysis to receive deterministic mock artifacts.
+          Run an analysis from chat. Tables, charts, and summaries will appear
+          here when the execution stream produces safe artifact payloads.
         </p>
       </section>
     );
