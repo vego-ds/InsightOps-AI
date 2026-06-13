@@ -5,6 +5,7 @@ import sys
 import time
 
 from insightops.api.contracts import (
+    RunArtifactEvent,
     RunCellCompletedEvent,
     RunCellFailedEvent,
     RunCellStartedEvent,
@@ -13,6 +14,8 @@ from insightops.api.contracts import (
     RunFinalEvent,
     RunStatusEvent,
 )
+from insightops.artifacts.builders import build_artifacts_for_plan
+from insightops.planning import build_analysis_plan
 from insightops.runtime.code_templates import build_dataset_profile_code
 from insightops.runtime.run_context import RunContext
 
@@ -25,13 +28,14 @@ class LocalPythonRuntimeAdapter:
         run_id = context.run_id
         cell_id = f"{run_id}-local-python-profile"
         sequence = 1
+        plan = build_analysis_plan(context.message, context.schema)
 
         yield RunStatusEvent(
             version="insightops.run-event.v1",
             runId=run_id,
             sequence=sequence,
             type="run.status",
-            status="agent_planning",
+            status=f"agent_planning:{plan.intent.value}",
         ).model_dump()
         sequence += 1
 
@@ -125,6 +129,15 @@ class LocalPythonRuntimeAdapter:
                 durationMs=duration_ms,
             ).model_dump()
             sequence += 1
+            for artifact in build_artifacts_for_plan(context, plan):
+                yield RunArtifactEvent(
+                    version="insightops.run-event.v1",
+                    runId=run_id,
+                    sequence=sequence,
+                    type="artifact",
+                    artifact=artifact,
+                ).model_dump()
+                sequence += 1
             yield _final_event(
                 run_id,
                 sequence,

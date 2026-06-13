@@ -6,6 +6,7 @@ import time
 from uuid import uuid4
 
 from insightops.api.contracts import (
+    RunArtifactEvent,
     RunCellCompletedEvent,
     RunCellFailedEvent,
     RunCellStartedEvent,
@@ -15,6 +16,8 @@ from insightops.api.contracts import (
     RunFinalEvent,
     RunStatusEvent,
 )
+from insightops.artifacts.builders import build_artifacts_for_plan
+from insightops.planning import build_analysis_plan
 from insightops.runtime.code_templates import build_dataset_profile_code
 from insightops.runtime.run_context import RunContext
 
@@ -40,6 +43,7 @@ class DockerRuntimeAdapter:
     async def stream_events(self, context: RunContext) -> AsyncIterator[dict]:
         run_id = context.run_id
         sequence = 1
+        plan = build_analysis_plan(context.message, context.schema)
 
         if not self.is_available():
             yield RunErrorEvent(
@@ -56,7 +60,7 @@ class DockerRuntimeAdapter:
             runId=run_id,
             sequence=sequence,
             type="run.status",
-            status="agent_planning",
+            status=f"agent_planning:{plan.intent.value}",
         ).model_dump()
         sequence += 1
 
@@ -155,6 +159,15 @@ class DockerRuntimeAdapter:
                 durationMs=duration_ms,
             ).model_dump()
             sequence += 1
+            for artifact in build_artifacts_for_plan(context, plan):
+                yield RunArtifactEvent(
+                    version="insightops.run-event.v1",
+                    runId=run_id,
+                    sequence=sequence,
+                    type="artifact",
+                    artifact=artifact,
+                ).model_dump()
+                sequence += 1
             yield _final_event(run_id, sequence, "Docker deterministic dataset profile completed.")
             return
 

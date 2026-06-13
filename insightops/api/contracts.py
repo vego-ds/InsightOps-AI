@@ -213,11 +213,17 @@ class RunRepairCompletedEvent(RunEventBase):
 ArtifactKind = Literal["table", "chart", "markdown"]
 
 
+class TableArtifactColumn(BaseModel):
+    key: str
+    label: str
+    dataType: str
+
+
 class TableArtifact(BaseModel):
     id: str
     kind: Literal["table"]
     title: str
-    columns: list[str]
+    columns: list[TableArtifactColumn]
     rows: list[dict[str, object | None]]
 
 

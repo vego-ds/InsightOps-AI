@@ -47,13 +47,14 @@ def test_docker_event_contracts_remain_stable(monkeypatch, tmp_path: Path) -> No
     events = _collect_events(DockerRuntimeAdapter(), _context(tmp_path))
     event_types = [event["type"] for event in events]
 
-    assert event_types == [
+    assert event_types[:4] == [
         "run.status",
         "run.cell.started",
         "run.cell.stdout",
         "run.cell.completed",
-        "run.final",
     ]
+    assert "artifact" in event_types
+    assert event_types[-1] == "run.final"
     assert all(event["version"] == "insightops.run-event.v1" for event in events)
     assert all(event["runId"] == "run-123" for event in events)
 
@@ -64,6 +65,32 @@ def test_docker_event_contracts_remain_stable(monkeypatch, tmp_path: Path) -> No
     assert "--read-only" in docker_run_command
     mount_value = docker_run_command[docker_run_command.index("--mount") + 1]
     assert mount_value.endswith(",readonly")
+
+
+def test_docker_runtime_emits_artifact_events_after_success(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    def fake_run(command, **kwargs):
+        if command[:2] == ["docker", "version"]:
+            return subprocess.CompletedProcess(command, 0, stdout="24.0.0\n", stderr="")
+        return subprocess.CompletedProcess(command, 0, stdout="ok\n", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    events = _collect_events(DockerRuntimeAdapter(), _context(tmp_path))
+    artifacts = [event for event in events if event["type"] == "artifact"]
+
+    assert {event["artifact"]["kind"] for event in artifacts} == {
+        "table",
+        "chart",
+        "markdown",
+    }
+    assert any(
+        event["artifact"]["kind"] == "chart"
+        and event["artifact"]["xKey"] == "region"
+        for event in artifacts
+    )
 
 
 def test_docker_timeout_message_and_cleanup_are_controlled(

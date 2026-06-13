@@ -42,6 +42,44 @@ def test_local_runtime_captures_stdout(tmp_path: Path) -> None:
     )
 
 
+def test_local_runtime_emits_real_artifact_events(tmp_path: Path) -> None:
+    context = _context(tmp_path)
+
+    events = _collect_events(LocalPythonRuntimeAdapter(), context)
+    artifacts = [event for event in events if event["type"] == "artifact"]
+
+    assert {event["artifact"]["kind"] for event in artifacts} == {
+        "table",
+        "chart",
+        "markdown",
+    }
+    assert events[-1]["type"] == "run.final"
+
+
+def test_local_runtime_emits_different_artifact_sets_for_different_prompts(
+    tmp_path: Path,
+) -> None:
+    summary_events = _collect_events(
+        LocalPythonRuntimeAdapter(),
+        _context(tmp_path / "summary", message="summary overview"),
+    )
+    grouped_events = _collect_events(
+        LocalPythonRuntimeAdapter(),
+        _context(tmp_path / "grouped", message="revenue by region"),
+    )
+
+    summary_ids = {
+        event["artifact"]["id"] for event in summary_events if event["type"] == "artifact"
+    }
+    grouped_ids = {
+        event["artifact"]["id"] for event in grouped_events if event["type"] == "artifact"
+    }
+
+    assert any("dataset-profile" in artifact_id for artifact_id in summary_ids)
+    assert any("grouped-metric" in artifact_id for artifact_id in grouped_ids)
+    assert summary_ids != grouped_ids
+
+
 def test_local_runtime_emits_failure_event_for_invalid_dataset_path(
     tmp_path: Path,
 ) -> None:
@@ -88,7 +126,9 @@ def _context(
     tmp_path: Path,
     *,
     csv_text: str = "region,revenue\nNorth,1200\n",
+    message: str = "Summarize revenue.",
 ) -> RunContext:
+    tmp_path.mkdir(parents=True, exist_ok=True)
     dataset_path = tmp_path / "dataset.csv"
     dataset_path.write_text(csv_text, encoding="utf-8")
     metadata = DatasetMetadata(
@@ -102,8 +142,11 @@ def _context(
     return RunContext(
         run_id="run-123",
         dataset_id=metadata.dataset_id,
-        message="Summarize revenue.",
-        schema=[],
+        message=message,
+        schema=[
+            {"key": "region", "label": "region", "dataType": "string"},
+            {"key": "revenue", "label": "revenue", "dataType": "number"},
+        ],
         preview_rows=[],
         dataset_metadata=metadata,
         dataset_path=dataset_path,

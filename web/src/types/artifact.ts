@@ -2,11 +2,17 @@ export type ArtifactKind = "table" | "chart" | "markdown";
 
 export type ArtifactScalar = string | number | boolean | null;
 
+export type TableArtifactColumn = {
+  key: string;
+  label: string;
+  dataType: "string" | "number" | "integer" | "boolean" | "unknown";
+};
+
 export type TableArtifact = {
   id: string;
   kind: "table";
   title: string;
-  columns: string[];
+  columns: TableArtifactColumn[];
   rows: Record<string, ArtifactScalar>[];
 };
 

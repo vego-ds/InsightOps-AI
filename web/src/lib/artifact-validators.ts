@@ -37,9 +37,13 @@ export function parseArtifact(payload: unknown): InsightArtifact | null {
 function parseTableArtifact(payload: Record<string, unknown>): TableArtifact | null {
   if (
     !Array.isArray(payload.columns) ||
-    !payload.columns.every((column) => typeof column === "string" && column) ||
     !Array.isArray(payload.rows)
   ) {
+    return null;
+  }
+
+  const columns = payload.columns.map(parseTableColumn);
+  if (columns.some((column) => column === null)) {
     return null;
   }
 
@@ -50,12 +54,15 @@ function parseTableArtifact(payload: Record<string, unknown>): TableArtifact | n
     }
 
     const safeRow: Record<string, ArtifactScalar> = {};
-    for (const column of payload.columns) {
-      const value = row[column];
+    for (const column of columns) {
+      if (!column) {
+        return null;
+      }
+      const value = row[column.key];
       if (!isArtifactScalar(value)) {
         return null;
       }
-      safeRow[column] = value;
+      safeRow[column.key] = value;
     }
     rows.push(safeRow);
   }
@@ -64,8 +71,32 @@ function parseTableArtifact(payload: Record<string, unknown>): TableArtifact | n
     id: payload.id as string,
     kind: "table",
     title: payload.title as string,
-    columns: payload.columns,
+    columns: columns.filter((column) => column !== null),
     rows,
+  };
+}
+
+function parseTableColumn(value: unknown): TableArtifact["columns"][number] | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  if (
+    typeof value.key !== "string" ||
+    !value.key ||
+    typeof value.label !== "string" ||
+    !value.label ||
+    (value.dataType !== "string" &&
+      value.dataType !== "number" &&
+      value.dataType !== "integer" &&
+      value.dataType !== "boolean" &&
+      value.dataType !== "unknown")
+  ) {
+    return null;
+  }
+  return {
+    key: value.key,
+    label: value.label,
+    dataType: value.dataType,
   };
 }
 

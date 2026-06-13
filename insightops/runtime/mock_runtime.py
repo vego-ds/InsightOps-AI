@@ -222,7 +222,10 @@ def _mock_artifact_events(run_id: str, start_sequence: int) -> list[RunArtifactE
                 id=f"{run_id}-table-summary",
                 kind="table",
                 title="Mock KPI Summary",
-                columns=["metric", "value"],
+                columns=[
+                    {"key": "metric", "label": "Metric", "dataType": "string"},
+                    {"key": "value", "label": "Value", "dataType": "string"},
+                ],
                 rows=[
                     {"metric": "Preview rows inspected", "value": 50},
                     {"metric": "Mock quality status", "value": "ready"},

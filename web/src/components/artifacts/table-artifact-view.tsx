@@ -11,10 +11,10 @@ export function TableArtifactView({ artifact }: { artifact: TableArtifact }) {
             <tr>
               {artifact.columns.map((column) => (
                 <th
-                  key={column}
+                  key={column.key}
                   className="whitespace-nowrap border-b border-white/10 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-300"
                 >
-                  {column}
+                  {column.label}
                 </th>
               ))}
             </tr>
@@ -24,10 +24,10 @@ export function TableArtifactView({ artifact }: { artifact: TableArtifact }) {
               <tr key={`${artifact.id}-row-${index}`}>
                 {artifact.columns.map((column) => (
                   <td
-                    key={`${index}-${column}`}
+                    key={`${index}-${column.key}`}
                     className="border-b border-white/10 px-4 py-3 text-slate-300"
                   >
-                    {formatScalar(row[column])}
+                    {formatScalar(row[column.key])}
                   </td>
                 ))}
               </tr>
