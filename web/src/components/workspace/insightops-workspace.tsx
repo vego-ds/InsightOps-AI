@@ -3,6 +3,7 @@
 import { Database, ShieldCheck } from "lucide-react";
 
 import { ChatPanel } from "@/components/chat/chat-panel";
+import { RunHistoryPanel } from "@/components/history/run-history-panel";
 import { DataCanvas } from "@/components/workspace/data-canvas";
 import { useDatasetStore } from "@/stores/dataset-store";
 
@@ -33,8 +34,11 @@ export function InsightOpsWorkspace() {
       </header>
 
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)]">
-        <aside className="min-h-[280px] border-b border-white/10 bg-[#080A12] p-4 lg:min-h-0 lg:border-b-0 lg:border-r">
-          <ChatPanel />
+        <aside className="flex min-h-[520px] flex-col gap-4 border-b border-white/10 bg-[#080A12] p-4 lg:min-h-0 lg:border-b-0 lg:border-r">
+          <div className="min-h-[280px] flex-1">
+            <ChatPanel />
+          </div>
+          <RunHistoryPanel />
         </aside>
 
         <section className="min-w-0 overflow-auto p-4 sm:p-6">

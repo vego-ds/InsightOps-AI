@@ -4,6 +4,7 @@ import { BarChart3, FileText, Table2 } from "lucide-react";
 
 import { ArtifactCard } from "@/components/artifacts/artifact-card";
 import { useArtifactStore } from "@/stores/artifact-store";
+import { useRunHistoryStore } from "@/stores/run-history-store";
 import type { InsightArtifact } from "@/types/artifact";
 
 export function ArtifactGallery() {
@@ -11,6 +12,9 @@ export function ArtifactGallery() {
   const allArtifacts = useArtifactStore((store) => store.artifacts);
   const selectedArtifactId = useArtifactStore((store) => store.selectedArtifactId);
   const selectArtifact = useArtifactStore((store) => store.selectArtifact);
+  const setSelectedArtifactForRun = useRunHistoryStore(
+    (store) => store.setSelectedArtifactForRun,
+  );
   const activeRunArtifacts = activeRunId
     ? allArtifacts.filter((artifact) => artifact.runId === activeRunId)
     : [];
@@ -41,7 +45,12 @@ export function ArtifactGallery() {
           <button
             key={artifact.id}
             type="button"
-            onClick={() => selectArtifact(artifact.id, "user")}
+            onClick={() => {
+              selectArtifact(artifact.id, "user");
+              if (artifact.runId) {
+                setSelectedArtifactForRun(artifact.runId, artifact.id);
+              }
+            }}
             className={[
               "mb-2 flex w-full items-start gap-3 rounded-xl border px-3 py-3 text-left transition",
               artifact.id === selectedArtifact.id

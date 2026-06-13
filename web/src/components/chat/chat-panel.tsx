@@ -12,6 +12,7 @@ import { useChatStore } from "@/stores/chat-store";
 import { useDatasetStore } from "@/stores/dataset-store";
 import { useExecutionStore } from "@/stores/execution-store";
 import { useNotebookStore } from "@/stores/notebook-store";
+import { useRunHistoryStore } from "@/stores/run-history-store";
 import {
   buildAnalysisRunCreateRequest,
   type AnalysisRunEvent,
@@ -48,6 +49,15 @@ export function ChatPanel() {
   );
   const resetRunFocusLock = useCanvasStore((store) => store.resetRunFocusLock);
   const setActiveMode = useCanvasStore((store) => store.setActiveMode);
+  const addRun = useRunHistoryStore((store) => store.addRun);
+  const markRunComplete = useRunHistoryStore((store) => store.markRunComplete);
+  const markRunError = useRunHistoryStore((store) => store.markRunError);
+  const attachArtifactToRun = useRunHistoryStore(
+    (store) => store.attachArtifactToRun,
+  );
+  const setSelectedArtifactForRun = useRunHistoryStore(
+    (store) => store.setSelectedArtifactForRun,
+  );
   const hasDataset = Boolean(activeDataset);
 
   const sendMessage = async (content: string) => {
@@ -62,6 +72,11 @@ export function ChatPanel() {
       const run = await createAnalysisRun(
         buildAnalysisRunCreateRequest(activeDataset, content),
       );
+      addRun({
+        runId: run.runId,
+        datasetId: activeDataset.id,
+        prompt: content,
+      });
       attachRunToAssistantMessage(pendingMessage.id, run.runId);
       setActiveRunId(run.runId);
       resetRunFocusLock(run.runId);
@@ -69,6 +84,7 @@ export function ChatPanel() {
       const eventSource = new EventSource(run.streamUrl);
       const closeWithFailure = () => {
         eventSource.close();
+        markRunError(run.runId, ANALYSIS_FAILURE_MESSAGE);
         failAssistantMessage(pendingMessage.id, ANALYSIS_FAILURE_MESSAGE);
       };
       const handleRawEvent = (event: MessageEvent<string>) => {
@@ -93,7 +109,8 @@ export function ChatPanel() {
         }
 
         if (parsed.type === "artifact") {
-          addArtifact(parsed.artifact, run.runId);
+          const storedArtifact = addArtifact(parsed.artifact, run.runId);
+          attachArtifactToRun(run.runId, storedArtifact.id);
           const artifactState = useArtifactStore.getState();
           const canvasState = useCanvasStore.getState();
           if (
@@ -101,18 +118,21 @@ export function ChatPanel() {
             canvasState.userLockedModeForRunId !== run.runId
           ) {
             setActiveMode("artifacts", "system", run.runId);
-            selectBestArtifactForRun(run.runId, "system");
+            const bestArtifact = selectBestArtifactForRun(run.runId, "system");
+            setSelectedArtifactForRun(run.runId, bestArtifact?.id ?? null);
           }
         }
 
         if (parsed.type === "run.error") {
           eventSource.close();
+          markRunError(run.runId, parsed.errorMessage);
           failAssistantMessage(pendingMessage.id, parsed.errorMessage);
           return;
         }
 
         if (parsed.type === "run.final") {
           eventSource.close();
+          markRunComplete(run.runId, parsed.assistantMessage);
           resolveAssistantMessage(pendingMessage.id, parsed.assistantMessage);
         }
       };
