@@ -93,6 +93,29 @@ def test_docker_runtime_emits_artifact_events_after_success(
     )
 
 
+def test_docker_runtime_final_event_uses_synthesized_answer(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    def fake_run(command, **kwargs):
+        if command[:2] == ["docker", "version"]:
+            return subprocess.CompletedProcess(command, 0, stdout="24.0.0\n", stderr="")
+        return subprocess.CompletedProcess(command, 0, stdout="ok\n", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    events = _collect_events(
+        DockerRuntimeAdapter(),
+        _context(tmp_path, message="revenue by region"),
+    )
+    final = events[-1]
+
+    assert final["type"] == "run.final"
+    assert "grouped metric analysis" in final["assistantMessage"]
+    assert "revenue by region" in final["assistantMessage"]
+    assert "Artifacts tab" in final["assistantMessage"]
+
+
 def test_docker_timeout_message_and_cleanup_are_controlled(
     monkeypatch,
     tmp_path: Path,
@@ -140,7 +163,10 @@ def test_docker_dataset_mount_validation_rejects_unsafe_paths(tmp_path: Path) ->
         run_id="run-123",
         dataset_id=metadata.dataset_id,
         message="Summarize revenue.",
-        schema=[],
+        schema=[
+            {"key": "region", "label": "region", "dataType": "string"},
+            {"key": "revenue", "label": "revenue", "dataType": "number"},
+        ],
         preview_rows=[],
         dataset_metadata=metadata,
         dataset_path=outside,
@@ -150,7 +176,7 @@ def test_docker_dataset_mount_validation_rejects_unsafe_paths(tmp_path: Path) ->
         _validated_dataset_mount_path(context)
 
 
-def _context(tmp_path: Path) -> RunContext:
+def _context(tmp_path: Path, *, message: str = "Summarize revenue.") -> RunContext:
     dataset_path = tmp_path / "dataset.csv"
     dataset_path.write_text("region,revenue\nNorth,1200\n", encoding="utf-8")
     metadata = DatasetMetadata(
@@ -164,8 +190,11 @@ def _context(tmp_path: Path) -> RunContext:
     return RunContext(
         run_id="run-123",
         dataset_id=metadata.dataset_id,
-        message="Summarize revenue.",
-        schema=[],
+        message=message,
+        schema=[
+            {"key": "region", "label": "region", "dataType": "string"},
+            {"key": "revenue", "label": "revenue", "dataType": "number"},
+        ],
         preview_rows=[],
         dataset_metadata=metadata,
         dataset_path=dataset_path,

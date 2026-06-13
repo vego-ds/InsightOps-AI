@@ -56,6 +56,18 @@ def test_local_runtime_emits_real_artifact_events(tmp_path: Path) -> None:
     assert events[-1]["type"] == "run.final"
 
 
+def test_local_runtime_final_event_uses_synthesized_answer(tmp_path: Path) -> None:
+    context = _context(tmp_path, message="revenue by region")
+
+    events = _collect_events(LocalPythonRuntimeAdapter(), context)
+    final = events[-1]
+
+    assert final["type"] == "run.final"
+    assert "grouped metric analysis" in final["assistantMessage"]
+    assert "revenue by region" in final["assistantMessage"]
+    assert "Artifacts tab" in final["assistantMessage"]
+
+
 def test_local_runtime_emits_different_artifact_sets_for_different_prompts(
     tmp_path: Path,
 ) -> None:

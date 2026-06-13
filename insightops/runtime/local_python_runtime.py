@@ -14,7 +14,8 @@ from insightops.api.contracts import (
     RunFinalEvent,
     RunStatusEvent,
 )
-from insightops.artifacts.builders import build_artifacts_for_plan
+from insightops.answers import synthesize_final_answer
+from insightops.artifacts.builders import build_artifacts_for_plan, get_dataset_shape
 from insightops.planning import build_analysis_plan
 from insightops.runtime.code_templates import build_dataset_profile_code
 from insightops.runtime.run_context import RunContext
@@ -129,7 +130,8 @@ class LocalPythonRuntimeAdapter:
                 durationMs=duration_ms,
             ).model_dump()
             sequence += 1
-            for artifact in build_artifacts_for_plan(context, plan):
+            artifacts = build_artifacts_for_plan(context, plan)
+            for artifact in artifacts:
                 yield RunArtifactEvent(
                     version="insightops.run-event.v1",
                     runId=run_id,
@@ -138,10 +140,17 @@ class LocalPythonRuntimeAdapter:
                     artifact=artifact,
                 ).model_dump()
                 sequence += 1
+            row_count, column_count = get_dataset_shape(context)
             yield _final_event(
                 run_id,
                 sequence,
-                "Local deterministic dataset profile completed.",
+                synthesize_final_answer(
+                    plan=plan,
+                    artifacts=artifacts,
+                    dataset_metadata=context.dataset_metadata,
+                    row_count=row_count,
+                    column_count=column_count,
+                ),
             )
             return
 

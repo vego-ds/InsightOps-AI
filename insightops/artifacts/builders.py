@@ -180,6 +180,11 @@ def build_all_artifacts(context: RunContext) -> list[dict]:
     return artifacts
 
 
+def get_dataset_shape(context: RunContext) -> tuple[int, int]:
+    rows, columns = _read_csv(context)
+    return len(rows), len(columns)
+
+
 def build_artifacts_for_plan(context: RunContext, plan) -> list[dict]:
     artifacts = []
     for builder_name in plan.artifact_builders:
