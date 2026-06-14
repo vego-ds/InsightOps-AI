@@ -10,10 +10,15 @@ from insightops.datasets.registry import (
     register_dataset,
     unregister_dataset,
 )
-from insightops.datasets.storage import delete_dataset_file, save_dataset_file
+from insightops.datasets.storage import (
+    DatasetStorageError,
+    delete_dataset_file,
+    save_dataset_file,
+)
 
 __all__ = [
     "DatasetMetadata",
+    "DatasetStorageError",
     "clear_dataset_registry",
     "cleanup_datasets_older_than",
     "delete_dataset_file",
