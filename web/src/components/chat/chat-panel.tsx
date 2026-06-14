@@ -5,7 +5,7 @@ import { Bot, MessageSquareText, Trash2 } from "lucide-react";
 import { ChatInput } from "@/components/chat/chat-input";
 import { ChatMessageList } from "@/components/chat/chat-message-list";
 import { SuggestedPrompts } from "@/components/chat/suggested-prompts";
-import { useAnalysisStream } from "../../lib/use-analysis-stream";
+import { useAnalysisStream } from "@/lib/use-analysis-stream";
 import { useChatStore } from "@/stores/chat-store";
 import { useDatasetStore } from "@/stores/dataset-store";
 
