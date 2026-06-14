@@ -9,16 +9,22 @@ import {
   UploadCloud,
   X,
 } from "lucide-react";
+
 import { useDatasetStore } from "@/stores/dataset-store";
 import type {
   DatasetColumn,
   DatasetColumnType,
   FilePreviewDataset,
+  FilePreviewErrorResponse,
   FilePreviewResponse,
   FilePreviewSuccessResponse,
   PreviewCellValue,
   PreviewRow,
 } from "@/types/dataset";
+
+const FILE_PREVIEW_VERSION = "insightops.file-preview.v1";
+const DEFAULT_ACCEPTED_EXTENSIONS = [".csv"];
+const NUMBER_FORMATTER = new Intl.NumberFormat("en");
 
 type UploadState =
   | { status: "idle" }
@@ -30,25 +36,37 @@ type UploadState =
 type FileUploadPreviewGridProps = {
   uploadUrl?: string;
   maxFileSizeMb?: number;
-  acceptedExtensions?: string[];
+  acceptedExtensions?: readonly string[];
   className?: string;
 };
 
 export function FileUploadPreviewGrid({
   uploadUrl = "/api/datasets/upload",
   maxFileSizeMb = 50,
-  acceptedExtensions = [".csv"],
+  acceptedExtensions = DEFAULT_ACCEPTED_EXTENSIONS,
   className = "",
 }: FileUploadPreviewGridProps) {
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const abortControllerRef = React.useRef<AbortController | null>(null);
   const [state, setState] = React.useState<UploadState>({ status: "idle" });
+
   const clearActiveDataset = useDatasetStore((store) => store.clearActiveDataset);
   const setActiveDataset = useDatasetStore((store) => store.setActiveDataset);
   const setErrorMessage = useDatasetStore((store) => store.setErrorMessage);
   const setUploadStatus = useDatasetStore((store) => store.setUploadStatus);
 
+  const acceptedLabel = acceptedExtensions.join(", ");
   const maxFileSizeBytes = maxFileSizeMb * 1024 * 1024;
+  const uploadLocked = state.status === "parsing_schema";
+  const showUploadZone = state.status !== "success";
+
+  const failUpload = React.useCallback(
+    (message: string) => {
+      setState({ status: "runtime_error", message });
+      setErrorMessage(message);
+    },
+    [setErrorMessage],
+  );
 
   const reset = React.useCallback(() => {
     abortControllerRef.current?.abort();
@@ -59,46 +77,28 @@ export function FileUploadPreviewGrid({
     }
 
     clearActiveDataset();
-    setUploadStatus("idle");
     setErrorMessage(null);
+    setUploadStatus("idle");
     setState({ status: "idle" });
   }, [clearActiveDataset, setErrorMessage, setUploadStatus]);
 
   const uploadFile = React.useCallback(
     async (file: File) => {
-      const extensionIsAllowed = acceptedExtensions.some((extension) =>
-        file.name.toLowerCase().endsWith(extension.toLowerCase()),
-      );
-
-      if (!extensionIsAllowed) {
-        const message = `Unsupported file type. Accepted files: ${acceptedExtensions.join(", ")}`;
-        setState({
-          status: "runtime_error",
-          message,
-        });
-        setErrorMessage(message);
+      if (!hasAcceptedExtension(file.name, acceptedExtensions)) {
+        failUpload(`Unsupported file type. Accepted files: ${acceptedLabel}.`);
         return;
       }
 
       if (file.size > maxFileSizeBytes) {
-        const message = `File is too large. Maximum allowed size is ${maxFileSizeMb} MB.`;
-        setState({
-          status: "runtime_error",
-          message,
-        });
-        setErrorMessage(message);
+        failUpload(`File exceeds the ${maxFileSizeMb} MB upload limit.`);
         return;
       }
 
       abortControllerRef.current?.abort();
-
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
 
-      setState({
-        status: "parsing_schema",
-        fileName: file.name,
-      });
+      setState({ status: "parsing_schema", fileName: file.name });
       setUploadStatus("parsing_schema");
       setErrorMessage(null);
 
@@ -111,60 +111,39 @@ export function FileUploadPreviewGrid({
           body: formData,
           signal: abortController.signal,
         });
+        const payload = parseFilePreviewResponse(await response.json());
 
-        const payload: unknown = await response.json();
-        const parsed = parseFilePreviewResponse(payload);
-
-        if (!parsed) {
-          const message =
-            "The backend returned an invalid file preview contract. Rendering was blocked.";
-          setState({
-            status: "runtime_error",
-            message,
-          });
-          setErrorMessage(message);
+        if (!payload) {
+          failUpload(
+            "The upload service returned an invalid dataset preview response.",
+          );
           return;
         }
 
-        if (parsed.status === "error") {
-          setState({
-            status: "runtime_error",
-            message: parsed.error.message,
-          });
-          setErrorMessage(parsed.error.message);
+        if (payload.status === "error") {
+          failUpload(payload.error.message);
           return;
         }
 
         if (!response.ok) {
-          const message = "Upload failed before the preview dataset could be created.";
-          setState({
-            status: "runtime_error",
-            message,
-          });
-          setErrorMessage(message);
+          failUpload("The dataset preview could not be created.");
           return;
         }
 
-        setActiveDataset(parsed.dataset);
-        setState({
-          status: "success",
-          response: parsed,
-        });
+        setActiveDataset(payload.dataset);
+        setState({ status: "success", response: payload });
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
         }
 
-        const message = getUploadErrorMessage(error);
-        setState({
-          status: "runtime_error",
-          message,
-        });
-        setErrorMessage(message);
+        failUpload(getUploadErrorMessage(error));
       }
     },
     [
       acceptedExtensions,
+      acceptedLabel,
+      failUpload,
       maxFileSizeBytes,
       maxFileSizeMb,
       setActiveDataset,
@@ -190,22 +169,48 @@ export function FileUploadPreviewGrid({
       event.preventDefault();
       event.stopPropagation();
 
+      if (uploadLocked) {
+        return;
+      }
+
       const file = event.dataTransfer.files?.[0];
 
       if (file) {
         void uploadFile(file);
-      } else {
-        setState({ status: "idle" });
+        return;
       }
+
+      setState({ status: "idle" });
+      setUploadStatus("idle");
     },
-    [uploadFile],
+    [setUploadStatus, uploadFile, uploadLocked],
   );
 
-  const showUploadZone =
-    state.status === "idle" ||
-    state.status === "dragging" ||
-    state.status === "parsing_schema" ||
-    state.status === "runtime_error";
+  const handleDragOver = React.useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (!uploadLocked) {
+        setState({ status: "dragging" });
+        setUploadStatus("dragging");
+      }
+    },
+    [setUploadStatus, uploadLocked],
+  );
+
+  const handleDragLeave = React.useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (!uploadLocked) {
+        setState({ status: "idle" });
+        setUploadStatus("idle");
+      }
+    },
+    [setUploadStatus, uploadLocked],
+  );
 
   return (
     <section
@@ -227,8 +232,8 @@ export function FileUploadPreviewGrid({
             </h2>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-              Drop a CSV file to create a typed dataset preview before the agent
-              starts analysis.
+              Drop a CSV file to create a typed dataset preview before analysis
+              begins.
             </p>
           </div>
 
@@ -245,107 +250,133 @@ export function FileUploadPreviewGrid({
         </div>
 
         {showUploadZone ? (
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => inputRef.current?.click()}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                inputRef.current?.click();
-              }
-            }}
+          <UploadDropZone
+            acceptedExtensions={acceptedExtensions}
+            inputRef={inputRef}
+            maxFileSizeMb={maxFileSizeMb}
+            state={state}
+            uploadLocked={uploadLocked}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
             onDrop={handleDrop}
-            onDragOver={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-
-              if (state.status !== "parsing_schema") {
-                setState({ status: "dragging" });
-                setUploadStatus("dragging");
-              }
-            }}
-            onDragLeave={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-
-              if (state.status !== "parsing_schema") {
-                setState({ status: "idle" });
-                setUploadStatus("idle");
-              }
-            }}
-            className={[
-              "group relative overflow-hidden rounded-2xl border border-dashed p-8 outline-none transition",
-              state.status === "dragging"
-                ? "border-cyan-300/70 bg-cyan-400/[0.08] shadow-2xl shadow-cyan-950/40"
-                : "border-white/15 bg-black/20 hover:border-cyan-300/50 hover:bg-cyan-400/[0.04]",
-              state.status === "parsing_schema"
-                ? "cursor-wait"
-                : "cursor-pointer",
-            ].join(" ")}
-          >
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.12),transparent_34rem)]" />
-
-            <input
-              ref={inputRef}
-              type="file"
-              accept={acceptedExtensions.join(",")}
-              className="hidden"
-              disabled={state.status === "parsing_schema"}
-              onChange={handleInputChange}
-            />
-
-            <div className="relative flex flex-col items-center justify-center text-center">
-              <div
-                className={[
-                  "mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border transition",
-                  state.status === "dragging"
-                    ? "border-cyan-300/40 bg-cyan-300/15"
-                    : "border-white/10 bg-white/[0.06] group-hover:border-cyan-300/30 group-hover:bg-cyan-300/10",
-                ].join(" ")}
-              >
-                {state.status === "parsing_schema" ? (
-                  <Loader2 className="h-7 w-7 animate-spin text-cyan-200" />
-                ) : (
-                  <UploadCloud className="h-7 w-7 text-cyan-200" />
-                )}
-              </div>
-
-              <div className="text-base font-medium text-white">
-                {state.status === "parsing_schema"
-                  ? "Parsing CSV..."
-                  : state.status === "dragging"
-                    ? "Drop the file here"
-                    : "Drag and drop your CSV here"}
-              </div>
-
-              <p className="mt-2 text-sm text-slate-400">
-                {state.status === "parsing_schema"
-                  ? state.fileName
-                  : `or click to browse. Max file size ${maxFileSizeMb} MB.`}
-              </p>
-
-              {state.status === "runtime_error" ? (
-                <div className="mt-5 flex max-w-xl items-start gap-3 rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-left">
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />
-                  <div>
-                    <p className="text-sm font-medium text-red-100">
-                      Upload failed
-                    </p>
-                    <p className="mt-1 text-sm leading-5 text-red-200/80">
-                      {state.message}
-                    </p>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
-
-        {state.status === "success" ? (
+            onInputChange={handleInputChange}
+          />
+        ) : (
           <DatasetPreviewTable dataset={state.response.dataset} />
-        ) : null}
+        )}
       </div>
     </section>
+  );
+}
+
+type UploadDropZoneProps = {
+  acceptedExtensions: readonly string[];
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  maxFileSizeMb: number;
+  state: Exclude<UploadState, { status: "success" }>;
+  uploadLocked: boolean;
+  onDragLeave: (event: React.DragEvent<HTMLDivElement>) => void;
+  onDragOver: (event: React.DragEvent<HTMLDivElement>) => void;
+  onDrop: (event: React.DragEvent<HTMLDivElement>) => void;
+  onInputChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+};
+
+function UploadDropZone({
+  acceptedExtensions,
+  inputRef,
+  maxFileSizeMb,
+  state,
+  uploadLocked,
+  onDragLeave,
+  onDragOver,
+  onDrop,
+  onInputChange,
+}: UploadDropZoneProps) {
+  const isDragging = state.status === "dragging";
+  const isParsing = state.status === "parsing_schema";
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-disabled={uploadLocked}
+      aria-label="Upload CSV dataset"
+      onClick={() => {
+        if (!uploadLocked) {
+          inputRef.current?.click();
+        }
+      }}
+      onKeyDown={(event) => {
+        if (!uploadLocked && (event.key === "Enter" || event.key === " ")) {
+          event.preventDefault();
+          inputRef.current?.click();
+        }
+      }}
+      onDrop={onDrop}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      className={[
+        "group relative overflow-hidden rounded-2xl border border-dashed p-8 outline-none transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-200",
+        isDragging
+          ? "border-cyan-300/70 bg-cyan-400/[0.08] shadow-2xl shadow-cyan-950/40"
+          : "border-white/15 bg-black/20 hover:border-cyan-300/50 hover:bg-cyan-400/[0.04]",
+        isParsing ? "cursor-wait" : "cursor-pointer",
+      ].join(" ")}
+    >
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.12),transparent_34rem)]" />
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept={acceptedExtensions.join(",")}
+        className="hidden"
+        disabled={uploadLocked}
+        onChange={onInputChange}
+      />
+
+      <div className="relative flex flex-col items-center justify-center text-center">
+        <div
+          className={[
+            "mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border transition",
+            isDragging
+              ? "border-cyan-300/40 bg-cyan-300/15"
+              : "border-white/10 bg-white/[0.06] group-hover:border-cyan-300/30 group-hover:bg-cyan-300/10",
+          ].join(" ")}
+        >
+          {isParsing ? (
+            <Loader2 className="h-7 w-7 animate-spin text-cyan-200" />
+          ) : (
+            <UploadCloud className="h-7 w-7 text-cyan-200" />
+          )}
+        </div>
+
+        <div className="text-base font-medium text-white">
+          {getDropZoneTitle(state.status)}
+        </div>
+
+        <p className="mt-2 text-sm text-slate-400">
+          {state.status === "parsing_schema"
+            ? state.fileName
+            : `or click to browse. Max file size ${maxFileSizeMb} MB.`}
+        </p>
+
+        {state.status === "runtime_error" ? (
+          <UploadErrorMessage message={state.message} />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function UploadErrorMessage({ message }: { message: string }) {
+  return (
+    <div className="mt-5 flex max-w-xl items-start gap-3 rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-left">
+      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />
+      <div>
+        <p className="text-sm font-medium text-red-100">Upload failed</p>
+        <p className="mt-1 text-sm leading-5 text-red-200/80">{message}</p>
+      </div>
+    </div>
   );
 }
 
@@ -377,7 +408,7 @@ export function DatasetPreviewTable({ dataset }: { dataset: FilePreviewDataset }
         <table className="min-w-full border-separate border-spacing-0 text-left text-sm">
           <thead className="sticky top-0 z-10 bg-[#10131F]">
             <tr>
-              <th className="sticky left-0 z-20 border-b border-r border-white/10 bg-[#10131F] px-4 py-3 text-xs font-medium uppercase tracking-wide text-slate-400">
+              <th className="sticky left-0 z-20 border-b border-r border-white/10 bg-[#10131F] px-4 py-3 text-xs font-medium uppercase text-slate-400">
                 #
               </th>
 
@@ -387,7 +418,7 @@ export function DatasetPreviewTable({ dataset }: { dataset: FilePreviewDataset }
                   className="whitespace-nowrap border-b border-white/10 px-4 py-3 align-bottom"
                 >
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-200">
+                    <span className="text-xs font-semibold uppercase text-slate-200">
                       {column.label}
                     </span>
                     <span className="inline-flex w-fit rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[11px] font-medium text-slate-400">
@@ -410,15 +441,19 @@ export function DatasetPreviewTable({ dataset }: { dataset: FilePreviewDataset }
                   {rowIndex + 1}
                 </td>
 
-                {dataset.columns.map((column) => (
-                  <td
-                    key={`${rowIndex}-${column.key}`}
-                    className="max-w-[280px] truncate border-b border-white/10 px-4 py-3 text-slate-300"
-                    title={formatCellTitle(row[column.key])}
-                  >
-                    <CellValue value={row[column.key]} />
-                  </td>
-                ))}
+                {dataset.columns.map((column) => {
+                  const value = row[column.key] ?? null;
+
+                  return (
+                    <td
+                      key={`${rowIndex}-${column.key}`}
+                      className="max-w-[280px] truncate border-b border-white/10 px-4 py-3 text-slate-300"
+                      title={formatCellTitle(value)}
+                    >
+                      <CellValue value={value} />
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
@@ -433,8 +468,8 @@ export function DatasetPreviewTable({ dataset }: { dataset: FilePreviewDataset }
   );
 }
 
-function CellValue({ value }: { value: PreviewCellValue | undefined }) {
-  if (value === null || typeof value === "undefined") {
+function CellValue({ value }: { value: PreviewCellValue }) {
+  if (value === null) {
     return <span className="font-mono text-xs text-slate-600">NULL</span>;
   }
 
@@ -454,89 +489,130 @@ function CellValue({ value }: { value: PreviewCellValue | undefined }) {
 }
 
 function parseFilePreviewResponse(payload: unknown): FilePreviewResponse | null {
-  if (!isRecord(payload)) {
-    return null;
-  }
-
-  if (payload.version !== "insightops.file-preview.v1") {
+  if (!isRecord(payload) || payload.version !== FILE_PREVIEW_VERSION) {
     return null;
   }
 
   if (payload.status === "error") {
-    if (!isRecord(payload.error)) {
-      return null;
-    }
-
-    if (
-      typeof payload.error.code !== "string" ||
-      typeof payload.error.message !== "string" ||
-      typeof payload.error.recoverable !== "boolean"
-    ) {
-      return null;
-    }
-
-    return {
-      version: "insightops.file-preview.v1",
-      status: "error",
-      error: {
-        code: payload.error.code,
-        message: payload.error.message,
-        recoverable: payload.error.recoverable,
-      },
-    };
+    return parsePreviewError(payload);
   }
 
   if (payload.status !== "ok" || !isRecord(payload.dataset)) {
     return null;
   }
 
-  const dataset = payload.dataset;
+  const dataset = parsePreviewDataset(payload.dataset);
+
+  if (!dataset || !isStringArray(payload.warnings)) {
+    return null;
+  }
+
+  return {
+    version: FILE_PREVIEW_VERSION,
+    status: "ok",
+    dataset,
+    warnings: payload.warnings,
+  };
+}
+
+function parsePreviewError(
+  payload: Record<string, unknown>,
+): FilePreviewErrorResponse | null {
+  if (!isRecord(payload.error)) {
+    return null;
+  }
+
+  const { code, message, recoverable } = payload.error;
 
   if (
-    typeof dataset.id !== "string" ||
-    typeof dataset.fileName !== "string" ||
-    typeof dataset.mimeType !== "string" ||
-    typeof dataset.sizeBytes !== "number" ||
-    typeof dataset.rowCount !== "number" ||
-    typeof dataset.previewRowCount !== "number" ||
-    typeof dataset.columnCount !== "number" ||
-    !Array.isArray(dataset.columns) ||
-    !Array.isArray(dataset.previewRows) ||
-    !Array.isArray(payload.warnings)
+    typeof code !== "string" ||
+    typeof message !== "string" ||
+    typeof recoverable !== "boolean"
   ) {
     return null;
   }
 
+  return {
+    version: FILE_PREVIEW_VERSION,
+    status: "error",
+    error: { code, message, recoverable },
+  };
+}
+
+function parsePreviewDataset(payload: Record<string, unknown>): FilePreviewDataset | null {
+  if (
+    typeof payload.id !== "string" ||
+    typeof payload.fileName !== "string" ||
+    typeof payload.mimeType !== "string" ||
+    !isNonNegativeInteger(payload.sizeBytes) ||
+    !isNonNegativeInteger(payload.rowCount) ||
+    !isNonNegativeInteger(payload.previewRowCount) ||
+    !isNonNegativeInteger(payload.columnCount) ||
+    !Array.isArray(payload.columns) ||
+    !Array.isArray(payload.previewRows)
+  ) {
+    return null;
+  }
+
+  const columns = parseColumns(payload.columns);
+
+  if (!columns) {
+    return null;
+  }
+
+  const previewRows = parsePreviewRows(payload.previewRows, columns);
+
+  if (!previewRows) {
+    return null;
+  }
+
+  return {
+    id: payload.id,
+    fileName: payload.fileName,
+    mimeType: payload.mimeType,
+    sizeBytes: payload.sizeBytes,
+    rowCount: payload.rowCount,
+    previewRowCount: payload.previewRowCount,
+    columnCount: payload.columnCount,
+    columns,
+    previewRows,
+  };
+}
+
+function parseColumns(payload: unknown[]): DatasetColumn[] | null {
   const columns: DatasetColumn[] = [];
 
-  for (const column of dataset.columns) {
+  for (const column of payload) {
     if (!isRecord(column)) {
       return null;
     }
 
+    const { key, label, dataType, nullable, sampleValues } = column;
+
     if (
-      typeof column.key !== "string" ||
-      typeof column.label !== "string" ||
-      !isDatasetColumnType(column.dataType) ||
-      typeof column.nullable !== "boolean" ||
-      !Array.isArray(column.sampleValues) ||
-      !column.sampleValues.every(isPreviewCellValue)
+      typeof key !== "string" ||
+      typeof label !== "string" ||
+      !isDatasetColumnType(dataType) ||
+      typeof nullable !== "boolean" ||
+      !Array.isArray(sampleValues) ||
+      !sampleValues.every(isPreviewCellValue)
     ) {
       return null;
     }
 
-    columns.push({
-      key: column.key,
-      label: column.label,
-      dataType: column.dataType,
-      nullable: column.nullable,
-      sampleValues: column.sampleValues,
-    });
+    columns.push({ key, label, dataType, nullable, sampleValues });
   }
 
+  return columns;
+}
+
+function parsePreviewRows(
+  payload: unknown[],
+  columns: DatasetColumn[],
+): PreviewRow[] | null {
   const previewRows: PreviewRow[] = [];
 
-  for (const row of dataset.previewRows) {
+  for (const row of payload) {
     if (!isRecord(row)) {
       return null;
     }
@@ -561,37 +637,36 @@ function parseFilePreviewResponse(payload: unknown): FilePreviewResponse | null 
     previewRows.push(safeRow);
   }
 
-  return {
-    version: "insightops.file-preview.v1",
-    status: "ok",
-    dataset: {
-      id: dataset.id,
-      fileName: dataset.fileName,
-      mimeType: dataset.mimeType,
-      sizeBytes: dataset.sizeBytes,
-      rowCount: dataset.rowCount,
-      previewRowCount: dataset.previewRowCount,
-      columnCount: dataset.columnCount,
-      columns,
-      previewRows,
-    },
-    warnings: payload.warnings.filter(
-      (warning): warning is string => typeof warning === "string",
-    ),
-  };
+  return previewRows;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isPreviewCellValue(value: unknown): value is PreviewCellValue {
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
   return (
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean" ||
-    value === null
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    Number.isFinite(value) &&
+    value >= 0
   );
+}
+
+function isPreviewCellValue(value: unknown): value is PreviewCellValue {
+  if (value === null) {
+    return true;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value);
+  }
+
+  return typeof value === "string" || typeof value === "boolean";
 }
 
 function isDatasetColumnType(value: unknown): value is DatasetColumnType {
@@ -607,8 +682,31 @@ function isDatasetColumnType(value: unknown): value is DatasetColumnType {
   );
 }
 
+function hasAcceptedExtension(
+  fileName: string,
+  acceptedExtensions: readonly string[],
+): boolean {
+  const normalizedFileName = fileName.toLowerCase();
+
+  return acceptedExtensions.some((extension) =>
+    normalizedFileName.endsWith(extension.toLowerCase()),
+  );
+}
+
+function getDropZoneTitle(status: UploadState["status"]): string {
+  if (status === "parsing_schema") {
+    return "Parsing CSV...";
+  }
+
+  if (status === "dragging") {
+    return "Drop the file here";
+  }
+
+  return "Drag and drop your CSV here";
+}
+
 function formatNumber(value: number): string {
-  return new Intl.NumberFormat("en").format(value);
+  return NUMBER_FORMATTER.format(value);
 }
 
 function formatFileSize(bytes: number): string {
@@ -622,25 +720,17 @@ function formatFileSize(bytes: number): string {
     return `${kb.toFixed(1)} KB`;
   }
 
-  const mb = kb / 1024;
-
-  return `${mb.toFixed(1)} MB`;
+  return `${(kb / 1024).toFixed(1)} MB`;
 }
 
-function formatCellTitle(value: PreviewCellValue | undefined): string {
-  if (value === null || typeof value === "undefined") {
-    return "NULL";
-  }
-
-  return String(value);
+function formatCellTitle(value: PreviewCellValue): string {
+  return value === null ? "NULL" : String(value);
 }
 
 function getUploadErrorMessage(error: unknown): string {
   if (error instanceof TypeError) {
-    return "Could not reach the backend upload service. Check that the API is running, then try again.";
+    return "The upload service is unavailable. Confirm the API is running, then try again.";
   }
-  if (error instanceof Error && error.message.trim()) {
-    return "Upload failed before the dataset preview could be created. Please try again with a valid CSV file.";
-  }
-  return "An unknown upload error occurred. Please try again.";
+
+  return "The dataset preview could not be created. Please try again with a valid CSV file.";
 }

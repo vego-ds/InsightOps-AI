@@ -5,164 +5,17 @@ import { Bot, MessageSquareText, Trash2 } from "lucide-react";
 import { ChatInput } from "@/components/chat/chat-input";
 import { ChatMessageList } from "@/components/chat/chat-message-list";
 import { SuggestedPrompts } from "@/components/chat/suggested-prompts";
-import { createAnalysisRun, parseRunEvent } from "@/lib/execution-client";
-import { useArtifactStore } from "@/stores/artifact-store";
-import { useCanvasStore } from "@/stores/canvas-store";
+import { useAnalysisStream } from "@/lib/use-analysis-stream";
 import { useChatStore } from "@/stores/chat-store";
 import { useDatasetStore } from "@/stores/dataset-store";
-import { useExecutionStore } from "@/stores/execution-store";
-import { useNotebookStore } from "@/stores/notebook-store";
-import { useRunHistoryStore } from "@/stores/run-history-store";
-import {
-  buildAnalysisRunCreateRequest,
-  type AnalysisRunEvent,
-} from "@/types/execution";
-
-const ANALYSIS_FAILURE_MESSAGE =
-  "Streaming analysis failed safely. The backend event stream could not be accepted by the frontend contract.";
-const ANALYSIS_CONNECTION_FAILURE_MESSAGE =
-  "Analysis could not start. Check that the backend is running, then try again.";
-const ARTIFACT_VALIDATION_FAILURE_MESSAGE =
-  "An artifact event was blocked because it did not match the expected safe rendering contract.";
 
 export function ChatPanel() {
   const activeDataset = useDatasetStore((store) => store.activeDataset);
   const messages = useChatStore((store) => store.messages);
-  const addUserMessage = useChatStore((store) => store.addUserMessage);
-  const addPendingAssistantMessage = useChatStore(
-    (store) => store.addPendingAssistantMessage,
-  );
-  const attachRunToAssistantMessage = useChatStore(
-    (store) => store.attachRunToAssistantMessage,
-  );
-  const resolveAssistantMessage = useChatStore(
-    (store) => store.resolveAssistantMessage,
-  );
-  const failAssistantMessage = useChatStore(
-    (store) => store.failAssistantMessage,
-  );
   const clearMessages = useChatStore((store) => store.clearMessages);
-  const appendRunEvent = useExecutionStore((store) => store.appendRunEvent);
-  const appendNotebookEvent = useNotebookStore(
-    (store) => store.appendNotebookEvent,
-  );
-  const addArtifact = useArtifactStore((store) => store.addArtifact);
-  const setActiveRunId = useArtifactStore((store) => store.setActiveRunId);
-  const selectBestArtifactForRun = useArtifactStore(
-    (store) => store.selectBestArtifactForRun,
-  );
-  const resetRunFocusLock = useCanvasStore((store) => store.resetRunFocusLock);
-  const setActiveMode = useCanvasStore((store) => store.setActiveMode);
-  const addRun = useRunHistoryStore((store) => store.addRun);
-  const markRunComplete = useRunHistoryStore((store) => store.markRunComplete);
-  const markRunError = useRunHistoryStore((store) => store.markRunError);
-  const attachArtifactToRun = useRunHistoryStore(
-    (store) => store.attachArtifactToRun,
-  );
-  const setSelectedArtifactForRun = useRunHistoryStore(
-    (store) => store.setSelectedArtifactForRun,
-  );
+  const { canRetry, currentRunId, isStreaming, lastError, retryLastMessage, sendMessage } =
+    useAnalysisStream();
   const hasDataset = Boolean(activeDataset);
-
-  const sendMessage = async (content: string) => {
-    if (!activeDataset) {
-      return;
-    }
-
-    addUserMessage(content);
-    const pendingMessage = addPendingAssistantMessage();
-
-    try {
-      const run = await createAnalysisRun(
-        buildAnalysisRunCreateRequest(activeDataset, content),
-      );
-      addRun({
-        runId: run.runId,
-        datasetId: activeDataset.id,
-        prompt: content,
-      });
-      attachRunToAssistantMessage(pendingMessage.id, run.runId);
-      setActiveRunId(run.runId);
-      resetRunFocusLock(run.runId);
-
-      const eventSource = new EventSource(run.streamUrl);
-      const closeWithFailure = (message = ANALYSIS_FAILURE_MESSAGE) => {
-        eventSource.close();
-        markRunError(run.runId, message);
-        failAssistantMessage(pendingMessage.id, message);
-      };
-      const handleRawEvent = (event: MessageEvent<string>) => {
-        let payload: unknown;
-        try {
-          payload = JSON.parse(event.data);
-        } catch {
-          closeWithFailure();
-          return;
-        }
-
-        const parsed = parseRunEvent(payload);
-        if (!parsed || parsed.runId !== run.runId) {
-          closeWithFailure(
-            isArtifactPayload(payload)
-              ? ARTIFACT_VALIDATION_FAILURE_MESSAGE
-              : ANALYSIS_FAILURE_MESSAGE,
-          );
-          return;
-        }
-
-        appendRunEvent(parsed);
-
-        if (isNotebookRunEvent(parsed)) {
-          appendNotebookEvent(parsed);
-        }
-
-        if (parsed.type === "artifact") {
-          const storedArtifact = addArtifact(parsed.artifact, run.runId);
-          attachArtifactToRun(run.runId, storedArtifact.id);
-          const artifactState = useArtifactStore.getState();
-          const canvasState = useCanvasStore.getState();
-          if (
-            artifactState.activeRunId === run.runId &&
-            canvasState.userLockedModeForRunId !== run.runId
-          ) {
-            setActiveMode("artifacts", "system", run.runId);
-            const bestArtifact = selectBestArtifactForRun(run.runId, "system");
-            setSelectedArtifactForRun(run.runId, bestArtifact?.id ?? null);
-          }
-        }
-
-        if (parsed.type === "run.error") {
-          eventSource.close();
-          markRunError(run.runId, parsed.errorMessage);
-          failAssistantMessage(pendingMessage.id, parsed.errorMessage);
-          return;
-        }
-
-        if (parsed.type === "run.final") {
-          eventSource.close();
-          markRunComplete(run.runId, parsed.assistantMessage);
-          resolveAssistantMessage(pendingMessage.id, parsed.assistantMessage);
-        }
-      };
-
-      eventSource.addEventListener("run.status", handleRawEvent);
-      eventSource.addEventListener("run.code", handleRawEvent);
-      eventSource.addEventListener("run.stdout", handleRawEvent);
-      eventSource.addEventListener("run.error", handleRawEvent);
-      eventSource.addEventListener("run.cell.started", handleRawEvent);
-      eventSource.addEventListener("run.cell.stdout", handleRawEvent);
-      eventSource.addEventListener("run.cell.stderr", handleRawEvent);
-      eventSource.addEventListener("run.cell.completed", handleRawEvent);
-      eventSource.addEventListener("run.cell.failed", handleRawEvent);
-      eventSource.addEventListener("run.repair.started", handleRawEvent);
-      eventSource.addEventListener("run.repair.completed", handleRawEvent);
-      eventSource.addEventListener("run.artifact", handleRawEvent);
-      eventSource.addEventListener("run.final", handleRawEvent);
-      eventSource.onerror = () => closeWithFailure(ANALYSIS_CONNECTION_FAILURE_MESSAGE);
-    } catch {
-      failAssistantMessage(pendingMessage.id, ANALYSIS_CONNECTION_FAILURE_MESSAGE);
-    }
-  };
 
   return (
     <div className="flex h-full min-h-[248px] flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-4">
@@ -194,6 +47,18 @@ export function ChatPanel() {
       <div className="mt-4 flex min-h-0 flex-1 flex-col gap-3">
         {!activeDataset ? <ChatLockedState /> : null}
 
+        {activeDataset && isStreaming ? (
+          <StreamingState runId={currentRunId} />
+        ) : null}
+
+        {activeDataset && lastError ? (
+          <StreamErrorState
+            canRetry={canRetry}
+            message={lastError}
+            onRetry={retryLastMessage}
+          />
+        ) : null}
+
         {activeDataset && messages.length === 0 ? (
           <SuggestedPrompts dataset={activeDataset} onSelectPrompt={sendMessage} />
         ) : null}
@@ -202,37 +67,10 @@ export function ChatPanel() {
       </div>
 
       <div className="mt-4">
-        <ChatInput disabled={!activeDataset} onSend={sendMessage} />
+        <ChatInput disabled={!activeDataset || isStreaming} onSend={sendMessage} />
       </div>
     </div>
   );
-}
-
-function isArtifactPayload(payload: unknown): boolean {
-  return (
-    typeof payload === "object" &&
-    payload !== null &&
-    "type" in payload &&
-    (payload as { type?: unknown }).type === "artifact"
-  );
-}
-
-function isNotebookRunEvent(
-  event: AnalysisRunEvent,
-): event is Extract<
-  AnalysisRunEvent,
-  {
-    type:
-      | "run.cell.started"
-      | "run.cell.stdout"
-      | "run.cell.stderr"
-      | "run.cell.completed"
-      | "run.cell.failed"
-      | "run.repair.started"
-      | "run.repair.completed";
-  }
-> {
-  return event.type.startsWith("run.cell.") || event.type.startsWith("run.repair.");
 }
 
 function ChatLockedState() {
@@ -248,6 +86,40 @@ function ChatLockedState() {
         Upload a CSV in the data canvas. Once preview data is stored globally,
         the chat input and prompt suggestions will unlock.
       </p>
+    </div>
+  );
+}
+
+function StreamingState({ runId }: { runId: string | null }) {
+  return (
+    <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100">
+      {runId ? `Streaming analysis run ${runId.slice(0, 8)}...` : "Starting analysis stream..."}
+    </div>
+  );
+}
+
+function StreamErrorState({
+  canRetry,
+  message,
+  onRetry,
+}: {
+  canRetry: boolean;
+  message: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-red-300/20 bg-red-500/10 px-3 py-3">
+      <p className="text-sm font-medium text-red-100">Stream interrupted</p>
+      <p className="mt-1 text-sm leading-5 text-red-200/80">{message}</p>
+      {canRetry ? (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-3 rounded-lg border border-red-200/20 bg-red-200/10 px-3 py-1.5 text-xs font-medium text-red-100 transition hover:bg-red-200/15"
+        >
+          Retry last prompt
+        </button>
+      ) : null}
     </div>
   );
 }
