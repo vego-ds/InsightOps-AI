@@ -11,7 +11,7 @@ export function InsightOpsWorkspace() {
   const activeDataset = useDatasetStore((store) => store.activeDataset);
 
   return (
-    <main className="flex min-h-screen flex-col bg-[#050712] text-white">
+    <main className="flex h-dvh min-h-0 flex-col overflow-hidden bg-[#050712] text-white">
       <header className="flex h-16 shrink-0 items-center justify-between border-b border-white/10 bg-[#080A12]/95 px-4 backdrop-blur sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-100">
@@ -33,16 +33,20 @@ export function InsightOpsWorkspace() {
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)]">
-        <aside className="flex min-h-[520px] flex-col gap-4 border-b border-white/10 bg-[#080A12] p-4 lg:min-h-0 lg:border-b-0 lg:border-r">
-          <div className="min-h-[280px] flex-1">
+      <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,46dvh)_minmax(0,1fr)] overflow-hidden lg:grid-cols-[minmax(320px,380px)_minmax(0,1fr)] lg:grid-rows-1">
+        <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden border-b border-white/10 bg-[#080A12] [contain:layout] lg:border-b-0 lg:border-r">
+          <div className="min-h-0 flex-1 overflow-hidden p-4 pb-2">
             <ChatPanel />
           </div>
-          <RunHistoryPanel />
+          <div className="max-h-40 shrink-0 overflow-y-auto overscroll-contain border-t border-white/10 p-4 pt-2 lg:max-h-[38dvh]">
+            <RunHistoryPanel />
+          </div>
         </aside>
 
-        <section className="min-w-0 overflow-auto p-4 sm:p-6">
-          <DataCanvas />
+        <section className="min-h-0 min-w-0 overflow-hidden bg-[#050712] [contain:layout]">
+          <div className="h-full min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6">
+            <DataCanvas />
+          </div>
         </section>
       </div>
     </main>
