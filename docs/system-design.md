@@ -97,6 +97,16 @@ The narrative layer provides deterministic fallback, guarded prompt construction
 
 Suspicious text from uploaded data is treated as data, not instructions. Human-review or prompt-injection flags block LLM narrative usage and fall back to deterministic output.
 
+## 🤖 Centralized LLM Orchestration (OpenRouter Framework)
+
+`insightops/llm/` is the centralized, decoupled provider layer for model-backed language operations. It separates vendor transport schemas from analytical execution engines, runtime adapters, planning logic, and API routes. Higher-level modules consume typed chat contracts and controlled provider errors instead of importing SDK clients directly. This keeps LLM usage replaceable, testable, and isolated from deterministic analytics code.
+
+The package exposes `ChatMessage`, typed response primitives, `OpenRouterClient`, and `LLMProviderError`. `OpenRouterClient` uses `openai.AsyncOpenAI` against OpenRouter's OpenAI-compatible API, while preserving a narrow internal boundary for request construction, response parsing, attribution headers, and provider failure normalization.
+
+Configuration is loaded through `insightops/config.py`. `INSIGHTOPS_OPENROUTER_API_KEY` is the preferred application-scoped credential. If it is absent, the standard `OPENROUTER_API_KEY` environment variable is accepted as a compatibility fallback. `INSIGHTOPS_OPENROUTER_MODEL` selects the model, and `INSIGHTOPS_OPENROUTER_BASE_URL` sets the provider base URL. These settings map directly into the `AsyncOpenAI` transport along with OpenRouter attribution headers: `X-OpenRouter-Title: InsightOps AI` and `HTTP-Referer`.
+
+The network contract is intentionally small. Callers pass arrays of validated `ChatMessage` objects into `OpenRouterClient.complete_chat(...)` for non-streaming text or `OpenRouterClient.stream_chat_completion(...)` for token streaming. The streaming method is an async generator: it calls chat completions with `stream=True`, defensively extracts chunk deltas, skips empty payloads, and yields clean text tokens downstream. Connection failures, API status errors, provider timeouts, malformed chunks, and SDK exceptions are wrapped as `LLMProviderError`, giving planning and runtime layers one controlled failure type for deterministic fallback and user-safe reporting.
+
 ## Current Limitations
 
 - No authentication or multi-user authorization.
