@@ -8,6 +8,7 @@ from insightops.api.contracts import (
     RunCellStartedEvent,
     RunCellStderrEvent,
     RunCellStdoutEvent,
+    RunErrorEvent,
     RunFinalEvent,
     RunStatusEvent,
 )
@@ -40,6 +41,21 @@ def status_event(
         sequence=cursor.next(),
         type="run.status",
         status=status,
+    ).model_dump()
+
+
+def runtime_error_event(
+    *,
+    context: RunContext,
+    cursor: RuntimeEventCursor,
+    error_message: str,
+) -> dict:
+    return RunErrorEvent(
+        version="insightops.run-event.v1",
+        runId=context.run_id,
+        sequence=cursor.next(),
+        type="run.error",
+        errorMessage=error_message,
     ).model_dump()
 
 
