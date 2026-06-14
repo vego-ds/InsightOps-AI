@@ -1,12 +1,16 @@
+from collections.abc import AsyncIterator
+import json
+import logging
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
-import json
 from fastapi import FastAPI, File, HTTPException, Query, Response, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.responses import JSONResponse
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 
 from insightops.api.contracts import (
     AnalysisRequest,
@@ -36,15 +40,18 @@ from insightops.validation.schema import (
     CsvSchemaError,
     CsvDecodeError,
     CsvIncompatibleSchemaError,
+    CsvSchemaInspection,
     inspect_sales_csv_schema,
 )
 from insightops.io.csv_compatibility import prepare_csv_for_analysis
+from insightops.io.csv_compatibility import PreparedCsvForAnalysis
 from insightops.io.dataset_preview import build_dataset_preview, is_supported_csv_upload
 from insightops.pipeline.sample_analysis import (
     analyze_sales_csv_file,
     analyze_sample_sales_data,
 )
 from insightops.io.upload_guardrails import persist_upload_temporarily
+from insightops.io.upload_guardrails import UploadedCsvFile
 from insightops.reports.export_service import (
     ReportGenerationBlockedError,
     UnsupportedReportFormatError,
@@ -59,25 +66,31 @@ from insightops.runtime import (
     RuntimeAdapter,
 )
 
-import os
-from pydantic import BaseModel
 from app.interpreter import PythonInterpreterSandbox
 from app.chat_agent import ChatAgentCodeGenerator
 
-# Create generated directory for dynamic charts
+logger = logging.getLogger(__name__)
+
 STATIC_DIR = Path(__file__).parent / "static"
-os.makedirs(STATIC_DIR / "generated", exist_ok=True)
+GENERATED_DIR = STATIC_DIR / "generated"
+NOTEBOOK_DIR = GENERATED_DIR / "notebooks"
+SCHEDULES_PATH = GENERATED_DIR / "schedules.json"
+for directory in (GENERATED_DIR, NOTEBOOK_DIR):
+    directory.mkdir(parents=True, exist_ok=True)
+
 DATASET_STORAGE_DIR = DATASET_STORAGE_ROOT
-os.makedirs(DATASET_STORAGE_DIR, exist_ok=True)
+DATASET_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 sessions: dict[str, PythonInterpreterSandbox] = {}
 analysis_run_contexts: dict[str, RunContext] = {}
 code_generator = ChatAgentCodeGenerator()
 
+JsonObject = dict[str, Any]
+
 
 class ChatRequest(BaseModel):
-    prompt: str
-    session_id: str
+    prompt: str = Field(min_length=1)
+    session_id: str = Field(min_length=1, max_length=128)
 
 
 class ChatResponse(BaseModel):
@@ -87,13 +100,13 @@ class ChatResponse(BaseModel):
     stderr: str
     error: str | None
     charts: list[str]
-    attempts: list[dict]
+    attempts: list[JsonObject]
     code_executed: str
 
 
 class ExecuteRequest(BaseModel):
-    code: str
-    session_id: str
+    code: str = Field(min_length=1)
+    session_id: str = Field(min_length=1, max_length=128)
 
 
 class ExecuteResponse(BaseModel):
@@ -101,24 +114,24 @@ class ExecuteResponse(BaseModel):
     stderr: str
     error: str | None
     charts: list[str]
-    attempts: list[dict]
+    attempts: list[JsonObject]
     code_executed: str
 
 
 class ResetRequest(BaseModel):
-    session_id: str
+    session_id: str = Field(min_length=1, max_length=128)
 
 
 class SaveNotebookRequest(BaseModel):
-    session_id: str
-    notebook_name: str
-    cells: list[dict]
+    session_id: str = Field(min_length=1, max_length=128)
+    notebook_name: str = Field(min_length=1, max_length=200)
+    cells: list[JsonObject] = Field(default_factory=list)
 
 
 class ScheduleRequest(BaseModel):
-    session_id: str
-    cron_expression: str
-    email: str
+    session_id: str = Field(min_length=1, max_length=128)
+    cron_expression: str = Field(min_length=1, max_length=120)
+    email: str = Field(min_length=3, max_length=254)
 
 
 def _select_runtime_adapter(runtime_name: str) -> RuntimeAdapter:
@@ -143,15 +156,126 @@ app = FastAPI(
 
 app.mount(
     "/static/generated",
-    StaticFiles(directory=STATIC_DIR / "generated"),
+    StaticFiles(directory=GENERATED_DIR),
     name="static_generated",
 )
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
+def _get_sandbox(session_id: str) -> PythonInterpreterSandbox:
+    return sessions.setdefault(session_id, PythonInterpreterSandbox())
+
+
+def _json_error(status_code: int, detail: str, error_code: str) -> JSONResponse:
+    return JSONResponse(
+        status_code=status_code,
+        content={"detail": detail, "error_code": error_code},
+    )
+
+
+def _prepare_csv_or_http_error(source_path: Path) -> PreparedCsvForAnalysis:
+    try:
+        return prepare_csv_for_analysis(source_path)
+    except CsvDecodeError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except CsvIncompatibleSchemaError as error:
+        detail = (
+            f"{error}\n"
+            "Supported schemas:\n"
+            "- canonical InsightOps sales schema\n"
+            "- classic_sales_sample mapping"
+        )
+        raise HTTPException(status_code=400, detail=detail) from error
+    except CsvSchemaError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+def _apply_schema_mapping_notes(
+    analysis: AnalysisResponse,
+    prepared: PreparedCsvForAnalysis,
+) -> AnalysisResponse:
+    if prepared.was_mapped:
+        warnings_text = "; ".join(prepared.warnings)
+        analysis.source_metadata.notes = (
+            f"Schema mapped from {prepared.detected_schema}. Warnings: {warnings_text}"
+        )
+    return analysis
+
+
+def _cleanup_uploaded_analysis_file(
+    uploaded_file: UploadedCsvFile,
+    prepared: PreparedCsvForAnalysis | None,
+) -> None:
+    if prepared and prepared.was_mapped and prepared.analysis_path.exists():
+        prepared.analysis_path.unlink(missing_ok=True)
+    if uploaded_file.path.exists():
+        uploaded_file.path.unlink(missing_ok=True)
+
+
+def _analyze_uploaded_csv(
+    uploaded_file: UploadedCsvFile,
+    prepared: PreparedCsvForAnalysis,
+) -> AnalysisResponse:
+    analysis = analyze_sales_csv_file(
+        str(prepared.analysis_path),
+        uploaded_file_name=uploaded_file.original_filename,
+        uploaded_file_size_bytes=uploaded_file.size_bytes,
+    )
+    return _apply_schema_mapping_notes(analysis, prepared)
+
+
+def _safe_generated_file(directory: Path, filename: str) -> Path:
+    root = directory.resolve()
+    path = (directory / filename).resolve()
+    if not path.is_relative_to(root):
+        raise HTTPException(status_code=400, detail="Unsafe generated file path.")
+    return path
+
+
+def _notebook_path(session_id: str) -> Path:
+    return _safe_generated_file(NOTEBOOK_DIR, f"{session_id}.json")
+
+
+def _generated_chart_paths_for_session(session_id: str) -> list[Path]:
+    prefix = f"chart_{session_id}_"
+    return [
+        path
+        for path in GENERATED_DIR.glob("chart_*.png")
+        if path.is_file() and path.name.startswith(prefix)
+    ]
+
+
+def _inspect_csv_or_http_error(source_path: Path) -> CsvSchemaInspection:
+    try:
+        return inspect_sales_csv_schema(source_path)
+    except CsvDecodeError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except CsvSchemaError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+def _load_json_object(path: Path) -> JsonObject:
+    try:
+        with path.open("r", encoding="utf-8") as file:
+            value = json.load(file)
+    except FileNotFoundError:
+        return {}
+    except json.JSONDecodeError as error:
+        logger.warning("Ignoring invalid JSON state file %s: %s", path, error)
+        return {}
+    except OSError as error:
+        logger.warning("Unable to read JSON state file %s: %s", path, error)
+        return {}
+
+    if isinstance(value, dict):
+        return value
+    logger.warning("Ignoring non-object JSON state file %s", path)
+    return {}
+
+
 @app.post("/api/chat", response_model=ChatResponse, tags=["interpreter"])
 def api_chat(req: ChatRequest) -> ChatResponse:
-    sandbox = sessions.setdefault(req.session_id, PythonInterpreterSandbox())
+    sandbox = _get_sandbox(req.session_id)
 
     # Get dataframe columns from locals to pass to code generator
     columns = []
@@ -222,13 +346,7 @@ def create_analysis_run(
     dataset_metadata = get_dataset(request.datasetId)
     dataset_path = get_dataset_path(request.datasetId)
     if dataset_metadata is None or dataset_path is None:
-        return JSONResponse(
-            status_code=404,
-            content={
-                "detail": "Unknown datasetId.",
-                "error_code": "UNKNOWN_DATASET",
-            },
-        )
+        return _json_error(404, "Unknown datasetId.", "UNKNOWN_DATASET")
 
     run_id = uuid4().hex
     conversation_id = request.conversationId or f"dataset:{request.datasetId}"
@@ -258,7 +376,7 @@ def create_analysis_run(
 @app.get("/api/analysis/runs/{run_id}/events", tags=["analysis"])
 def stream_analysis_run_events(run_id: str) -> StreamingResponse:
     return StreamingResponse(
-        _mock_analysis_run_event_stream(run_id),
+        _analysis_run_event_stream(run_id),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -269,7 +387,7 @@ def stream_analysis_run_events(run_id: str) -> StreamingResponse:
 
 @app.post("/api/execute", response_model=ExecuteResponse, tags=["interpreter"])
 def api_execute(req: ExecuteRequest) -> ExecuteResponse:
-    sandbox = sessions.setdefault(req.session_id, PythonInterpreterSandbox())
+    sandbox = _get_sandbox(req.session_id)
     res = sandbox.execute(req.code, req.session_id, prompt="Raw code execution")
     return ExecuteResponse(
         stdout=res["stdout"],
@@ -281,22 +399,16 @@ def api_execute(req: ExecuteRequest) -> ExecuteResponse:
     )
 
 
-# Create notebooks folder
-os.makedirs(STATIC_DIR / "generated" / "notebooks", exist_ok=True)
-
-
 @app.post("/api/save_notebook", tags=["interpreter"])
-def api_save_notebook(req: SaveNotebookRequest):
-    import json
-
-    path = STATIC_DIR / "generated" / "notebooks" / f"{req.session_id}.json"
+def api_save_notebook(req: SaveNotebookRequest) -> dict[str, str]:
+    path = _notebook_path(req.session_id)
     data = {
         "session_id": req.session_id,
         "notebook_name": req.notebook_name,
         "cells": req.cells,
     }
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    with path.open("w", encoding="utf-8") as file:
+        json.dump(data, file, ensure_ascii=False, indent=2)
     return {
         "status": "saved",
         "path": f"/static/generated/notebooks/{req.session_id}.json",
@@ -304,98 +416,56 @@ def api_save_notebook(req: SaveNotebookRequest):
 
 
 @app.get("/api/list_notebooks", tags=["interpreter"])
-def api_list_notebooks():
-    import glob
-    import json
-
+def api_list_notebooks() -> list[JsonObject]:
     notebooks = []
-    pattern = str(STATIC_DIR / "generated" / "notebooks" / "*.json")
-    for filepath in glob.glob(pattern):
-        try:
-            with open(filepath, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                notebooks.append(
-                    {
-                        "session_id": data.get("session_id"),
-                        "notebook_name": data.get("notebook_name"),
-                        "cell_count": len(data.get("cells", [])),
-                    }
-                )
-        except Exception:
-            pass
+    for path in NOTEBOOK_DIR.glob("*.json"):
+        data = _load_json_object(path)
+        if not data:
+            continue
+        cells = data.get("cells", [])
+        notebooks.append(
+            {
+                "session_id": data.get("session_id"),
+                "notebook_name": data.get("notebook_name"),
+                "cell_count": len(cells) if isinstance(cells, list) else 0,
+            }
+        )
     return notebooks
 
 
 @app.get("/api/load_notebook", tags=["interpreter"])
-def api_load_notebook(session_id: str = Query(...)):
-    import json
-
-    path = STATIC_DIR / "generated" / "notebooks" / f"{session_id}.json"
+def api_load_notebook(session_id: str = Query(..., min_length=1, max_length=128)) -> JsonObject:
+    path = _notebook_path(session_id)
     if not path.exists():
         raise HTTPException(status_code=404, detail="Notebook not found")
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return _load_json_object(path)
 
 
 @app.post("/api/schedule", tags=["interpreter"])
-def api_schedule(req: ScheduleRequest):
-    import json
-
-    path = STATIC_DIR / "generated" / "schedules.json"
-    schedules = {}
-    if path.exists():
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                schedules = json.load(f)
-        except Exception:
-            pass
+def api_schedule(req: ScheduleRequest) -> dict[str, str]:
+    schedules = _load_json_object(SCHEDULES_PATH)
     schedules[req.session_id] = {"cron": req.cron_expression, "email": req.email}
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(schedules, f, indent=2)
+    with SCHEDULES_PATH.open("w", encoding="utf-8") as file:
+        json.dump(schedules, file, indent=2)
     return {"status": "scheduled"}
 
 
 @app.post("/api/upload_dataset", tags=["interpreter"])
 async def api_upload_dataset(
-    session_id: str = Query(...), file: UploadFile | None = File(default=None)
-):
+    session_id: str = Query(..., min_length=1, max_length=128),
+    file: UploadFile | None = File(default=None),
+) -> AnalysisResponse:
     uploaded_file = await persist_upload_temporarily(file, settings.max_upload_bytes)
     prepared = None
     try:
-        try:
-            prepared = prepare_csv_for_analysis(uploaded_file.path)
-        except CsvDecodeError as e:
-            raise HTTPException(status_code=400, detail=str(e))
-        except CsvIncompatibleSchemaError as e:
-            detail = (
-                f"{str(e)}\n"
-                "Supported schemas:\n"
-                "- canonical InsightOps sales schema\n"
-                "- classic_sales_sample mapping"
-            )
-            raise HTTPException(status_code=400, detail=detail)
-        except CsvSchemaError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+        prepared = _prepare_csv_or_http_error(uploaded_file.path)
 
-        # Initialize sandbox and pre-load dataframe
-        sandbox = sessions.setdefault(session_id, PythonInterpreterSandbox())
+        sandbox = _get_sandbox(session_id)
         sandbox.load_dataframe(str(prepared.analysis_path))
 
-        # Run standard validation pipeline
-        analysis = analyze_sales_csv_file(
-            str(prepared.analysis_path),
-            uploaded_file_name=uploaded_file.original_filename,
-            uploaded_file_size_bytes=uploaded_file.size_bytes,
-        )
-        if prepared.was_mapped:
-            warnings_str = "; ".join(prepared.warnings)
-            analysis.source_metadata.notes = f"Schema mapped from {prepared.detected_schema}. Warnings: {warnings_str}"
-        return analysis
+        return _analyze_uploaded_csv(uploaded_file, prepared)
     finally:
-        if prepared and prepared.was_mapped and prepared.analysis_path.exists():
-            prepared.analysis_path.unlink(missing_ok=True)
-        if uploaded_file.path.exists():
-            uploaded_file.path.unlink(missing_ok=True)
+        _cleanup_uploaded_analysis_file(uploaded_file, prepared)
 
 
 @app.post(
@@ -456,22 +526,10 @@ def delete_dataset(dataset_id: str) -> DatasetDeleteResponse | JSONResponse:
     try:
         deleted = delete_registered_dataset(dataset_id)
     except ValueError as error:
-        return JSONResponse(
-            status_code=400,
-            content={
-                "detail": str(error),
-                "error_code": "UNSAFE_DATASET_PATH",
-            },
-        )
+        return _json_error(400, str(error), "UNSAFE_DATASET_PATH")
 
     if deleted is None:
-        return JSONResponse(
-            status_code=404,
-            content={
-                "detail": "Unknown datasetId.",
-                "error_code": "UNKNOWN_DATASET",
-            },
-        )
+        return _json_error(404, "Unknown datasetId.", "UNKNOWN_DATASET")
 
     return DatasetDeleteResponse(
         version="insightops.dataset-delete.v1",
@@ -481,8 +539,10 @@ def delete_dataset(dataset_id: str) -> DatasetDeleteResponse | JSONResponse:
 
 
 @app.post("/api/sample_dataset", tags=["interpreter"])
-def api_sample_dataset(session_id: str = Query(...)):
-    sandbox = sessions.setdefault(session_id, PythonInterpreterSandbox())
+def api_sample_dataset(
+    session_id: str = Query(..., min_length=1, max_length=128),
+) -> AnalysisResponse:
+    sandbox = _get_sandbox(session_id)
     sample_path = Path("data/sample/sales_sample.csv")
     sandbox.load_dataframe(str(sample_path))
     analysis = analyze_sample_sales_data()
@@ -490,18 +550,14 @@ def api_sample_dataset(session_id: str = Query(...)):
 
 
 @app.post("/api/reset", tags=["interpreter"])
-def api_reset(req: ResetRequest):
-    if req.session_id in sessions:
-        del sessions[req.session_id]
+def api_reset(req: ResetRequest) -> dict[str, str]:
+    sessions.pop(req.session_id, None)
 
-    # Also clean up generated charts for this session
-    import glob
-
-    for f in glob.glob(f"app/static/generated/chart_{req.session_id}_*.png"):
+    for chart_path in _generated_chart_paths_for_session(req.session_id):
         try:
-            os.remove(f)
-        except OSError:
-            pass
+            chart_path.unlink()
+        except OSError as error:
+            logger.warning("Unable to remove generated chart %s: %s", chart_path, error)
 
     return {"status": "reset"}
 
@@ -566,37 +622,12 @@ async def analyze_uploaded_sales(
     uploaded_file = await persist_upload_temporarily(file, settings.max_upload_bytes)
     prepared = None
     try:
-        try:
-            prepared = prepare_csv_for_analysis(uploaded_file.path)
-        except CsvDecodeError as e:
-            raise HTTPException(status_code=400, detail=str(e))
-        except CsvIncompatibleSchemaError as e:
-            detail = (
-                f"{str(e)}\n"
-                "Supported schemas:\n"
-                "- canonical InsightOps sales schema\n"
-                "- classic_sales_sample mapping"
-            )
-            raise HTTPException(status_code=400, detail=detail)
-        except CsvSchemaError as e:
-            raise HTTPException(status_code=400, detail=str(e))
-
-        analysis = analyze_sales_csv_file(
-            str(prepared.analysis_path),
-            uploaded_file_name=uploaded_file.original_filename,
-            uploaded_file_size_bytes=uploaded_file.size_bytes,
-        )
-        if prepared.was_mapped:
-            warnings_str = "; ".join(prepared.warnings)
-            analysis.source_metadata.notes = f"Schema mapped from {prepared.detected_schema}. Warnings: {warnings_str}"
-        return analysis
+        prepared = _prepare_csv_or_http_error(uploaded_file.path)
+        return _analyze_uploaded_csv(uploaded_file, prepared)
     except FileNotFoundError as error:
         raise HTTPException(status_code=500, detail=str(error)) from error
     finally:
-        if prepared and prepared.was_mapped and prepared.analysis_path.exists():
-            prepared.analysis_path.unlink(missing_ok=True)
-        if uploaded_file.path.exists():
-            uploaded_file.path.unlink(missing_ok=True)
+        _cleanup_uploaded_analysis_file(uploaded_file, prepared)
 
 
 @app.post(
@@ -663,37 +694,13 @@ async def export_uploaded_report(
     uploaded_file = await persist_upload_temporarily(file, settings.max_upload_bytes)
     prepared = None
     try:
-        try:
-            prepared = prepare_csv_for_analysis(uploaded_file.path)
-        except CsvDecodeError as e:
-            raise HTTPException(status_code=400, detail=str(e))
-        except CsvIncompatibleSchemaError as e:
-            detail = (
-                f"{str(e)}\n"
-                "Supported schemas:\n"
-                "- canonical InsightOps sales schema\n"
-                "- classic_sales_sample mapping"
-            )
-            raise HTTPException(status_code=400, detail=detail)
-        except CsvSchemaError as e:
-            raise HTTPException(status_code=400, detail=str(e))
-
-        analysis = analyze_sales_csv_file(
-            str(prepared.analysis_path),
-            uploaded_file_name=uploaded_file.original_filename,
-            uploaded_file_size_bytes=uploaded_file.size_bytes,
-        )
-        if prepared.was_mapped:
-            warnings_str = "; ".join(prepared.warnings)
-            analysis.source_metadata.notes = f"Schema mapped from {prepared.detected_schema}. Warnings: {warnings_str}"
+        prepared = _prepare_csv_or_http_error(uploaded_file.path)
+        analysis = _analyze_uploaded_csv(uploaded_file, prepared)
         return _report_response(analysis, normalized_format)
     except FileNotFoundError as error:
         raise HTTPException(status_code=500, detail=str(error)) from error
     finally:
-        if prepared and prepared.was_mapped and prepared.analysis_path.exists():
-            prepared.analysis_path.unlink(missing_ok=True)
-        if uploaded_file.path.exists():
-            uploaded_file.path.unlink(missing_ok=True)
+        _cleanup_uploaded_analysis_file(uploaded_file, prepared)
 
 
 @app.post(
@@ -712,12 +719,7 @@ async def preview_uploaded_sales(
 ) -> CsvUploadPreviewResponse:
     uploaded_file = await persist_upload_temporarily(file, settings.max_upload_bytes)
     try:
-        try:
-            inspection = inspect_sales_csv_schema(uploaded_file.path)
-        except CsvDecodeError as e:
-            raise HTTPException(status_code=400, detail=str(e))
-        except CsvSchemaError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+        inspection = _inspect_csv_or_http_error(uploaded_file.path)
 
         compatible = inspection.is_canonical or inspection.is_mappable
 
@@ -776,7 +778,7 @@ def _unsupported_dataset_file_type_response() -> JSONResponse:
     return JSONResponse(status_code=400, content=error.model_dump())
 
 
-async def _mock_analysis_run_event_stream(run_id: str):
+async def _analysis_run_event_stream(run_id: str) -> AsyncIterator[str]:
     context = analysis_run_contexts.get(run_id)
     if context is None:
         context = RunContext(
