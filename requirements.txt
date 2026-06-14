@@ -4,6 +4,7 @@ pydantic
 pytest
 ruff
 httpx2
+openai
 python-multipart
 matplotlib
 reportlab

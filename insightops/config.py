@@ -29,7 +29,8 @@ def load_app_settings() -> AppSettings:
             "INSIGHTOPS_NARRATIVE_PROVIDER",
             "disabled",
         ),
-        openrouter_api_key=os.getenv("INSIGHTOPS_OPENROUTER_API_KEY"),
+        openrouter_api_key=os.getenv("INSIGHTOPS_OPENROUTER_API_KEY")
+        or os.getenv("OPENROUTER_API_KEY"),
         openrouter_model=os.getenv(
             "INSIGHTOPS_OPENROUTER_MODEL",
             "openrouter/auto",
