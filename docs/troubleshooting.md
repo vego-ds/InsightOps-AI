@@ -1,6 +1,6 @@
 # Troubleshooting
 
-This guide covers common local MVP issues for InsightOps-AI.
+This guide covers common local operational issues for InsightOps-AI.
 
 ## Frontend And Backend Ports
 
@@ -8,7 +8,7 @@ The frontend and backend are separate services:
 
 - Frontend Next.js workspace: `http://localhost:3000`
 - Backend FastAPI API: `http://127.0.0.1:8000`
-- Backend legacy static dashboard, if opened directly: `http://127.0.0.1:8000`
+- Backend static dashboard shell: `http://127.0.0.1:8000`
 
 The frontend proxies `/api/*` requests to the backend. If the backend is offline, the frontend can load but upload and analysis calls will fail.
 
@@ -54,7 +54,7 @@ cd web
 npm run dev
 ```
 
-If Next.js chooses another port, prefer freeing port 3000 for the standard demo path.
+If Next.js chooses another port, free port 3000 to preserve the standard local route.
 
 ## Backend Offline During Upload
 
@@ -97,7 +97,7 @@ data/sample/sales_sample.csv
 
 The Docker runtime uses `python:3.12-slim`. The first run may be slow if the image is not present locally.
 
-Warm Docker before the demo:
+Warm Docker before runtime verification:
 
 ```bash
 docker pull python:3.12-slim
@@ -134,7 +134,7 @@ INSIGHTOPS_RUNTIME=local_python uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 ## Dataset Cleanup
 
-Uploaded MVP datasets are stored as local files under:
+Uploaded datasets are stored as local files under:
 
 ```text
 scratch/datasets
@@ -142,7 +142,7 @@ scratch/datasets
 
 Use the Clear dataset button in the frontend to delete the registered dataset and reset the workspace state.
 
-If a demo leaves files behind, confirm the backend is running and use Clear dataset from the UI. Do not commit files from `scratch/datasets`.
+If local testing leaves files behind, confirm the backend is running and use Clear dataset from the UI. Do not commit files from `scratch/datasets`.
 
 ## Do Not Commit Local Runtime Files
 
@@ -163,11 +163,11 @@ These are local runtime, cache, dependency, or secret-bearing paths.
 
 ## Known Limitations
 
-- Local MVP only.
+- Local workspace only.
 - No user auth.
 - No persistent database.
 - No multi-user workspace isolation.
 - No production runtime worker pool.
-- No LLM planning integration yet.
+- LLM-backed planning is optional and must retain deterministic fallback behavior.
 - Uploaded datasets are local files.
 - Docker runtime is a local prototype.

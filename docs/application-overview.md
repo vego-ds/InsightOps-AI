@@ -33,7 +33,7 @@ InsightOps-AI helps convert raw sales CSVs into structured, audit-ready analytic
 To maximize upload friendliness without violating data governance rules, the application supports:
 - **Strict Canonical Validation**: Ensures all 10 required sales fields are present in the CSV file before entering downstream calculations.
 - **Header Normalization**: Tolerates minor spelling/spacing variations by formatting column names (e.g., lowercasing, converting spaces to underscores, stripping special characters).
-- **Deterministic Schema Mapping**: Detects and maps known external schemas (such as the `classic_sales_sample` layout) to the internal canonical schema, allowing users to upload legacy reports without manual formatting.
+- **Deterministic Schema Mapping**: Detects and maps known external schemas, such as the `classic_sales_sample` layout, to the internal canonical schema without arbitrary inference.
 - **Incompatibility Safeguards**: Rejects incompatible files with explicit error messages listing missing and detected columns. 
 - **CSV-Only Ingestion**: The pipeline does not support Excel, PDF, images, database connectors, or arbitrary schema inference.
 
@@ -107,12 +107,14 @@ Workflow improvements translate recommendations into process changes, such as im
 ## Stakeholder-Facing Outputs
 
 - Typed JSON analysis responses from the FastAPI API.
-- Governed sales analytics workspace dashboard featuring:
-  - Guided analytics plain-English command parser (client-side, no-eval).
-  - State-aware dynamic chip shortcuts.
-  - Visual charts rendered using only inline SVGs and CSS bar gauges (including line, bar, pie, and metric gauge previews).
-  - Live search filtering and category buttons for chart discovery.
-  - Collapsible Technical Evidence drawer with centralized render error guards and shape diagnostics checker.
+- Governed Next.js analytics workspace featuring:
+  - CSV upload and preview.
+  - Schema inspection.
+  - Chat-driven analysis run creation.
+  - Server-Sent Events execution timeline.
+  - Notebook-style runtime details.
+  - Table, chart, and markdown artifact rendering.
+  - Run history and frontend export utilities.
 - Backend PNG chart artifacts from chart-ready data.
 - Markdown executive report downloads.
 - PDF executive report downloads.
@@ -125,15 +127,15 @@ Report exports are generated as per-request temporary artifacts. The application
 - No production authentication or multi-user authorization.
 - No database persistence for analysis runs or audit events.
 - No forecasting, regression, or real ML models.
-- No production frontend framework or interactive charting library.
+- No persistent frontend workspace storage.
 - No authenticated report or chart artifact management.
-- Optional OpenRouter narrative writing is guarded and does not control analytics decisions.
+- Optional OpenRouter-backed planning and narrative writing are guarded and do not control deterministic execution.
 
 ## Future Roadmap
 
 - Add authenticated artifact management and retention controls.
 - Persist analysis runs and audit events.
 - Add user/project scoping and access control.
-- Add production frontend chart rendering if dashboard scope expands.
+- Add persistent workspace and artifact management.
 - Add stronger source-file scanning and operational monitoring.
 - Continue improving deterministic statistical analytics before adding more presentation features.

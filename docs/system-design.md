@@ -97,7 +97,7 @@ The narrative layer provides deterministic fallback, guarded prompt construction
 
 Suspicious text from uploaded data is treated as data, not instructions. Human-review or prompt-injection flags block LLM narrative usage and fall back to deterministic output.
 
-## 🤖 Centralized LLM Orchestration (OpenRouter Framework)
+## Centralized LLM Orchestration (OpenRouter Framework)
 
 `insightops/llm/` is the centralized, decoupled provider layer for model-backed language operations. It separates vendor transport schemas from analytical execution engines, runtime adapters, planning logic, and API routes. Higher-level modules consume typed chat contracts and controlled provider errors instead of importing SDK clients directly. This keeps LLM usage replaceable, testable, and isolated from deterministic analytics code.
 
@@ -107,7 +107,7 @@ Configuration is loaded through `insightops/config.py`. `INSIGHTOPS_OPENROUTER_A
 
 The network contract is intentionally small. Callers pass arrays of validated `ChatMessage` objects into `OpenRouterClient.complete_chat(...)` for non-streaming text or `OpenRouterClient.stream_chat_completion(...)` for token streaming. The streaming method is an async generator: it calls chat completions with `stream=True`, defensively extracts chunk deltas, skips empty payloads, and yields clean text tokens downstream. Connection failures, API status errors, provider timeouts, malformed chunks, and SDK exceptions are wrapped as `LLMProviderError`, giving planning and runtime layers one controlled failure type for deterministic fallback and user-safe reporting.
 
-### 🗺️ Hybrid Intent Routing (Planner Integration)
+### Hybrid Intent Routing (Planner Integration)
 
 `insightops/planning/planner.py` exposes a hybrid planner path for streaming analysis runs. The deterministic `build_analysis_plan(...)` function remains the baseline router for tests, fallback behavior, and no-key environments. The async `build_hybrid_analysis_plan(...)` function first builds that deterministic fallback, then uses `OpenRouterClient` only when an OpenRouter API key is configured or an explicit planner client is injected.
 
@@ -121,8 +121,8 @@ The mock runtime simulator also routes payloads through the hybrid resolver befo
 
 - No authentication or multi-user authorization.
 - No database persistence.
-- No LLM-generated pipeline decisions.
-- No visual chart rendering in the dashboard.
+- No LLM-generated execution code.
+- No database-backed chart or report artifact retention.
 - Report artifacts are temporarily generated per-request and not retained in persistent user storage.
 
 ## Future Improvements
@@ -130,5 +130,5 @@ The mock runtime simulator also routes payloads through the hybrid resolver befo
 - Add authenticated artifact download endpoints.
 - Add persistent audit storage.
 - Add production-grade access control.
-- Add visual chart rendering once chart storage policy is defined.
-- Add a real LLM provider behind the existing safety gate.
+- Add chart and report retention controls.
+- Expand LLM provider evaluation and monitoring.

@@ -36,7 +36,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 Health check: `/health`
 
-## ⚙️ Environment Configuration
+## Environment Configuration
 
 For local testing, copy the tracked template and fill in local-only values:
 

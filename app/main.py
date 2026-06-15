@@ -2,7 +2,6 @@ from collections.abc import AsyncIterator
 import json
 import logging
 from pathlib import Path
-from typing import Any
 from uuid import uuid4
 
 from fastapi import FastAPI, File, HTTPException, Query, Response, UploadFile
@@ -10,7 +9,6 @@ from fastapi.responses import FileResponse
 from fastapi.responses import JSONResponse
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
 
 from insightops.api.contracts import (
     AnalysisRequest,
@@ -66,72 +64,16 @@ from insightops.runtime import (
     RuntimeAdapter,
 )
 
-from app.interpreter import PythonInterpreterSandbox
-from app.chat_agent import ChatAgentCodeGenerator
-
 logger = logging.getLogger(__name__)
 
 STATIC_DIR = Path(__file__).parent / "static"
 GENERATED_DIR = STATIC_DIR / "generated"
-NOTEBOOK_DIR = GENERATED_DIR / "notebooks"
-SCHEDULES_PATH = GENERATED_DIR / "schedules.json"
-for directory in (GENERATED_DIR, NOTEBOOK_DIR):
-    directory.mkdir(parents=True, exist_ok=True)
+GENERATED_DIR.mkdir(parents=True, exist_ok=True)
 
 DATASET_STORAGE_DIR = DATASET_STORAGE_ROOT
 DATASET_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
-sessions: dict[str, PythonInterpreterSandbox] = {}
 analysis_run_contexts: dict[str, RunContext] = {}
-code_generator = ChatAgentCodeGenerator()
-
-JsonObject = dict[str, Any]
-
-
-class ChatRequest(BaseModel):
-    prompt: str = Field(min_length=1)
-    session_id: str = Field(min_length=1, max_length=128)
-
-
-class ChatResponse(BaseModel):
-    prompt: str
-    code: str
-    stdout: str
-    stderr: str
-    error: str | None
-    charts: list[str]
-    attempts: list[JsonObject]
-    code_executed: str
-
-
-class ExecuteRequest(BaseModel):
-    code: str = Field(min_length=1)
-    session_id: str = Field(min_length=1, max_length=128)
-
-
-class ExecuteResponse(BaseModel):
-    stdout: str
-    stderr: str
-    error: str | None
-    charts: list[str]
-    attempts: list[JsonObject]
-    code_executed: str
-
-
-class ResetRequest(BaseModel):
-    session_id: str = Field(min_length=1, max_length=128)
-
-
-class SaveNotebookRequest(BaseModel):
-    session_id: str = Field(min_length=1, max_length=128)
-    notebook_name: str = Field(min_length=1, max_length=200)
-    cells: list[JsonObject] = Field(default_factory=list)
-
-
-class ScheduleRequest(BaseModel):
-    session_id: str = Field(min_length=1, max_length=128)
-    cron_expression: str = Field(min_length=1, max_length=120)
-    email: str = Field(min_length=3, max_length=254)
 
 
 def _select_runtime_adapter(runtime_name: str) -> RuntimeAdapter:
@@ -160,10 +102,6 @@ app.mount(
     name="static_generated",
 )
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-
-
-def _get_sandbox(session_id: str) -> PythonInterpreterSandbox:
-    return sessions.setdefault(session_id, PythonInterpreterSandbox())
 
 
 def _json_error(status_code: int, detail: str, error_code: str) -> JSONResponse:
@@ -224,27 +162,6 @@ def _analyze_uploaded_csv(
     return _apply_schema_mapping_notes(analysis, prepared)
 
 
-def _safe_generated_file(directory: Path, filename: str) -> Path:
-    root = directory.resolve()
-    path = (directory / filename).resolve()
-    if not path.is_relative_to(root):
-        raise HTTPException(status_code=400, detail="Unsafe generated file path.")
-    return path
-
-
-def _notebook_path(session_id: str) -> Path:
-    return _safe_generated_file(NOTEBOOK_DIR, f"{session_id}.json")
-
-
-def _generated_chart_paths_for_session(session_id: str) -> list[Path]:
-    prefix = f"chart_{session_id}_"
-    return [
-        path
-        for path in GENERATED_DIR.glob("chart_*.png")
-        if path.is_file() and path.name.startswith(prefix)
-    ]
-
-
 def _inspect_csv_or_http_error(source_path: Path) -> CsvSchemaInspection:
     try:
         return inspect_sales_csv_schema(source_path)
@@ -252,49 +169,6 @@ def _inspect_csv_or_http_error(source_path: Path) -> CsvSchemaInspection:
         raise HTTPException(status_code=400, detail=str(error)) from error
     except CsvSchemaError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
-
-
-def _load_json_object(path: Path) -> JsonObject:
-    try:
-        with path.open("r", encoding="utf-8") as file:
-            value = json.load(file)
-    except FileNotFoundError:
-        return {}
-    except json.JSONDecodeError as error:
-        logger.warning("Ignoring invalid JSON state file %s: %s", path, error)
-        return {}
-    except OSError as error:
-        logger.warning("Unable to read JSON state file %s: %s", path, error)
-        return {}
-
-    if isinstance(value, dict):
-        return value
-    logger.warning("Ignoring non-object JSON state file %s", path)
-    return {}
-
-
-@app.post("/api/chat", response_model=ChatResponse, tags=["interpreter"])
-def api_chat(req: ChatRequest) -> ChatResponse:
-    sandbox = _get_sandbox(req.session_id)
-
-    # Get dataframe columns from locals to pass to code generator
-    columns = []
-    if "df" in sandbox.locals:
-        columns = list(sandbox.locals["df"].columns)
-
-    generated_code = code_generator.generate_code(req.prompt, columns)
-    res = sandbox.execute(generated_code, req.session_id, prompt=req.prompt)
-
-    return ChatResponse(
-        prompt=req.prompt,
-        code=generated_code,
-        stdout=res["stdout"],
-        stderr=res["stderr"],
-        error=res["error"],
-        charts=res["charts"],
-        attempts=res["attempts"],
-        code_executed=res["code_executed"],
-    )
 
 
 @app.post(
@@ -385,89 +259,6 @@ def stream_analysis_run_events(run_id: str) -> StreamingResponse:
     )
 
 
-@app.post("/api/execute", response_model=ExecuteResponse, tags=["interpreter"])
-def api_execute(req: ExecuteRequest) -> ExecuteResponse:
-    sandbox = _get_sandbox(req.session_id)
-    res = sandbox.execute(req.code, req.session_id, prompt="Raw code execution")
-    return ExecuteResponse(
-        stdout=res["stdout"],
-        stderr=res["stderr"],
-        error=res["error"],
-        charts=res["charts"],
-        attempts=res["attempts"],
-        code_executed=res["code_executed"],
-    )
-
-
-@app.post("/api/save_notebook", tags=["interpreter"])
-def api_save_notebook(req: SaveNotebookRequest) -> dict[str, str]:
-    path = _notebook_path(req.session_id)
-    data = {
-        "session_id": req.session_id,
-        "notebook_name": req.notebook_name,
-        "cells": req.cells,
-    }
-    with path.open("w", encoding="utf-8") as file:
-        json.dump(data, file, ensure_ascii=False, indent=2)
-    return {
-        "status": "saved",
-        "path": f"/static/generated/notebooks/{req.session_id}.json",
-    }
-
-
-@app.get("/api/list_notebooks", tags=["interpreter"])
-def api_list_notebooks() -> list[JsonObject]:
-    notebooks = []
-    for path in NOTEBOOK_DIR.glob("*.json"):
-        data = _load_json_object(path)
-        if not data:
-            continue
-        cells = data.get("cells", [])
-        notebooks.append(
-            {
-                "session_id": data.get("session_id"),
-                "notebook_name": data.get("notebook_name"),
-                "cell_count": len(cells) if isinstance(cells, list) else 0,
-            }
-        )
-    return notebooks
-
-
-@app.get("/api/load_notebook", tags=["interpreter"])
-def api_load_notebook(session_id: str = Query(..., min_length=1, max_length=128)) -> JsonObject:
-    path = _notebook_path(session_id)
-    if not path.exists():
-        raise HTTPException(status_code=404, detail="Notebook not found")
-    return _load_json_object(path)
-
-
-@app.post("/api/schedule", tags=["interpreter"])
-def api_schedule(req: ScheduleRequest) -> dict[str, str]:
-    schedules = _load_json_object(SCHEDULES_PATH)
-    schedules[req.session_id] = {"cron": req.cron_expression, "email": req.email}
-    with SCHEDULES_PATH.open("w", encoding="utf-8") as file:
-        json.dump(schedules, file, indent=2)
-    return {"status": "scheduled"}
-
-
-@app.post("/api/upload_dataset", tags=["interpreter"])
-async def api_upload_dataset(
-    session_id: str = Query(..., min_length=1, max_length=128),
-    file: UploadFile | None = File(default=None),
-) -> AnalysisResponse:
-    uploaded_file = await persist_upload_temporarily(file, settings.max_upload_bytes)
-    prepared = None
-    try:
-        prepared = _prepare_csv_or_http_error(uploaded_file.path)
-
-        sandbox = _get_sandbox(session_id)
-        sandbox.load_dataframe(str(prepared.analysis_path))
-
-        return _analyze_uploaded_csv(uploaded_file, prepared)
-    finally:
-        _cleanup_uploaded_analysis_file(uploaded_file, prepared)
-
-
 @app.post(
     "/api/datasets/upload",
     response_model=DatasetUploadSuccessResponse,
@@ -536,30 +327,6 @@ def delete_dataset(dataset_id: str) -> DatasetDeleteResponse | JSONResponse:
         status="deleted",
         datasetId=dataset_id,
     )
-
-
-@app.post("/api/sample_dataset", tags=["interpreter"])
-def api_sample_dataset(
-    session_id: str = Query(..., min_length=1, max_length=128),
-) -> AnalysisResponse:
-    sandbox = _get_sandbox(session_id)
-    sample_path = Path("data/sample/sales_sample.csv")
-    sandbox.load_dataframe(str(sample_path))
-    analysis = analyze_sample_sales_data()
-    return analysis
-
-
-@app.post("/api/reset", tags=["interpreter"])
-def api_reset(req: ResetRequest) -> dict[str, str]:
-    sessions.pop(req.session_id, None)
-
-    for chart_path in _generated_chart_paths_for_session(req.session_id):
-        try:
-            chart_path.unlink()
-        except OSError as error:
-            logger.warning("Unable to remove generated chart %s: %s", chart_path, error)
-
-    return {"status": "reset"}
 
 
 @app.get("/", include_in_schema=False)
