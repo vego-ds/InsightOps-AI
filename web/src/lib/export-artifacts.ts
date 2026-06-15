@@ -134,11 +134,15 @@ function formatCsvCell(value: string | number | boolean | null): string {
     return "";
   }
 
-  const text = String(value);
+  const text = escapeSpreadsheetFormula(String(value));
   if (/["\n\r,]/.test(text)) {
     return `"${text.replaceAll('"', '""')}"`;
   }
   return text;
+}
+
+function escapeSpreadsheetFormula(value: string): string {
+  return /^[=+\-@]/.test(value) ? `'${value}` : value;
 }
 
 function downloadTextFile(
@@ -155,5 +159,5 @@ function downloadTextFile(
   document.body.append(anchor);
   anchor.click();
   anchor.remove();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }

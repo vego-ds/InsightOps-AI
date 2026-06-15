@@ -36,16 +36,31 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 Health check: `/health`
 
-## Environment Variables
+## ⚙️ Environment Configuration
+
+For local testing, copy the tracked template and fill in local-only values:
+
+```bash
+cp .env.example .env
+```
+
+`.env` is intentionally ignored by Git and must never be committed. Use platform-managed secrets for hosted deployments.
+
+OpenRouter configuration is optional. The application loads these values through `insightops/config.py`:
+
+- `INSIGHTOPS_OPENROUTER_API_KEY`: preferred application-scoped OpenRouter credential.
+- `OPENROUTER_API_KEY`: standard OpenRouter credential fallback used only when `INSIGHTOPS_OPENROUTER_API_KEY` is unset.
+- `INSIGHTOPS_OPENROUTER_MODEL`: model identifier. Default: `openrouter/auto`.
+- `INSIGHTOPS_OPENROUTER_BASE_URL`: OpenRouter OpenAI-compatible API URL. Default: `https://openrouter.ai/api/v1`.
+- `INSIGHTOPS_NARRATIVE_PROVIDER`: optional narrative provider. Supported values: `disabled`, `openrouter`. Default: `disabled`.
+
+Credential priority is explicit: `INSIGHTOPS_OPENROUTER_API_KEY` takes precedence over `OPENROUTER_API_KEY`. If neither value is present, LLM-backed features remain unavailable and deterministic fallback behavior is preserved.
 
 - `INSIGHTOPS_ENVIRONMENT`
 - `INSIGHTOPS_HOST`
 - `INSIGHTOPS_PORT`
 - `INSIGHTOPS_MAX_UPLOAD_BYTES`
-- `INSIGHTOPS_NARRATIVE_PROVIDER`
-- `INSIGHTOPS_OPENROUTER_API_KEY`
-- `INSIGHTOPS_OPENROUTER_MODEL`
-- `INSIGHTOPS_OPENROUTER_BASE_URL`
+- `INSIGHTOPS_RUNTIME`
 
 Uploads are CSV-only with a default maximum size of 100 MB (104,857,600 bytes). This limit can be customized at runtime using the `INSIGHTOPS_MAX_UPLOAD_BYTES` environment variable.
 
@@ -63,8 +78,6 @@ Otherwise, the proxy may reject the upload before it reaches the FastAPI applica
 Report export endpoints generate Markdown and PDF artifacts in temporary per-request directories. No persistent report storage is configured, and uploaded files are removed after request processing. Deployment platforms should treat report outputs as response artifacts rather than stored application data. Upload limits still apply to report generation from uploaded CSV files.
 
 The static dashboard is served from `GET /`.
-
-OpenRouter is optional for narrative writing. Configure credentials as platform secrets, not committed files. The default narrative provider remains disabled.
 
 ## Hosted Platforms
 

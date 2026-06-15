@@ -107,6 +107,14 @@ Configuration is loaded through `insightops/config.py`. `INSIGHTOPS_OPENROUTER_A
 
 The network contract is intentionally small. Callers pass arrays of validated `ChatMessage` objects into `OpenRouterClient.complete_chat(...)` for non-streaming text or `OpenRouterClient.stream_chat_completion(...)` for token streaming. The streaming method is an async generator: it calls chat completions with `stream=True`, defensively extracts chunk deltas, skips empty payloads, and yields clean text tokens downstream. Connection failures, API status errors, provider timeouts, malformed chunks, and SDK exceptions are wrapped as `LLMProviderError`, giving planning and runtime layers one controlled failure type for deterministic fallback and user-safe reporting.
 
+### 🗺️ Hybrid Intent Routing (Planner Integration)
+
+`insightops/planning/planner.py` exposes a hybrid planner path for streaming analysis runs. The deterministic `build_analysis_plan(...)` function remains the baseline router for tests, fallback behavior, and no-key environments. The async `build_hybrid_analysis_plan(...)` function first builds that deterministic fallback, then uses `OpenRouterClient` only when an OpenRouter API key is configured or an explicit planner client is injected.
+
+The dynamic path sends a compact schema and user message as typed `ChatMessage` inputs. The model is instructed to return one strict JSON object containing an allowed intent plus optional `x_column`, `y_column`, and explanation fields. The planner validates the JSON, maps the intent to the existing artifact builders, resolves columns only against the uploaded dataset schema, and refuses invented columns by falling back to deterministic resolver defaults.
+
+Provider failures are non-fatal by design. `LLMProviderError`, malformed JSON, invalid payloads, timeout/network errors, and schema validation issues all return the deterministic regex plan. Runtime adapters call the hybrid resolver, so configured deployments can interpret more complex natural-language requests while preserving the high-speed deterministic loop as the crash-proof execution path.
+
 ## Current Limitations
 
 - No authentication or multi-user authorization.

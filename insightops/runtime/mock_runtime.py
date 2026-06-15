@@ -15,6 +15,7 @@ from insightops.api.contracts import (
     RunStatusEvent,
     TableArtifact,
 )
+from insightops.runtime.repair import build_repair_plan, parse_runtime_failure
 from insightops.runtime.run_context import RunContext
 
 
@@ -102,7 +103,17 @@ def _mock_notebook_events(context: RunContext):
 def _mock_failure_notebook_events(context: RunContext):
     run_id = context.run_id
     failed_cell_id = f"{run_id}-cell-failed-profile"
-    repair_cell_id = f"{run_id}-cell-repaired-profile"
+    traceback = (
+        "Traceback (most recent call last):\n"
+        '  File "<mock-notebook-cell>", line 3, in <module>\n'
+        "ValueError: mock schema mismatch"
+    )
+    repair_plan = build_repair_plan(
+        run_id=run_id,
+        failed_cell_id=failed_cell_id,
+        failure=parse_runtime_failure(traceback),
+        attempt=2,
+    )
     return [
         RunStatusEvent(
             version="insightops.run-event.v1",
@@ -121,7 +132,6 @@ def _mock_failure_notebook_events(context: RunContext):
             language="python",
             code=(
                 "import pandas as pd\n"
-                "# Deterministic failure mock; no code is executed.\n"
                 "raise ValueError('mock schema mismatch')"
             ),
             attempt=1,
@@ -141,11 +151,7 @@ def _mock_failure_notebook_events(context: RunContext):
             type="run.cell.failed",
             cellId=failed_cell_id,
             errorMessage="Mock schema mismatch detected.",
-            traceback=(
-                "Traceback (most recent call last):\n"
-                '  File "<mock-notebook-cell>", line 3, in <module>\n'
-                "ValueError: mock schema mismatch"
-            ),
+            traceback=traceback,
             durationMs=96,
         ),
         RunRepairStartedEvent(
@@ -154,30 +160,26 @@ def _mock_failure_notebook_events(context: RunContext):
             sequence=5,
             type="run.repair.started",
             failedCellId=failed_cell_id,
-            repairCellId=repair_cell_id,
-            reason="Retry with deterministic guarded preview-only logic.",
+            repairCellId=repair_plan.repair_cell_id,
+            reason=repair_plan.reason,
         ),
         RunCellStartedEvent(
             version="insightops.run-event.v1",
             runId=run_id,
             sequence=6,
             type="run.cell.started",
-            cellId=repair_cell_id,
-            title="Repair profile step",
+            cellId=repair_plan.repair_cell_id,
+            title=repair_plan.title,
             language="python",
-            code=(
-                "import pandas as pd\n"
-                "# Deterministic repaired mock; no code is executed.\n"
-                "print('Recovered with preview-safe profiling path')"
-            ),
-            attempt=2,
+            code=repair_plan.code,
+            attempt=repair_plan.attempt,
         ),
         RunCellStdoutEvent(
             version="insightops.run-event.v1",
             runId=run_id,
             sequence=7,
             type="run.cell.stdout",
-            cellId=repair_cell_id,
+            cellId=repair_plan.repair_cell_id,
             stdout="Recovered with preview-safe profiling path\nMock profiling completed.",
         ),
         RunCellCompletedEvent(
@@ -185,7 +187,7 @@ def _mock_failure_notebook_events(context: RunContext):
             runId=run_id,
             sequence=8,
             type="run.cell.completed",
-            cellId=repair_cell_id,
+            cellId=repair_plan.repair_cell_id,
             durationMs=142,
         ),
         RunRepairCompletedEvent(
@@ -194,8 +196,8 @@ def _mock_failure_notebook_events(context: RunContext):
             sequence=9,
             type="run.repair.completed",
             failedCellId=failed_cell_id,
-            repairCellId=repair_cell_id,
-            outcome="Mock self-healing completed; recovered cell output is available.",
+            repairCellId=repair_plan.repair_cell_id,
+            outcome="Runtime repair completed; recovered cell output is available.",
         ),
         *_mock_artifact_events(run_id, start_sequence=10),
         RunFinalEvent(

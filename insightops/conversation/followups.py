@@ -4,7 +4,7 @@ from typing import Any
 from insightops.conversation.context import ConversationContext
 from insightops.planning.column_resolver import resolve_column, resolve_first_by_types
 from insightops.planning.intents import AnalysisIntent, AnalysisPlan
-from insightops.planning.planner import build_analysis_plan
+from insightops.planning.planner import build_analysis_plan, build_hybrid_analysis_plan
 
 
 def resolve_followup_plan(
@@ -14,6 +14,36 @@ def resolve_followup_plan(
     context: ConversationContext | None,
 ) -> AnalysisPlan:
     base_plan = build_analysis_plan(message, schema)
+    return _resolve_followup_from_base_plan(
+        message=message,
+        schema=schema,
+        context=context,
+        base_plan=base_plan,
+    )
+
+
+async def resolve_hybrid_followup_plan(
+    *,
+    message: str,
+    schema: list[dict[str, Any]],
+    context: ConversationContext | None,
+) -> AnalysisPlan:
+    base_plan = await build_hybrid_analysis_plan(message, schema)
+    return _resolve_followup_from_base_plan(
+        message=message,
+        schema=schema,
+        context=context,
+        base_plan=base_plan,
+    )
+
+
+def _resolve_followup_from_base_plan(
+    *,
+    message: str,
+    schema: list[dict[str, Any]],
+    context: ConversationContext | None,
+    base_plan: AnalysisPlan,
+) -> AnalysisPlan:
     if context is None:
         return base_plan
 

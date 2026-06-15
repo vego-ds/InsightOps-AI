@@ -4,7 +4,7 @@ import subprocess
 import sys
 import time
 
-from insightops.conversation import conversation_store, resolve_followup_plan
+from insightops.conversation import conversation_store, resolve_hybrid_followup_plan
 from insightops.runtime.code_templates import build_dataset_profile_code
 from insightops.runtime.execution_events import (
     RuntimeEventCursor,
@@ -25,7 +25,7 @@ class LocalPythonRuntimeAdapter:
     async def stream_events(self, context: RunContext) -> AsyncIterator[dict]:
         cell_id = f"{context.run_id}-local-python-profile"
         cursor = RuntimeEventCursor()
-        plan = resolve_followup_plan(
+        plan = await resolve_hybrid_followup_plan(
             message=context.message,
             schema=context.schema,
             context=context.conversation_context,

@@ -166,9 +166,12 @@ function parsePriority(value: unknown): number | undefined {
 }
 
 function isArtifactScalar(value: unknown): value is ArtifactScalar {
+  if (typeof value === "number") {
+    return Number.isFinite(value);
+  }
+
   return (
     typeof value === "string" ||
-    typeof value === "number" ||
     typeof value === "boolean" ||
     value === null
   );

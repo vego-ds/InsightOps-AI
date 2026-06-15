@@ -1,6 +1,11 @@
+import json
 import re
-from typing import Any
+from typing import Any, Protocol
 
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+
+from insightops.config import AppSettings, load_app_settings
+from insightops.llm import ChatMessage, LLMProviderError, LLMTextResponse, OpenRouterClient
 from insightops.planning.column_resolver import resolve_column, resolve_first_by_types
 from insightops.planning.intents import AnalysisIntent, AnalysisPlan
 
@@ -8,6 +13,7 @@ Schema = list[dict[str, Any]]
 
 BY_PATTERN = re.compile(r"\bby\s+([a-zA-Z0-9_ -]+)", flags=re.IGNORECASE)
 TOKEN_PATTERN = re.compile(r"[a-zA-Z0-9_]+")
+JSON_BLOCK_PATTERN = re.compile(r"```(?:json)?\s*(.*?)\s*```", flags=re.DOTALL)
 
 MISSING_KEYWORDS = frozenset({"missing", "null", "empty", "blanks"})
 TREND_KEYWORDS = frozenset({"trend", "time", "date", "monthly", "daily"})
@@ -45,6 +51,40 @@ TREND_BUILDERS = [
     "build_trend_chart",
     "build_markdown_summary_artifact",
 ]
+
+BUILDERS_BY_INTENT = {
+    AnalysisIntent.dataset_summary: DATASET_SUMMARY_BUILDERS,
+    AnalysisIntent.missing_values: MISSING_VALUES_BUILDERS,
+    AnalysisIntent.numeric_summary: NUMERIC_SUMMARY_BUILDERS,
+    AnalysisIntent.grouped_metric: GROUPED_METRIC_BUILDERS,
+    AnalysisIntent.top_categories: TOP_CATEGORIES_BUILDERS,
+    AnalysisIntent.trend_over_time: TREND_BUILDERS,
+    AnalysisIntent.unknown: DATASET_SUMMARY_BUILDERS,
+}
+
+TITLES_BY_INTENT = {
+    AnalysisIntent.dataset_summary: "Dataset Summary",
+    AnalysisIntent.missing_values: "Missing Values",
+    AnalysisIntent.numeric_summary: "Numeric Summary",
+    AnalysisIntent.grouped_metric: "Grouped Metric",
+    AnalysisIntent.top_categories: "Top Categories",
+    AnalysisIntent.trend_over_time: "Trend Over Time",
+    AnalysisIntent.unknown: "Dataset Summary",
+}
+
+
+class PlannerLLMClient(Protocol):
+    async def complete_chat(self, messages: list[ChatMessage]) -> LLMTextResponse:
+        pass
+
+
+class _LLMPlanPayload(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    intent: AnalysisIntent
+    x_column: str | None = None
+    y_column: str | None = None
+    explanation: str = Field(default="LLM-assisted routing selected a plan.")
 
 
 def build_analysis_plan(message: str, schema: Schema) -> AnalysisPlan:
@@ -109,6 +149,37 @@ def build_analysis_plan(message: str, schema: Schema) -> AnalysisPlan:
     return _dataset_summary_plan(
         "Prompt did not match a specific intent; using safe dataset summary.",
     )
+
+
+async def build_hybrid_analysis_plan(
+    message: str,
+    schema: Schema,
+    *,
+    llm_client: PlannerLLMClient | None = None,
+    settings: AppSettings | None = None,
+) -> AnalysisPlan:
+    fallback_plan = build_analysis_plan(message, schema)
+    active_settings = settings or load_app_settings()
+    if llm_client is None and not active_settings.openrouter_api_key:
+        return fallback_plan
+
+    try:
+        client = llm_client or OpenRouterClient(settings=active_settings)
+        response = await client.complete_chat(_planner_messages(message, schema))
+        return _plan_from_llm_response(
+            response.text,
+            message=message,
+            schema=schema,
+            fallback_plan=fallback_plan,
+        )
+    except (
+        LLMProviderError,
+        ValidationError,
+        json.JSONDecodeError,
+        TypeError,
+        ValueError,
+    ):
+        return fallback_plan
 
 
 def _dataset_summary_plan(explanation: str) -> AnalysisPlan:
@@ -176,3 +247,109 @@ def _resolve_first_prompt_column(message: str, schema: Schema) -> str | None:
 
 def _contains(prompt: str, keywords: frozenset[str]) -> bool:
     return any(keyword in prompt for keyword in keywords)
+
+
+def _planner_messages(message: str, schema: Schema) -> list[ChatMessage]:
+    return [
+        ChatMessage(
+            role="system",
+            content=(
+                "You route data-analysis prompts into one JSON plan. "
+                "Return only JSON with keys: intent, x_column, y_column, explanation. "
+                "Allowed intents: dataset_summary, missing_values, numeric_summary, "
+                "grouped_metric, top_categories, trend_over_time, unknown. "
+                "Use only column keys from the provided schema. Use null when no "
+                "column is required or a safe column is unavailable. Do not write code."
+            ),
+        ),
+        ChatMessage(
+            role="user",
+            content=json.dumps(
+                {
+                    "message": message,
+                    "schema": _compact_schema(schema),
+                },
+                separators=(",", ":"),
+            ),
+        ),
+    ]
+
+
+def _compact_schema(schema: Schema) -> list[dict[str, str]]:
+    compact: list[dict[str, str]] = []
+    for column in schema:
+        key = column.get("key")
+        if not isinstance(key, str) or not key:
+            continue
+        label = column.get("label")
+        data_type = column.get("dataType")
+        compact.append(
+            {
+                "key": key,
+                "label": label if isinstance(label, str) and label else key,
+                "dataType": data_type if isinstance(data_type, str) else "unknown",
+            }
+        )
+    return compact
+
+
+def _plan_from_llm_response(
+    response_text: str,
+    *,
+    message: str,
+    schema: Schema,
+    fallback_plan: AnalysisPlan,
+) -> AnalysisPlan:
+    payload = _LLMPlanPayload.model_validate_json(_extract_json_payload(response_text))
+    if payload.intent is AnalysisIntent.unknown:
+        return fallback_plan
+
+    x_column = _resolve_llm_column(payload.x_column, schema)
+    y_column = _resolve_llm_column(payload.y_column, schema)
+
+    if payload.intent is AnalysisIntent.trend_over_time:
+        x_column = x_column or fallback_plan.x_column or _resolve_time_column(schema)
+        y_column = y_column or fallback_plan.y_column or _resolve_metric_from_prompt(
+            message,
+            schema,
+        )
+    elif payload.intent in {
+        AnalysisIntent.grouped_metric,
+        AnalysisIntent.top_categories,
+    }:
+        x_column = x_column or fallback_plan.x_column or _resolve_category_from_prompt(
+            message,
+            schema,
+        )
+        y_column = y_column or fallback_plan.y_column or _resolve_metric_from_prompt(
+            message,
+            schema,
+        )
+
+    return _plan(
+        intent=payload.intent,
+        title=TITLES_BY_INTENT[payload.intent],
+        artifact_builders=BUILDERS_BY_INTENT[payload.intent],
+        x_column=x_column,
+        y_column=y_column,
+        explanation=_llm_explanation(payload.explanation),
+    )
+
+
+def _extract_json_payload(response_text: str) -> str:
+    text = response_text.strip()
+    match = JSON_BLOCK_PATTERN.fullmatch(text)
+    return match.group(1).strip() if match else text
+
+
+def _resolve_llm_column(column: str | None, schema: Schema) -> str | None:
+    if column is None:
+        return None
+    return resolve_column(column, schema)
+
+
+def _llm_explanation(explanation: str) -> str:
+    clean = " ".join(explanation.split())
+    if not clean:
+        return "LLM-assisted planner selected a validated intent."
+    return f"LLM-assisted planner selected a validated intent. {clean[:240]}"

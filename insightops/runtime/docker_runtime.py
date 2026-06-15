@@ -5,7 +5,7 @@ import subprocess
 import time
 from uuid import uuid4
 
-from insightops.conversation import conversation_store, resolve_followup_plan
+from insightops.conversation import conversation_store, resolve_hybrid_followup_plan
 from insightops.runtime.code_templates import build_dataset_profile_code
 from insightops.runtime.execution_events import (
     RuntimeEventCursor,
@@ -40,7 +40,7 @@ class DockerRuntimeAdapter:
 
     async def stream_events(self, context: RunContext) -> AsyncIterator[dict]:
         cursor = RuntimeEventCursor()
-        plan = resolve_followup_plan(
+        plan = await resolve_hybrid_followup_plan(
             message=context.message,
             schema=context.schema,
             context=context.conversation_context,

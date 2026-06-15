@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { BarChart3, FileText, Table2 } from "lucide-react";
 
 import { ArtifactCard } from "@/components/artifacts/artifact-card";
@@ -15,17 +16,26 @@ export function ArtifactGallery() {
   const setSelectedArtifactForRun = useRunHistoryStore(
     (store) => store.setSelectedArtifactForRun,
   );
-  const activeRunArtifacts = activeRunId
-    ? allArtifacts.filter((artifact) => artifact.runId === activeRunId)
-    : [];
-  const olderArtifacts = activeRunId
-    ? allArtifacts.filter((artifact) => artifact.runId !== activeRunId)
-    : allArtifacts;
-  const artifacts = [...activeRunArtifacts, ...olderArtifacts];
-  const selectedArtifact =
-    artifacts.find((artifact) => artifact.id === selectedArtifactId) ??
-    artifacts[0] ??
-    null;
+  const artifacts = React.useMemo(() => {
+    if (!activeRunId) {
+      return allArtifacts;
+    }
+
+    const activeRunArtifacts = allArtifacts.filter(
+      (artifact) => artifact.runId === activeRunId,
+    );
+    const olderArtifacts = allArtifacts.filter(
+      (artifact) => artifact.runId !== activeRunId,
+    );
+    return [...activeRunArtifacts, ...olderArtifacts];
+  }, [activeRunId, allArtifacts]);
+  const selectedArtifact = React.useMemo(
+    () =>
+      artifacts.find((artifact) => artifact.id === selectedArtifactId) ??
+      artifacts[0] ??
+      null,
+    [artifacts, selectedArtifactId],
+  );
 
   if (!selectedArtifact) {
     return (
@@ -40,8 +50,8 @@ export function ArtifactGallery() {
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
-      <aside className="rounded-2xl border border-white/10 bg-white/[0.03] p-2">
+    <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)]">
+      <aside className="max-h-64 overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-white/[0.03] p-2 lg:max-h-[min(640px,calc(100dvh-220px))]">
         {artifacts.map((artifact) => (
           <button
             key={artifact.id}
@@ -76,7 +86,9 @@ export function ArtifactGallery() {
           </button>
         ))}
       </aside>
-      <ArtifactCard artifact={selectedArtifact} />
+      <div className="min-w-0">
+        <ArtifactCard artifact={selectedArtifact} />
+      </div>
     </div>
   );
 }

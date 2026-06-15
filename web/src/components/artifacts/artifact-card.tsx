@@ -10,8 +10,8 @@ import type { InsightArtifact } from "@/types/artifact";
 
 export function ArtifactCard({ artifact }: { artifact: InsightArtifact }) {
   return (
-    <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-      <div className="mb-4 flex items-start justify-between gap-3">
+    <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <div className="mb-4 flex shrink-0 items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <ArtifactIcon kind={artifact.kind} />
           <div className="min-w-0">
@@ -34,11 +34,17 @@ export function ArtifactCard({ artifact }: { artifact: InsightArtifact }) {
         </button>
       </div>
 
-      {artifact.kind === "table" ? <TableArtifactView artifact={artifact} /> : null}
-      {artifact.kind === "chart" ? <ChartArtifactView artifact={artifact} /> : null}
-      {artifact.kind === "markdown" ? (
-        <MarkdownArtifactView artifact={artifact} />
-      ) : null}
+      <div className="min-h-0 min-w-0 overflow-hidden">
+        {artifact.kind === "table" ? (
+          <TableArtifactView artifact={artifact} />
+        ) : null}
+        {artifact.kind === "chart" ? (
+          <ChartArtifactView artifact={artifact} />
+        ) : null}
+        {artifact.kind === "markdown" ? (
+          <MarkdownArtifactView artifact={artifact} />
+        ) : null}
+      </div>
     </section>
   );
 }

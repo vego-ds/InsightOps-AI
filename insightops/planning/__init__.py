@@ -2,6 +2,12 @@
 
 from insightops.planning.column_resolver import resolve_column
 from insightops.planning.intents import AnalysisIntent, AnalysisPlan
-from insightops.planning.planner import build_analysis_plan
+from insightops.planning.planner import build_analysis_plan, build_hybrid_analysis_plan
 
-__all__ = ["AnalysisIntent", "AnalysisPlan", "build_analysis_plan", "resolve_column"]
+__all__ = [
+    "AnalysisIntent",
+    "AnalysisPlan",
+    "build_analysis_plan",
+    "build_hybrid_analysis_plan",
+    "resolve_column",
+]
