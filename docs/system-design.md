@@ -115,6 +115,8 @@ The dynamic path sends a compact schema and user message as typed `ChatMessage` 
 
 Provider failures are non-fatal by design. `LLMProviderError`, malformed JSON, invalid payloads, timeout/network errors, and schema validation issues all return the deterministic regex plan. Runtime adapters call the hybrid resolver, so configured deployments can interpret more complex natural-language requests while preserving the high-speed deterministic loop as the crash-proof execution path.
 
+The mock runtime simulator also routes payloads through the hybrid resolver before emitting deterministic notebook and artifact events, keeping planner behavior consistent across mock, local Python, and Docker runtime modes.
+
 ## Current Limitations
 
 - No authentication or multi-user authorization.

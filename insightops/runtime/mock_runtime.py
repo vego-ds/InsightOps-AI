@@ -15,16 +15,31 @@ from insightops.api.contracts import (
     RunStatusEvent,
     TableArtifact,
 )
+from insightops.conversation import conversation_store, resolve_hybrid_followup_plan
+from insightops.planning import AnalysisPlan
 from insightops.runtime.repair import build_repair_plan, parse_runtime_failure
 from insightops.runtime.run_context import RunContext
 
 
 class MockRuntimeAdapter:
     async def stream_events(self, context: RunContext) -> AsyncIterator[dict]:
+        plan = await resolve_hybrid_followup_plan(
+            message=context.message,
+            schema=context.schema,
+            context=context.conversation_context,
+        )
+        if context.conversation_id:
+            conversation_store.update_after_plan(
+                conversation_id=context.conversation_id,
+                dataset_id=context.dataset_id,
+                run_id=context.run_id,
+                plan=plan,
+            )
+
         events = (
-            _mock_failure_notebook_events(context)
+            _mock_failure_notebook_events(context, plan)
             if _is_failure_prompt(context.message)
-            else _mock_notebook_events(context)
+            else _mock_notebook_events(context, plan)
         )
 
         for event in events:
@@ -35,7 +50,7 @@ def _is_failure_prompt(message: str) -> bool:
     return any(token in message.casefold() for token in ("error", "fail"))
 
 
-def _mock_notebook_events(context: RunContext):
+def _mock_notebook_events(context: RunContext, plan: AnalysisPlan) -> list:
     run_id = context.run_id
     cell_id = f"{run_id}-cell-profile"
     return [
@@ -44,7 +59,7 @@ def _mock_notebook_events(context: RunContext):
             runId=run_id,
             sequence=1,
             type="run.status",
-            status="agent_planning",
+            status=f"agent_planning:{plan.intent.value}",
         ),
         RunCellStartedEvent(
             version="insightops.run-event.v1",
@@ -86,7 +101,7 @@ def _mock_notebook_events(context: RunContext):
             cellId=cell_id,
             durationMs=184,
         ),
-        *_mock_artifact_events(run_id, start_sequence=6),
+        *_mock_artifact_events(run_id, plan=plan, start_sequence=6),
         RunFinalEvent(
             version="insightops.run-event.v1",
             runId=run_id,
@@ -100,7 +115,7 @@ def _mock_notebook_events(context: RunContext):
     ]
 
 
-def _mock_failure_notebook_events(context: RunContext):
+def _mock_failure_notebook_events(context: RunContext, plan: AnalysisPlan) -> list:
     run_id = context.run_id
     failed_cell_id = f"{run_id}-cell-failed-profile"
     traceback = (
@@ -120,7 +135,7 @@ def _mock_failure_notebook_events(context: RunContext):
             runId=run_id,
             sequence=1,
             type="run.status",
-            status="agent_planning",
+            status=f"agent_planning:{plan.intent.value}",
         ),
         RunCellStartedEvent(
             version="insightops.run-event.v1",
@@ -199,7 +214,7 @@ def _mock_failure_notebook_events(context: RunContext):
             repairCellId=repair_plan.repair_cell_id,
             outcome="Runtime repair completed; recovered cell output is available.",
         ),
-        *_mock_artifact_events(run_id, start_sequence=10),
+        *_mock_artifact_events(run_id, plan=plan, start_sequence=10),
         RunFinalEvent(
             version="insightops.run-event.v1",
             runId=run_id,
@@ -213,7 +228,14 @@ def _mock_failure_notebook_events(context: RunContext):
     ]
 
 
-def _mock_artifact_events(run_id: str, start_sequence: int) -> list[RunArtifactEvent]:
+def _mock_artifact_events(
+    run_id: str,
+    *,
+    plan: AnalysisPlan,
+    start_sequence: int,
+) -> list[RunArtifactEvent]:
+    x_label = plan.x_column or "dataset"
+    y_label = plan.y_column or "records"
     return [
         RunArtifactEvent(
             version="insightops.run-event.v1",
@@ -221,15 +243,17 @@ def _mock_artifact_events(run_id: str, start_sequence: int) -> list[RunArtifactE
             sequence=start_sequence,
             type="artifact",
             artifact=TableArtifact(
-                id=f"{run_id}-table-summary",
+                id=f"{run_id}-table-{plan.intent.value}",
                 kind="table",
-                title="Mock KPI Summary",
+                title=f"Mock {plan.title} Summary",
                 columns=[
                     {"key": "metric", "label": "Metric", "dataType": "string"},
                     {"key": "value", "label": "Value", "dataType": "string"},
                 ],
                 rows=[
-                    {"metric": "Preview rows inspected", "value": 50},
+                    {"metric": "Selected intent", "value": plan.intent.value},
+                    {"metric": "X column", "value": plan.x_column},
+                    {"metric": "Y column", "value": plan.y_column},
                     {"metric": "Mock quality status", "value": "ready"},
                 ],
             ),
@@ -240,16 +264,16 @@ def _mock_artifact_events(run_id: str, start_sequence: int) -> list[RunArtifactE
             sequence=start_sequence + 1,
             type="artifact",
             artifact=ChartArtifact(
-                id=f"{run_id}-chart-revenue",
+                id=f"{run_id}-chart-{plan.intent.value}",
                 kind="chart",
-                title="Mock Revenue Trend",
+                title=f"Mock {plan.title} Chart",
                 chartType="bar",
-                xKey="period",
-                yKey="revenue",
+                xKey=x_label,
+                yKey=y_label,
                 data=[
-                    {"period": "Jan", "revenue": 1350},
-                    {"period": "Feb", "revenue": 2100},
-                    {"period": "Mar", "revenue": 1800},
+                    {x_label: "Segment A", y_label: 1350},
+                    {x_label: "Segment B", y_label: 2100},
+                    {x_label: "Segment C", y_label: 1800},
                 ],
             ),
         ),
@@ -259,12 +283,13 @@ def _mock_artifact_events(run_id: str, start_sequence: int) -> list[RunArtifactE
             sequence=start_sequence + 2,
             type="artifact",
             artifact=MarkdownArtifact(
-                id=f"{run_id}-markdown-note",
+                id=f"{run_id}-markdown-{plan.intent.value}",
                 kind="markdown",
-                title="Mock Analysis Note",
+                title=f"Mock {plan.title} Note",
                 text=(
-                    "This is a deterministic placeholder artifact. "
-                    "No runtime execution or model inference was performed."
+                    f"Mock runtime routed the request as {plan.intent.value}. "
+                    "Artifacts are deterministic placeholders and no sandbox "
+                    "execution was performed."
                 ),
             ),
         ),

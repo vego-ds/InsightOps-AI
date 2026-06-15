@@ -1,5 +1,6 @@
 import asyncio
 
+from insightops.planning import AnalysisIntent, AnalysisPlan
 from insightops.runtime import MockRuntimeAdapter, RunContext
 
 
@@ -41,6 +42,34 @@ def test_mock_runtime_sequence_numbers_are_monotonic() -> None:
 
     assert sequences == sorted(sequences)
     assert len(sequences) == len(set(sequences))
+
+
+def test_mock_runtime_uses_hybrid_planner(monkeypatch) -> None:
+    async def fake_resolver(**_kwargs) -> AnalysisPlan:
+        return AnalysisPlan(
+            intent=AnalysisIntent.grouped_metric,
+            title="Grouped Metric",
+            requested_columns=["region", "revenue"],
+            artifact_builders=["build_grouped_metric_table"],
+            x_column="region",
+            y_column="revenue",
+            explanation="Injected hybrid plan.",
+        )
+
+    monkeypatch.setattr(
+        "insightops.runtime.mock_runtime.resolve_hybrid_followup_plan",
+        fake_resolver,
+    )
+
+    events = _collect_events(_context("custom request"))
+
+    assert events[0]["status"] == "agent_planning:grouped_metric"
+    artifact_titles = [
+        event["artifact"]["title"]
+        for event in events
+        if event["type"] == "artifact"
+    ]
+    assert "Mock Grouped Metric Summary" in artifact_titles
 
 
 def _collect_events(context: RunContext) -> list[dict]:
